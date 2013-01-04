@@ -1,0 +1,104 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{d44a709f-8e6b-4d84-88c8-e64bab523509}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Link Libraries">
+      <UniqueIdentifier>{a897f6bd-e2ed-44e2-819e-cee762dd98cd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{58f08a39-f3a4-4b52-86c9-50d2736cd6a2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{7473dcc1-b5a7-4f71-84ae-bd3a92c00dd8}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="QC_Eyes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="QC_EyesDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="StdAfx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="QC_Eyes.rc">
+      <Filter>Source Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\..\lib\public\tier0.lib">
+      <Filter>Link Libraries</Filter>
+    </Library>
+    <Library Include="..\..\lib\public\tier1.lib">
+      <Filter>Link Libraries</Filter>
+    </Library>
+    <Library Include="..\..\lib\public\vstdlib.lib">
+      <Filter>Link Libraries</Filter>
+    </Library>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\bitmap1.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_default.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_lower_hi.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_lower_lo.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_lower_mid.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_upper_hi.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_upper_lo.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_upper_mid.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_XY_L.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_XY_R.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_Z_L.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\eye_Z_R.bmp">
+      <Filter>Resources</Filter>
+    </Image>
+    <Image Include="res\QC_Eyes.ico">
+      <Filter>Resources</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="res\QC_Eyes.rc2">
+      <Filter>Resources</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="QC_Eyes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="QC_EyesDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StdAfx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>

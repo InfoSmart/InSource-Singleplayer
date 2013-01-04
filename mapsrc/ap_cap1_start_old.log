@@ -1,0 +1,141 @@
+================== VBSP ==================
+
+
+
+materialPath: c:\program files (x86)\steam\steamapps\sourcemods\apocalypse\materials
+Loading C:\Users\Kolesias123\Google Drive\InfoSmart\Proyectos - Juegos\Apocalypse\mapsrc\ap_cap1_start.vmf
+Patching WVT material: maps/ap_cap1_start/concrete/blendconcretedebris001a_wvt_patch
+fixing up env_cubemap materials on brush sides...
+0...1...2...3...4...5...6...7...8...9...100...1...2...3...4...5...6...7...8...9...10Processing areas...done (0)
+Building Faces...done (0)
+Chop Details...done (0)
+Find Visible Detail Sides...done (0)
+Merging details...done (0)
+FixTjuncs...
+PruneNodes...
+WriteBSP...
+done (0)
+writing C:\Users\Kolesias123\Google Drive\InfoSmart\Proyectos - Juegos\Apocalypse\mapsrc\ap_cap1_start.prt...Building visibility clusters...
+done (0)
+Creating default LDR cubemaps for env_cubemap using skybox materials:
+   skybox/sky_day01_09*.vmt
+ ! Run buildcubemaps in the engine to get the correct cube maps.
+Creating default HDR cubemaps for env_cubemap using skybox materials:
+   skybox/sky_day01_09*.vmt
+ ! Run buildcubemaps in the engine to get the correct cube maps.
+Finding displacement neighbors...
+Finding lightmap sample positions...
+Displacement Alpha : 0...1...2...3...4...5...6...7...8...9...10
+Building Physics collision data...
+done (0) (69139 bytes)
+Error! To use model "models/skeleton/skeleton_torso.mdl"
+      with prop_static, it must be compiled with $staticprop!
+Error loading studio model "models/skeleton/skeleton_torso.mdl"!
+Error loading studio model ""!
+Placing detail props : 0...1...2...3...4...5...6...7...8...9...10
+Compacting texture/material tables...
+Reduced 253 texinfos to 133
+Reduced 44 texdatas to 32 (1841 bytes to 1393)
+Writing C:\Users\Kolesias123\Google Drive\InfoSmart\Proyectos - Juegos\Apocalypse\mapsrc\ap_cap1_start.bsp
+2 seconds elapsed
+
+================== VVIS ==================
+
+
+
+
+2 threads
+reading c:\users\kolesias123\google drive\infosmart\proyectos - juegos\apocalypse\mapsrc\ap_cap1_start.bsp
+reading c:\users\kolesias123\google drive\infosmart\proyectos - juegos\apocalypse\mapsrc\ap_cap1_start.prt
+ 405 portalclusters
+ 995 numportals
+0...1...2...3...4...5...6...7...8...9...10Optimized: 2421 visible clusters (0.00%)
+Total clusters visible: 66391
+Average clusters visible: 163
+Building PAS...
+Average clusters audible: 397
+visdatasize:42277  compressed from 45360
+writing c:\users\kolesias123\google drive\infosmart\proyectos - juegos\apocalypse\mapsrc\ap_cap1_start.bsp
+0 seconds elapsed
+
+================== VRAD ==================
+
+
+
+
+Could not find lights.rad in lights.rad.
+Trying VRAD BIN directory instead...
+Warning: Couldn't open texlight file c:\program files (x86)\steam\steamapps\kolesias123\sourcesdk\bin\source2007\bin\lights.rad.
+Loading c:\users\kolesias123\google drive\infosmart\proyectos - juegos\apocalypse\mapsrc\ap_cap1_start.bsp
+1227 faces
+218887 square feet [31519800.00 square inches]
+0 Displacements
+0 Square Feet [0.00 Square Inches]
+1227 patches before subdivision
+3615 patches after subdivision
+light has _fifty_percent_distance of 20.000000 but _zero_percent_distance of 0.000000
+17 direct lights
+0...1...2...3...4...5...6...7...8...9...100...1...2...3...4...5...6...7...8...9...10transfers 329805, max 556
+transfer lists:   2.5 megs
+0...1...2...3...4...5...6...7...8...9...10	Bounce #1 added RGB(53, 55, 49)
+0...1...2...3...4...5...6...7...8...9...10	Bounce #2 added RGB(5, 4, 3)
+0...1...2...3...4...5...6...7...8...9...10	Bounce #3 added RGB(0, 0, 0)
+Build Patch/Sample Hash Table(s).....Done<0.0014 sec>
+0...1...2...3...4...5...6...7...8...9...10FinalLightFace Done
+0 of 0 (0% of) surface lights went in leaf ambient cubes.
+0...1...2...3...4...5...6...7...8...9...10Writing leaf ambient...done
+Ready to Finish
+
+Object names       Objects/Maxobjs  Memory / Maxmem  Fullness 
+------------       ---------------  ---------------  -------- 
+models                  11/1024          528/49152    ( 1.1%) 
+brushes                176/8192         2112/98304    ( 2.1%) 
+brushsides            1119/65536        8952/524288   ( 1.7%) 
+planes                 740/65536       14800/1310720  ( 1.1%) 
+vertexes              2290/65536       27480/786432   ( 3.5%) 
+nodes                  951/65536       30432/2097152  ( 1.5%) 
+texinfos               133/12288        9576/884736   ( 1.1%) 
+texdata                 32/2048         1024/65536    ( 1.6%) 
+dispinfos                0/0               0/0        ( 0.0%) 
+disp_verts               0/0               0/0        ( 0.0%) 
+disp_tris                0/0               0/0        ( 0.0%) 
+disp_lmsamples           0/0               0/0        ( 0.0%) 
+faces                 1227/65536       68712/3670016  ( 1.9%) 
+hdr faces                0/65536           0/3670016  ( 0.0%) 
+origfaces              375/65536       21000/3670016  ( 0.6%) 
+leaves                 963/65536       30816/2097152  ( 1.5%) 
+leaffaces             1442/65536        2884/131072   ( 2.2%) 
+leafbrushes            745/65536        1490/131072   ( 1.1%) 
+areas                    2/256            16/2048     ( 0.8%) 
+surfedges             7503/512000      30012/2048000  ( 1.5%) 
+edges                 4215/256000      16860/1024000  ( 1.6%) 
+LDR worldlights         17/8192         1496/720896   ( 0.2%) 
+HDR worldlights          0/8192            0/720896   ( 0.0%) 
+leafwaterdata            0/32768           0/393216   ( 0.0%) 
+waterstrips            157/32768        1570/327680   ( 0.5%) 
+waterverts               0/65536           0/786432   ( 0.0%) 
+waterindices          2487/65536        4974/131072   ( 3.8%) 
+cubemapsamples           6/1024           96/16384    ( 0.6%) 
+overlays                 0/512             0/180224   ( 0.0%) 
+LDR lightdata         [variable]      530360/0        ( 0.0%) 
+HDR lightdata         [variable]           0/0        ( 0.0%) 
+visdata               [variable]       42277/16777216 ( 0.3%) 
+entdata               [variable]       66929/393216   (17.0%) 
+LDR ambient table      963/65536        3852/262144   ( 1.5%) 
+HDR ambient table      963/65536        3852/262144   ( 1.5%) 
+LDR leaf ambient       518/65536       14504/1835008  ( 0.8%) 
+HDR leaf ambient       963/65536       26964/1835008  ( 1.5%) 
+occluders                0/0               0/0        ( 0.0%) 
+occluder polygons        0/0               0/0        ( 0.0%) 
+occluder vert ind        0/0               0/0        ( 0.0%) 
+detail props          [variable]           1/12       ( 8.3%) 
+static props          [variable]           1/6376     ( 0.0%) 
+pakfile               [variable]      747458/0        ( 0.0%) 
+physics               [variable]       69139/4194304  ( 1.6%) 
+physics terrain       [variable]           2/1048576  ( 0.0%) 
+
+Level flags = 0
+
+Total triangle count: 3525
+Writing c:\users\kolesias123\google drive\infosmart\proyectos - juegos\apocalypse\mapsrc\ap_cap1_start.bsp
+8 seconds elapsed

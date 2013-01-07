@@ -1,8 +1,10 @@
 //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
-// NPC BASE
+// NPC Grunt
 //
-// Usa este archivo para hacer una base al crear un nuevo NPC.
+// Soldado alienigena sacado de Black Mesa: Source
+// En Apocalypse es un soldado de la empresa "malvada". ¡Tiene mucha vida!
+// Inspiración: "Tank" de Left 4 Dead
 //
 //=====================================================================================//
 
@@ -50,27 +52,42 @@
 #include "tier0/memdbgon.h"
 
 //=========================================================
-// Definición de variables de configuración.
+// Definición de variables para la configuración.
 //=========================================================
 
-ConVar sk_grunt_health		("sk_grunt_health", "0", 0, "Salud del NPC");
-ConVar sk_grunt_debug_health("sk_grunt_debug_health", "0", 0, "Ver la salud del NPC");
+ConVar sk_grunt_health		("sk_grunt_health", "0", 0, "Salud del Grunt");
+ConVar sk_grunt_debug_health("sk_grunt_debug_health", "0", 0, "Muestra la salud del Grunt en la consola");
 ConVar sk_grunt_dmg_high	("sk_grunt_dmg_high", "0", 0, "Daño causado por un golpe alto");
 ConVar sk_grunt_dmg_low		("sk_grunt_dmg_low", "0", 0, "Daño causado por un golpe bajo");
 
+// Necesario para la música de fondo.
 extern ISoundEmitterSystemBase *soundemitterbase;
 
 //=========================================================
 // Configuración del NPC
 //=========================================================
 
-// Predeterminado
+// Modelo
 #define MODEL_BASE		"models/xenians/agrunt.mdl"
+
+// ¿Qué capacidades tendrá?
+// Moverse en el suelo - Ataque cuerpo a cuerpo 1 - Ataque cuerpo a cuerpo 2 - Saltar (Bug) - Trepar (No probado) - Girar la cabeza
 #define CAPABILITIES	bits_CAP_MOVE_GROUND | bits_CAP_INNATE_MELEE_ATTACK1 | bits_CAP_INNATE_MELEE_ATTACK2 | bits_CAP_MOVE_JUMP | bits_CAP_MOVE_CLIMB | bits_CAP_TURN_HEAD
+
+// Color de la sangre.
 #define BLOOD			BLOOD_COLOR_YELLOW
+
+// Distancia de visibilidad.
 #define SEE_DIST		9000.0
 
-// Opciones extra - Flags
+// Campo de visión
+#define FOV				-0.5
+
+// Propiedades
+// No disolverse (Con la bola de energía) - No morir con la super arma de gravedad.
+#define EFLAGS			EFL_NO_DISSOLVE | EFL_NO_MEGAPHYSCANNON_RAGDOLL
+
+// Opciones extra - Flags (Para el Hammer Editor)
 #define SF_GRUNT_NO_BACKGROUND_MUSIC	0x00010000
 
 // Lanzar objetos
@@ -167,10 +184,11 @@ void CNPC_Grunt::Spawn()
 	SetRenderColor(255, 255, 255, 255);
 	SetDistLook(SEE_DIST);
 
+	// Reseteo de variables.
 	// Salud, estado del NPC y vista.
 	m_iHealth				= sk_grunt_health.GetFloat();
 	m_NPCState				= NPC_STATE_IDLE;
-	m_flFieldOfView			= -0.5;
+	m_flFieldOfView			= FOV;
 
 	// Más información
 	m_flNextThrow				= gpGlobals->curtime;
@@ -184,7 +202,7 @@ void CNPC_Grunt::Spawn()
 	CapabilitiesAdd(CAPABILITIES);
 
 	// Caracteristicas
-	AddEFlags(EFL_NO_DISSOLVE | EFL_NO_MEGAPHYSCANNON_RAGDOLL);
+	AddEFlags(EFLAGS);
 
 	RegisterThinkContext("MusicBackgroundThink");
 	SetContextThink(&CNPC_Grunt::MusicThink, gpGlobals->curtime, "MusicBackgroundThink");
@@ -344,6 +362,9 @@ float CNPC_Grunt::MaxYawSpeed()
 //=========================================================
 void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 {
+	const char *pName = EventList_NameForIndex(pEvent->event);
+	DevMsg("GRUNT: Se ha producido el evento %s \n", pName);
+
 	if (pEvent->event == AE_AGRUNT_MELEE_ATTACK_HIGH)
 	{
 		MeleeAttack1();
@@ -355,9 +376,6 @@ void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 		MeleeAttack2();
 		return;
 	}
-
-	const char *pName = EventList_NameForIndex(pEvent->event);
-	Msg("Evento: %s \n", pName);
 
 	if(pEvent->event == NPC_EVENT_LEFTFOOT || pEvent->event == NPC_EVENT_RIGHTFOOT)
 	{

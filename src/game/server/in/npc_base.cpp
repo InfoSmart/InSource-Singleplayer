@@ -8,27 +8,31 @@
 
 #include "cbase.h"
 #include "game.h"
+
 #include "ai_hint.h"
 #include "ai_squad.h"
 #include "ai_senses.h"
 #include "ai_moveprobe.h"
 #include "ai_route.h"
 #include "ai_navigator.h"
-#include "npc_base.h" // Cambiame
+
+#include "npc_base.h" // Cambiame a la cabecera del este archivo.
+
 #include "npcevent.h"
-#include "soundent.h"
 #include "activitylist.h"
+
+#include "soundent.h"
+#include "entitylist.h"
+#include "engine/IEngineSound.h"
+
 #include "weapon_brickbat.h"
-#include "npc_headcrab.h"
+#include "ammodef.h"
+
 #include "player.h"
 #include "gamerules.h"
-#include "ammodef.h"
-#include "grenade_spit.h"
-#include "grenade_brickbat.h"
-#include "entitylist.h"
 #include "shake.h"
+
 #include "vstdlib/random.h"
-#include "engine/IEngineSound.h"
 #include "movevars_shared.h"
 #include "particle_parse.h"
 
@@ -36,7 +40,7 @@
 #include "tier0/memdbgon.h"
 
 //=========================================================
-// Definición de variables de configuración.
+// Definición de variables para la configuración.
 //=========================================================
 
 ConVar in_basenpc_health("sk_basenpc_health", "0", 0, "Salud del NPC");
@@ -45,9 +49,21 @@ ConVar in_basenpc_health("sk_basenpc_health", "0", 0, "Salud del NPC");
 // Configuración del NPC
 //=========================================================
 
+// Modelo
 #define MODEL_BASE		"models/.mdl"
+
+// ¿Qué capacidades tendrá?
+// Moverse en el suelo - Ataque cuerpo a cuerpo 1 - Ataque cuerpo a cuerpo 2
 #define CAPABILITIES	bits_CAP_MOVE_GROUND | bits_CAP_INNATE_MELEE_ATTACK1 | bits_CAP_INNATE_MELEE_ATTACK2
+
+// Color de la sangre.
 #define BLOOD			BLOOD_COLOR_YELLOW
+
+// Distancia de visibilidad.
+#define SEE_DIST		300.0
+
+// Campo de visión
+#define FOV				0.2
 
 //=========================================================
 // Tareas programadas
@@ -114,11 +130,13 @@ void CNPC_Base::Spawn()
 	SetMoveType(MOVETYPE_STEP);
 	
 	SetRenderColor(255, 255, 255, 255);
+	SetDistLook(SEE_DIST);
 
+	// Reseteo de variables.
 	// Salud, estado del NPC y vista.
 	m_iHealth			= in_basenpc_health.GetFloat();
-	m_flFieldOfView		= 0.2;
 	m_NPCState			= NPC_STATE_NONE;
+	m_flFieldOfView		= FOV;
 
 	// Capacidades
 	CapabilitiesClear();
@@ -165,7 +183,7 @@ Class_T	CNPC_Base::Classify()
 void CNPC_Base::IdleSound()
 {
 	EmitSound("NPC_Base.Idle");
-}
+} 
 
 //=========================================================
 // PainSound()
@@ -237,8 +255,14 @@ float CNPC_Base::MaxYawSpeed()
 //=========================================================
 void CNPC_Base::HandleAnimEvent(animevent_t *pEvent)
 {
-	/*if (pEvent->event == AE_SQUID_RANGE_ATTACK1)
+	// DEBUG
+	// Eliminalo cuando esto este listo.
+	const char *pName = EventList_NameForIndex(pEvent->event);
+	DevMsg("NPC: Se ha producido el evento %s \n", pName);
+
+	/*if (pEvent->event == AE_AGRUNT_MELEE_ATTACK_HIGH)
 	{
+		MeleeAttack1();
 		return;
 	}*/
 
@@ -250,8 +274,14 @@ void CNPC_Base::HandleAnimEvent(animevent_t *pEvent)
 // Ataque cuerpo a cuerpo #1
 // En este caso: 
 //=========================================================
-void CNPC_Grunt::MeleeAttack1()
+void CNPC_Base::MeleeAttack1()
 {
+	/*
+		Ataque cuerpo a cuerpo ¡Ejemplo!
+		En este código el NPC aventará y empujara al usuario con un golpe.
+		Esto es solo un ejemplo, modifique o elimine.
+	*/
+
 	// Atacar
 	CBaseEntity *pHurt = CheckTraceHullAttack(70, Vector(-16,-16,-16), Vector(16,16,16), sk_grunt_dmg_high.GetFloat(), DMG_SLASH | DMG_ALWAYSGIB);
 
@@ -261,10 +291,11 @@ void CNPC_Grunt::MeleeAttack1()
 		Vector forward, up;
 		AngleVectors(GetAbsAngles(), &forward, NULL, &up);
 
-		// Aventarlo por los aires.
+		// Aturdirlo
 		if (pHurt->GetFlags() & (FL_NPC | FL_CLIENT))
 			 pHurt->ViewPunch(QAngle(70, 0, -70));
-			
+		
+		// Aventarlo por los aires.
 		pHurt->ApplyAbsVelocityImpulse(400 * (up + 1*forward));
 	}
 
@@ -276,17 +307,18 @@ void CNPC_Grunt::MeleeAttack1()
 // Ataque cuerpo a cuerpo #2
 // En este caso: 
 //=========================================================
-void CNPC_Grunt::MeleeAttack2()
+void CNPC_Base::MeleeAttack2()
 {
 }
 
 //=========================================================
 // MeleeAttack1Conditions()
 // Verifica si es conveniente hacer un ataque cuerpo a cuerpo.
-// En este caso: Ataque de cola.
+// En este caso: 
 //=========================================================
 int CNPC_Base::MeleeAttack1Conditions(float flDot, float flDist)
 {
+	// Lo tengo a mi alcanze
 	if (flDist <= 85 && flDot >= 0.7)
 		return COND_CAN_MELEE_ATTACK1;
 	
@@ -296,10 +328,11 @@ int CNPC_Base::MeleeAttack1Conditions(float flDot, float flDist)
 //=========================================================
 // MeleeAttack2Conditions()
 // Verifica si es conveniente hacer un ataque cuerpo a cuerpo.
-// En este caso: Mordida
+// En este caso: 
 //=========================================================
 int CNPC_Base::MeleeAttack2Conditions(float flDot, float flDist)
 {
+	// Lo tengo a mi alcanze y no haremos el primer ataque cuerpo a cuerpo.
 	if (flDist <= 85 && flDot >= 0.7 && !HasCondition(COND_CAN_MELEE_ATTACK1))
 		 return COND_CAN_MELEE_ATTACK2;
 	
@@ -323,25 +356,34 @@ int CNPC_Base::SelectSchedule()
 {
 	switch	(m_NPCState)
 	{
+		// Alerta
+		// Hemos detectado o estamos sintiendo a un enemigo cercano.
 		case NPC_STATE_ALERT:
 		{
 			break;
 		}
 
+		// Combate
+		// Estamos atacando a un enemigo.
 		case NPC_STATE_COMBAT:
 		{
+			// ¿Enemigo muerto? Pasemos a la siguiente tarea...
 			if (HasCondition(COND_ENEMY_DEAD))
 				return BaseClass::SelectSchedule();
 
+			// ¡Un nuevo enemigo!
 			if (HasCondition(COND_NEW_ENEMY))
 				return SCHED_WAKE_ANGRY;
 
+			// Ataque cuerpo a cuerpo 1
 			if (HasCondition(COND_CAN_MELEE_ATTACK1))
 				return SCHED_MELEE_ATTACK1;
 
+			// Ataque cuerpo a cuerpo 2
 			if (HasCondition(COND_CAN_MELEE_ATTACK2))
 				return SCHED_MELEE_ATTACK2;
 
+			// Vigilando en busca de enemigos.
 			return SCHED_CHASE_ENEMY;
 			break;
 		}

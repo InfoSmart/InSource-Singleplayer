@@ -353,7 +353,7 @@ FileWeaponInfo_t::FileWeaponInfo_t()
 	m_bAllowFlipping	= true;
 	m_bBuiltRightHanded = true;
 
-	m_slowSpeed			= 0;
+	m_WeaponWeight		= 0;
 }
 
 #ifdef CLIENT_DLL
@@ -494,6 +494,6 @@ void FileWeaponInfo_t::Parse( KeyValues *pKeyValuesData, const char *szWeaponNam
 		m_expOriOffset.Init();
 	}
 
-	m_slowSpeed = pKeyValuesData->GetFloat("slow_speed", 0.0f);
+	m_WeaponWeight = pKeyValuesData->GetFloat("weapon_weight", 0.0f);
 }
 

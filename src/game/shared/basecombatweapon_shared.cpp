@@ -1643,7 +1643,7 @@ void CBaseCombatWeapon::ItemPostFrame()
 		// no fire buttons down or reloading
 		if ( !ReloadOrSwitchWeapons() && ( m_bInReload == false ) )
 		{
-			ReloadInIdle(); // Apocalypse - Recargar segun arma.
+			//ReloadInIdle(); // Apocalypse - Recargar segun arma.
 			WeaponIdle();
 		}
 	}

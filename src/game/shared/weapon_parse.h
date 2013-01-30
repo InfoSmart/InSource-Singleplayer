@@ -131,7 +131,7 @@ public:
 	Vector m_expOffset; //ADDED
 	QAngle m_expOriOffset; //ADDED
 
-	float m_slowSpeed; 
+	float m_WeaponWeight; 
 	int m_iPlayerDamage;
 
 // SERVER DLL

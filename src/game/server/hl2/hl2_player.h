@@ -173,9 +173,6 @@ public:
 	// Locator
 	void UpdateLocatorPosition( const Vector &vecPosition );
 
-	float CalcWeaponSpeed(float speed);
-	float CalcWeaponSpeed(float speed, CBaseCombatWeapon *pWeapon);
-
 	// Sprint Device
 	void StartAutoSprint();
 	void StartSprinting();

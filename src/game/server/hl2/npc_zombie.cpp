@@ -168,6 +168,9 @@ public:
 	void FootscuffSound(bool fRightFoot);
 
 	const char *GetMoanSound(int nSound);
+
+	//float GetIdealAccel() const;
+	//float GetIdealSpeed() const;
 	
 public:
 	DEFINE_CUSTOM_AI;
@@ -295,14 +298,13 @@ void CZombie::Spawn()
 
 	if(FClassnameIs(this, "npc_zombie"))
 		m_fIsTorso	= false;
-	
 	else
 		m_fIsTorso	= true;
 
 	m_fIsHeadless	= false;
 
 	// Color de la sangre.
-	SetBloodColor(BLOOD_COLOR_GREEN);
+	SetBloodColor(BLOOD_COLOR_RED);
 
 	m_iHealth			= sk_zombie_health.GetFloat();
 	m_flFieldOfView		= 0.2;
@@ -313,6 +315,10 @@ void CZombie::Spawn()
 
 	// La próxima vez que "gemire"
 	m_flNextMoanSound = gpGlobals->curtime + random->RandomFloat(1.0, 4.0);
+
+	// Deben ser más rápidos que en HL2
+	SetAddSpeed(70);
+	SetAddAccel(30);
 }
 
 //----------------------------------------------------
@@ -446,8 +452,6 @@ const char *CZombie::GetMoanSound(int nSound)
 //----------------------------------------------------
 void CZombie::IdleSound()
 {
-	Msg("Velocidad %f \r\n", m_flGroundSpeed);
-
 	// Evitamos sonidos constantes.
 	if(GetState() == NPC_STATE_IDLE && random->RandomFloat(0, 1) == 0)
 		return;

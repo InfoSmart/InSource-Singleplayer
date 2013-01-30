@@ -668,7 +668,9 @@ void CFastZombie::Spawn( void )
 	SetBloodColor( BLOOD_COLOR_YELLOW );
 #endif // HL2_EPISODIC
 
-	m_iHealth			= 50;
+	ConVarRef sk_zombie_health("sk_zombie_health");
+
+	m_iHealth			= sk_zombie_health.GetInt() + 5;
 	m_flFieldOfView		= 0.2;
 
 	CapabilitiesClear();

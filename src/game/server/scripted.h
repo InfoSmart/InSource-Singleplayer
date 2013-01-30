@@ -134,6 +134,7 @@ public:
 
 	// Dynamic scripted sequence spawning
 	void ForceSetTargetEntity( CAI_BaseNPC *pTarget, bool bDontCancelOtherSequences );
+	void SetTargetName(string_t *pTarget, bool bDontCancelOtherSequences);
 
 	// Dynamic interactions
 	void SetupInteractionPosition( CBaseEntity *pRelativeEntity, VMatrix &matDesiredLocalToWorld );
@@ -223,6 +224,67 @@ private:
 	EHANDLE		m_hInteractionRelativeEntity;
 
 	int			m_iPlayerDeathBehavior;
+};
+
+//-----------------------------------------------------------------------------
+// Purpose: Modifies an NPC's AI state without taking it out of its AI.
+//-----------------------------------------------------------------------------
+
+enum Schedule_t
+{
+	SCHED_SCRIPT_NONE = 0,
+	SCHED_SCRIPT_WALK_TO_GOAL,
+	SCHED_SCRIPT_RUN_TO_GOAL,
+	SCHED_SCRIPT_ENEMY_IS_GOAL,
+	SCHED_SCRIPT_WALK_PATH_GOAL,
+	SCHED_SCRIPT_RUN_PATH_GOAL,
+	SCHED_SCRIPT_ENEMY_IS_GOAL_AND_RUN_TO_GOAL,
+};
+
+class CAI_ScriptedSchedule : public CBaseEntity
+{
+	DECLARE_CLASS( CAI_ScriptedSchedule, CBaseEntity );
+public:
+	CAI_ScriptedSchedule( void );
+
+	void StartSchedule( CAI_BaseNPC *pTarget );
+	void StopSchedule( CAI_BaseNPC *pTarget );
+
+	void SetTargetName(string_t pTarget) { m_iszEntity = pTarget; }
+	void SetNPCState(NPC_STATE pState) { m_nForceState = pState; }
+	void SetSchedule(Schedule_t pSchedule) { m_nSchedule = pSchedule; }
+	void SetInterruptability(Interruptability_t pInterrump) { m_Interruptability = pInterrump; }
+	void SetGoalEnt(string_t pEntity) { m_sGoalEnt = pEntity; }
+
+private:
+	void ScriptThink( void );
+
+	// Input handlers
+	void InputStartSchedule( inputdata_t &inputdata );
+	void InputStopSchedule( inputdata_t &inputdata );
+
+	CAI_BaseNPC *FindScriptEntity(  bool bCyclic );
+
+	EHANDLE 	m_hLastFoundEntity;
+	EHANDLE		m_hActivator;		// Held from the input to allow procedural calls
+
+	string_t 	m_iszEntity;		// Entity that is wanted for this script
+	float 		m_flRadius;			// Range to search for an NPC to possess.
+
+	string_t 	m_sGoalEnt;
+	Schedule_t	m_nSchedule;
+	int 		m_nForceState;
+	
+	bool		m_bGrabAll;
+
+	Interruptability_t m_Interruptability;
+
+	bool		m_bDidFireOnce;
+	
+	//---------------------------------
+
+	DECLARE_DATADESC();
+
 };
 
 

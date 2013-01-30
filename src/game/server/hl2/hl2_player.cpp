@@ -48,6 +48,8 @@
 #include "filters.h"
 #include "tier0/icommandline.h"
 
+//#include "director.h"
+
 #ifdef HL2_EPISODIC
 #include "npc_alyx_episodic.h"
 #endif
@@ -80,14 +82,6 @@ ConVar sv_stickysprint						("sv_stickysprint", "0", FCVAR_ARCHIVE | FCVAR_ARCHI
 
 ConVar test_massive_dmg						("test_massive_dmg", "30");
 ConVar test_massive_dmg_clip				("test_massive_dmg_clip", "0.5");
-
-//=========================================================
-// InSource - Definición de variables de configuración.
-//---------------------------------------------------
-
-ConVar in_player_model		("in_player_model", "models/abigail.mdl", FCVAR_REPLICATED, "Define el modelo del jugador");
-ConVar in_flashlight		("in_flashlight", "1", 0, "Activa o desactiva el uso de la linterna.");
-ConVar in_beginner_weapon	("in_beginner_weapon", "0", 0, "Al estar activado se hacen los efectos de ser principante manejando un arma.");
 
 //=========================================================
 // Definiciones
@@ -366,6 +360,8 @@ BEGIN_DATADESC(CHL2_Player)
 	DEFINE_FIELD(m_hLocatorTargetEntity, FIELD_EHANDLE),
 	DEFINE_FIELD(m_flTimeNextLadderHint, FIELD_TIME),
 
+	//DEFINE_THINKFUNC(GruntMusicThink),
+
 END_DATADESC()
 
 CHL2_Player::CHL2_Player()
@@ -424,7 +420,7 @@ void CHL2_Player::Precache()
 	PrecacheScriptSound("HL2Player.Use");
 	PrecacheScriptSound("HL2Player.BurnPain");
 
-	PrecacheModel(in_player_model.GetString());
+	//PrecacheModel(in_player_model.GetString());
 }
 
 //=========================================================
@@ -489,53 +485,8 @@ void CHL2_Player::RemoveSuit()
 //=========================================================
 void CHL2_Player::HandleSpeedChanges()
 {
-	int buttonsChanged	= m_afButtonPressed | m_afButtonReleased;
-	bool bCanSprint		= CanSprint();
-	bool bIsSprinting	= IsSprinting();
-	bool bWantSprint	= (bCanSprint && IsSuitEquipped() && (m_nButtons & IN_SPEED));
-
-	// Al parecer el jugador desea correr.
-	if (bIsSprinting != bWantSprint && (buttonsChanged & IN_SPEED))
-	{
-		// En esta sección se verifica que el jugador realmente esta presionando el boton indicado para correr.
-		// Ten en cuenta que el comando "sv_stickysprint" sirve para activar el modo de "correr sin mantener presionado el boton"
-		// Por lo tanto tambien hay que verificar que el usuario disminuya su velocidad para detectar que desea desactivar este modo.
-
-		if (bWantSprint)
-		{
-			// Correr sin mantener presionado el boton.
-			if (sv_stickysprint.GetBool())
-				StartAutoSprint();
-			else
-				StartSprinting();
-		}
-		else
-		{
-			if (!sv_stickysprint.GetBool())
-				StopSprinting();
-			
-			// Quitar el estado de "presionado" a la tecla de correr.
-			m_nButtons &= ~IN_SPEED;
-		}
-	}
-
-	bool bIsWalking		= IsWalking();
-	bool bWantWalking;	
-	
-	// Tenemos el traje de protección y no estamos ni corriendo ni agachados.
-	if(IsSuitEquipped())
-		bWantWalking = (m_nButtons & IN_WALK) && !IsSprinting() && !(m_nButtons & IN_DUCK);
-	else
-		bWantWalking = true;
-	
-	// Iván: Creo que esto no funciona... StartWalking() jamas es llamado ¿Solución?
-	if(bIsWalking != bWantWalking)
-	{
-		if (bWantWalking)
-			StartWalking();
-		else
-			StopWalking();
-	}
+	// Movido a CIN_Player::HandleSpeedChanges()
+	// in/in_player.cpp
 }
 
 //=========================================================-------------------------
@@ -559,7 +510,7 @@ void CHL2_Player::HandleArmorReduction( void )
 //=========================================================-------------------------
 // Purpose: Allow pre-frame adjustments on the player
 //=========================================================-------------------------
-void CHL2_Player::PreThink(void)
+void CHL2_Player::PreThink()
 {
 	if ( player_showpredictedposition.GetBool() )
 	{
@@ -644,7 +595,7 @@ void CHL2_Player::PreThink(void)
 	}
 
 	VPROF_SCOPE_BEGIN( "CHL2_Player::PreThink-Speed" );
-	HandleSpeedChanges();
+	
 #ifdef HL2_EPISODIC
 	HandleArmorReduction();
 #endif
@@ -692,17 +643,8 @@ void CHL2_Player::PreThink(void)
 	WaterMove();
 	VPROF_SCOPE_END();
 
-	/*
-		InSource - Linterna - No mostrar en HUD
-
-	if ( g_pGameRules && g_pGameRules->FAllowFlashlight() )
-		m_Local.m_iHideHUD &= ~HIDEHUD_FLASHLIGHT;
-	else
-	*/
-	
 	m_Local.m_iHideHUD &= HIDEHUD_FLASHLIGHT;
 
-	
 	VPROF_SCOPE_BEGIN( "CHL2_Player::PreThink-CommanderUpdate" );
 	CommanderUpdate();
 	VPROF_SCOPE_END();
@@ -1120,14 +1062,16 @@ void CHL2_Player::PlayerRunCommand(CUserCmd *ucmd, IMoveHelper *moveHelper)
 //=========================================================-------------------------
 // Purpose: Sets HL2 specific defaults.
 //=========================================================-------------------------
-void CHL2_Player::Spawn(void)
+void CHL2_Player::Spawn()
 {
-
+	
+	/*
 	#ifndef HL2MP
 	#ifndef PORTAL
 		SetModel(in_player_model.GetString());
 	#endif
 	#endif
+	*/
 
 	BaseClass::Spawn();
 
@@ -1148,6 +1092,7 @@ void CHL2_Player::Spawn(void)
 
 	GetPlayerProxy();
 	SetFlashlightPowerDrainScale( 1.0f );
+
 }
 
 //=========================================================
@@ -1159,29 +1104,7 @@ void CHL2_Player::UpdateLocatorPosition( const Vector &vecPosition )
 
 //=========================================================
 //=========================================================
-float CHL2_Player::CalcWeaponSpeed(float speed)
-{
-	CBaseCombatWeapon *pWeapon = dynamic_cast<CBaseCombatWeapon *>(GetActiveWeapon());
-	return CalcWeaponSpeed(speed, pWeapon);
-}
 
-//=========================================================
-//=========================================================
-float CHL2_Player::CalcWeaponSpeed(float speed, CBaseCombatWeapon *pWeapon)
-{
-	if(!pWeapon)
-		return 0;
-
-	float newSpeed = pWeapon->GetWpnData().m_slowSpeed;
-
-	if(newSpeed < 0)
-	{
-		newSpeed = fabs(newSpeed);
-		return speed + newSpeed;
-	}
-
-	return speed - newSpeed;
-}
 
 //=========================================================-------------------------
 //=========================================================-------------------------
@@ -1244,7 +1167,6 @@ void CHL2_Player::StartSprinting()
 	filter.UsePredictionRules();
 	EmitSound(filter, entindex(), "HL2Player.SprintStart");
 
-	SetMaxSpeed(CalcWeaponSpeed(hl2_sprintspeed.GetFloat()));
 	m_fIsSprinting = true;
 }
 
@@ -1257,12 +1179,6 @@ void CHL2_Player::StopSprinting()
 {
 	if (m_HL2Local.m_bitsActiveDevices & SuitDeviceSprint.GetDeviceID())
 		SuitPower_RemoveDevice(SuitDeviceSprint);
-
-	// Ajustar la velocidad dependiendo si tenemos el traje o no.
-	if(IsSuitEquipped())
-		SetMaxSpeed(CalcWeaponSpeed(hl2_walkspeed.GetFloat()));
-	else
-		SetMaxSpeed(hl2_normspeed.GetFloat());
 
 	m_fIsSprinting = false;
 
@@ -1293,7 +1209,6 @@ void CHL2_Player::EnableSprint(bool bEnable)
 //=========================================================
 void CHL2_Player::StartWalking()
 {
-	SetMaxSpeed(CalcWeaponSpeed(hl2_walkspeed.GetFloat()));
 	m_fIsWalking = true;
 }
 
@@ -1303,7 +1218,6 @@ void CHL2_Player::StartWalking()
 //=========================================================
 void CHL2_Player::StopWalking()
 {
-	SetMaxSpeed(CalcWeaponSpeed(hl2_normspeed.GetFloat()));
 	m_fIsWalking = false;
 }
 
@@ -1531,18 +1445,6 @@ int CHL2_Player::GetNumSquadCommandables()
 	{
 		if ( pAllyNpc->IsCommandable() )
 			c++;
-
-		// InSource
-		/*
-		if(c == 1)
-			m_iHealthOne	= pAllyNpc->GetHealth();
-
-		if(c == 2)
-			m_iHealthTwo	= pAllyNpc->GetHealth();
-
-		if(c == 3)
-			m_iHealthThree	= pAllyNpc->GetHealth();
-		*/
 	}
 
 	m_HL2Local.m_iSquadMemberHealthOne		= m_iHealthOne;
@@ -2122,8 +2024,9 @@ int CHL2_Player::FlashlightIsOn( void )
 }
 
 
-//=========================================================-------------------------
-//=========================================================-------------------------
+//=========================================================
+// Encender nuestra linterna.
+//=========================================================
 void CHL2_Player::FlashlightTurnOn()
 {
 	if(m_bFlashlightDisabled)
@@ -2135,25 +2038,13 @@ void CHL2_Player::FlashlightTurnOn()
 			return;
 	}
 
-	// InSource - Linterna desactivada.
-	if(in_flashlight.GetInt() == 0)
-		return;
 
-	/*
-		InSource - Linterna - Uso sin traje de protección.
-	#ifdef HL2_DLL
-		if( !IsSuitEquipped() )
-			return;
-	#endif
-	*/
-
-
-	AddEffects( EF_DIMLIGHT );
-	EmitSound( "HL2Player.FlashLightOn" );
+	AddEffects(EF_DIMLIGHT);
+	EmitSound("HL2Player.FlashLightOn");
 
 	variant_t flashlighton;
-	flashlighton.SetFloat( 100.0f );
-	FirePlayerProxyOutput( "OnFlashlightOn", flashlighton, this, this );
+	flashlighton.SetFloat(100.0f);
+	FirePlayerProxyOutput("OnFlashlightOn", flashlighton, this, this);
 }
 
 
@@ -3186,25 +3077,11 @@ bool CHL2_Player::Weapon_Ready( void )
 	return pWeapon->Ready();
 }
 
-//=========================================================-------------------------
-// Purpose: Returns whether or not we can switch to the given weapon.
-// Input  : pWeapon - 
-//=========================================================-------------------------
+//=========================================================
+// Verifica si es posible cambiar a determinada arma.
+//=========================================================
 bool CHL2_Player::Weapon_CanSwitchTo(CBaseCombatWeapon *pWeapon)
 {
-	// InSource
-	// Cuando el arma cambia también hay que actualizar la velocidad del jugador con el peso de la misma.
-	// Puedes cambiar el peso en los scripts de las armas, variable: "slow_speed"
-	// TODO: Cambiar a un lugar más apropiado
-
-	if (IsSprinting())
-		SetMaxSpeed(CalcWeaponSpeed(hl2_sprintspeed.GetFloat(), pWeapon));
-	
-	// Debido a que StartWalking() jamas es llamado (ver la función HandleSpeedChanges())
-	// una solución temporal es verificar que no estemos corriendo...
-	if (!IsSprinting())
-		SetMaxSpeed(CalcWeaponSpeed(hl2_walkspeed.GetFloat(), pWeapon));
-
 	CBasePlayer *pPlayer = (CBasePlayer *)this;
 
 	#if !defined(CLIENT_DLL)

@@ -858,7 +858,7 @@ int CBaseEntity::DrawDebugTextOverlays(void)
 	if (m_debugOverlays & OVERLAY_TEXT_BIT) 
 	{
 		char tempstr[512];
-		Q_snprintf( tempstr, sizeof(tempstr), "(%d) Name: %s (%s)", entindex(), GetDebugName(), GetClassname() );
+		Q_snprintf( tempstr, sizeof(tempstr), "(%d) Nombre: %s (%s)", entindex(), GetDebugName(), GetClassname() );
 		EntityText(offset,tempstr, 0);
 		offset++;
 
@@ -870,20 +870,20 @@ int CBaseEntity::DrawDebugTextOverlays(void)
 		}
 
 		Vector vecOrigin = GetAbsOrigin();
-		Q_snprintf( tempstr, sizeof(tempstr), "Position: %0.1f, %0.1f, %0.1f\n", vecOrigin.x, vecOrigin.y, vecOrigin.z );
+		Q_snprintf( tempstr, sizeof(tempstr), "Posicion: %0.1f, %0.1f, %0.1f\n", vecOrigin.x, vecOrigin.y, vecOrigin.z );
 		EntityText( offset, tempstr, 0 );
 		offset++;
 
 		if( GetModelName() != NULL_STRING || GetBaseAnimating() )
 		{
-			Q_snprintf(tempstr, sizeof(tempstr), "Model:%s", STRING(GetModelName()) );
+			Q_snprintf(tempstr, sizeof(tempstr), "Modelo: %s", STRING(GetModelName()) );
 			EntityText(offset,tempstr,0);
 			offset++;
 		}
 
 		if( m_hDamageFilter.Get() != NULL )
 		{
-			Q_snprintf( tempstr, sizeof(tempstr), "DAMAGE FILTER:%s", m_hDamageFilter->GetDebugName() );
+			Q_snprintf( tempstr, sizeof(tempstr), "DAMAGE FILTER: %s", m_hDamageFilter->GetDebugName() );
 			EntityText( offset,tempstr,0 );
 			offset++;
 		}

@@ -1773,6 +1773,18 @@
     <ClCompile Include="in\weapon_gauss.cpp">
       <Filter>Source Files\InSource</Filter>
     </ClCompile>
+    <ClCompile Include="in\director.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="in\in_player.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="in\npc_zombiee.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="in\director_zombie_maker.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\achievement_saverestore.h">
@@ -3513,6 +3525,15 @@
       <Filter>Source Files\InSource</Filter>
     </ClInclude>
     <ClInclude Include="in\weapon_gauss.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="in\director.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="in\in_player.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="in\director_zombie_maker.h">
       <Filter>Source Files\InSource</Filter>
     </ClInclude>
   </ItemGroup>

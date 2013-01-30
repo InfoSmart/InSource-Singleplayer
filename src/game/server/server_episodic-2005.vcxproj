@@ -485,10 +485,14 @@ if exist "$(TargetDir)"server.dll copy "$(TargetDir)"server.dll "c:\program file
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
       </PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="in\director.cpp" />
     <ClCompile Include="in\grenade_satchel.cpp" />
     <ClCompile Include="in\grenade_tripmine.cpp" />
+    <ClCompile Include="in\in_player.cpp" />
     <ClCompile Include="in\npc_bullsquid.cpp" />
     <ClCompile Include="in\npc_grunt.cpp" />
+    <ClCompile Include="in\npc_zombiee.cpp" />
+    <ClCompile Include="in\director_zombie_maker.cpp" />
     <ClCompile Include="in\weapon_gauss.cpp" />
     <ClCompile Include="in\weapon_mp5.cpp" />
     <ClCompile Include="in\weapon_slam.cpp" />
@@ -1112,10 +1116,13 @@ if exist "$(TargetDir)"server.dll copy "$(TargetDir)"server.dll "c:\program file
     <ClInclude Include="..\shared\interval.h" />
     <ClInclude Include="..\..\public\iregistry.h" />
     <ClInclude Include="..\shared\iscenetokenprocessor.h" />
+    <ClInclude Include="in\director.h" />
     <ClInclude Include="in\grenade_satchel.h" />
     <ClInclude Include="in\grenade_tripmine.h" />
+    <ClInclude Include="in\in_player.h" />
     <ClInclude Include="in\npc_bullsquid.h" />
     <ClInclude Include="in\npc_grunt.h" />
+    <ClInclude Include="in\director_zombie_maker.h" />
     <ClInclude Include="in\weapon_gauss.h" />
     <ClInclude Include="in\weapon_slam.h" />
     <ClInclude Include="iservervehicle.h" />

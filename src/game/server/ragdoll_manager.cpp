@@ -1,9 +1,11 @@
 //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
-// Purpose: 
+// game_ragdoll_manager
 //
-// $NoKeywords: $
-//=============================================================================//
+// Entidad encargada de controlar (y hacer desaparecer) los muñecos de trapo (ragdolls)
+// con el fin de liberar memoria y gráficos.
+//
+//=====================================================================================//
 
 #include "cbase.h"
 #include "baseentity.h"
@@ -17,7 +19,7 @@
 class CRagdollManager : public CBaseEntity
 {
 public:
-	DECLARE_CLASS( CRagdollManager, CBaseEntity );
+	DECLARE_CLASS(CRagdollManager, CBaseEntity);
 	DECLARE_SERVERCLASS();
 	DECLARE_DATADESC();
 
@@ -26,16 +28,14 @@ public:
 	virtual void	Activate();
 	virtual int		UpdateTransmitState();
 
+	void UpdateCurrentMaxRagDollCount();
+
 	void InputSetMaxRagdollCount(inputdata_t &data);
 	void InputSetMaxRagdollCountDX8(inputdata_t &data);
 
-	int DrawDebugTextOverlays(void);
+	int DrawDebugTextOverlays();
 
-public:
-
-	void UpdateCurrentMaxRagDollCount();
-
-	CNetworkVar( int,  m_iCurrentMaxRagdollCount );
+	CNetworkVar(int,  m_iCurrentMaxRagdollCount);
 
 	int m_iDXLevel;
 	int m_iMaxRagdollCount;
@@ -45,118 +45,121 @@ public:
 };
 
 
-IMPLEMENT_SERVERCLASS_ST_NOBASE( CRagdollManager, DT_RagdollManager )
-	SendPropInt( SENDINFO( m_iCurrentMaxRagdollCount ), 6 ),
+IMPLEMENT_SERVERCLASS_ST_NOBASE(CRagdollManager, DT_RagdollManager)
+	SendPropInt(SENDINFO(m_iCurrentMaxRagdollCount), 6),
 END_SEND_TABLE()
 
-LINK_ENTITY_TO_CLASS( game_ragdoll_manager, CRagdollManager );
+LINK_ENTITY_TO_CLASS(game_ragdoll_manager, CRagdollManager);
 
-BEGIN_DATADESC( CRagdollManager )
+BEGIN_DATADESC(CRagdollManager)
 
-	//DEFINE_FIELD( m_iDXLevel, FIELD_INTEGER ),
+	DEFINE_FIELD(m_iCurrentMaxRagdollCount, FIELD_INTEGER),
+	DEFINE_KEYFIELD(m_iMaxRagdollCount, FIELD_INTEGER,	"MaxRagdollCount"),
+	DEFINE_KEYFIELD(m_iMaxRagdollCountDX8, FIELD_INTEGER, "MaxRagdollCountDX8"),
 
-	DEFINE_FIELD( m_iCurrentMaxRagdollCount, FIELD_INTEGER ),
-	DEFINE_KEYFIELD( m_iMaxRagdollCount, FIELD_INTEGER,	"MaxRagdollCount" ),
-	DEFINE_KEYFIELD( m_iMaxRagdollCountDX8, FIELD_INTEGER,	"MaxRagdollCountDX8" ),
+	DEFINE_KEYFIELD(m_bSaveImportant, FIELD_BOOLEAN, "SaveImportant"),
 
-	DEFINE_KEYFIELD( m_bSaveImportant, FIELD_BOOLEAN, "SaveImportant" ),
-
-	DEFINE_INPUTFUNC( FIELD_INTEGER, "SetMaxRagdollCount",  InputSetMaxRagdollCount ),
-	DEFINE_INPUTFUNC( FIELD_INTEGER, "SetMaxRagdollCountDX8",  InputSetMaxRagdollCountDX8 ),
+	DEFINE_INPUTFUNC(FIELD_INTEGER, "SetMaxRagdollCount",  InputSetMaxRagdollCount),
+	DEFINE_INPUTFUNC(FIELD_INTEGER, "SetMaxRagdollCountDX8",  InputSetMaxRagdollCountDX8),
 
 END_DATADESC()
 
-//-----------------------------------------------------------------------------
-// Constructor 
-//-----------------------------------------------------------------------------
-CRagdollManager::CRagdollManager( void )
+//=========================================================
+// Constructor
+//=========================================================
+CRagdollManager::CRagdollManager()
 {
-	m_iMaxRagdollCount = -1;
-	m_iMaxRagdollCountDX8 = -1;
-	m_iCurrentMaxRagdollCount = -1;
+	m_iMaxRagdollCount			= -1;
+	m_iMaxRagdollCountDX8		= -1;
+	m_iCurrentMaxRagdollCount	= -1;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : *pInfo - 
-// Output : int
-//-----------------------------------------------------------------------------
+//=========================================================
+// Actualiza el estado de la transmisión.
+//=========================================================
 int CRagdollManager::UpdateTransmitState()
 {
-	return SetTransmitState( FL_EDICT_ALWAYS );
+	return SetTransmitState(FL_EDICT_ALWAYS);
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
+//=========================================================
+// Activa la entidad
+//=========================================================
 void CRagdollManager::Activate()
 {
 	BaseClass::Activate();
 
-	// Cache off the DX level for use later.
-	ConVarRef mat_dxlevel( "mat_dxlevel" );
+	// Guardamos en caché la versión de DirectX para su uso más tarde.
+	ConVarRef mat_dxlevel("mat_dxlevel");
 	m_iDXLevel = mat_dxlevel.GetInt();
+
+	// [FIX] InSource - Valor predeterminado.
+	if(m_iMaxRagdollCount == -1)
+	{
+		ConVarRef g_ragdoll_maxcount("g_ragdoll_maxcount");
+		m_iMaxRagdollCount = g_ragdoll_maxcount.GetInt();
+	}
 	
 	UpdateCurrentMaxRagDollCount();
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+// Actualiza la cantidad actual de muñecos de trapo.
+//=========================================================
 void CRagdollManager::UpdateCurrentMaxRagDollCount()
 {
-	if ( ( m_iDXLevel < 90 ) && ( m_iMaxRagdollCountDX8 >= 0 ) )
-	{
+	if ((m_iDXLevel < 90) && (m_iMaxRagdollCountDX8 >= 0))
 		m_iCurrentMaxRagdollCount = m_iMaxRagdollCountDX8;
-	}
 	else
-	{
 		m_iCurrentMaxRagdollCount = m_iMaxRagdollCount;
-	}
 
-	s_RagdollLRU.SetMaxRagdollCount( m_iCurrentMaxRagdollCount );
+	s_RagdollLRU.SetMaxRagdollCount(m_iCurrentMaxRagdollCount);
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+// [INPUT] Actualiza la cantidad máxima de muñecos de trapo.
+//=========================================================
 void CRagdollManager::InputSetMaxRagdollCount(inputdata_t &inputdata)
 {
 	m_iMaxRagdollCount = inputdata.value.Int();
 	UpdateCurrentMaxRagDollCount();
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+// [INPUT] Actualiza la cantidad máxima de muñecos de trapo.
+// En uso de DirectX 8 <- Gamers viviendo en una cueva.
+//=========================================================
 void CRagdollManager::InputSetMaxRagdollCountDX8(inputdata_t &inputdata)
 {
 	m_iMaxRagdollCountDX8 = inputdata.value.Int();
 	UpdateCurrentMaxRagDollCount();
 }
 
-bool RagdollManager_SaveImportant( CAI_BaseNPC *pNPC )
+//=========================================================
+// ¿Debo guardar los muñecos importantes/vitales?
+//=========================================================
+bool RagdollManager_SaveImportant(CAI_BaseNPC *pNPC)
 {
-#ifdef HL2_DLL
-	CRagdollManager *pEnt =	(CRagdollManager *)gEntList.FindEntityByClassname( NULL, "game_ragdoll_manager" );
+	#ifdef HL2_DLL
+		CRagdollManager *pEnt =	(CRagdollManager *)gEntList.FindEntityByClassname(NULL, "game_ragdoll_manager");
 
-	if ( pEnt == NULL )
-		return false;
+		if (pEnt == NULL)
+			return false;
 
-	if ( pEnt->m_bSaveImportant )
-	{
-		if ( pNPC->Classify() == CLASS_PLAYER_ALLY || pNPC->Classify() == CLASS_PLAYER_ALLY_VITAL )
+		if (pEnt->m_bSaveImportant)
 		{
-			return true;
+			if (pNPC->Classify() == CLASS_PLAYER_ALLY || pNPC->Classify() == CLASS_PLAYER_ALLY_VITAL)
+				return true;
 		}
-	}
-#endif
+	#endif
 
 	return false;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Draw any debug text overlays
-// Output : Current text offset from the top
-//-----------------------------------------------------------------------------
-int CRagdollManager::DrawDebugTextOverlays( void ) 
+//=========================================================
+// Escribe en la pantalla información de desarrollo. (debug)
+//=========================================================
+int CRagdollManager::DrawDebugTextOverlays() 
 {
 	int text_offset = BaseClass::DrawDebugTextOverlays();
 
@@ -169,6 +172,7 @@ int CRagdollManager::DrawDebugTextOverlays( void )
 		EntityText(text_offset,tempstr,0);
 		text_offset++;
 	}
+
 	return text_offset;
 }
 

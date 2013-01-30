@@ -152,6 +152,8 @@ static CIKSaveRestoreOps s_IKSaveRestoreOp;
 
 BEGIN_DATADESC( CBaseAnimating )
 
+	DEFINE_FIELD( m_flAddGroundSpeed, FIELD_FLOAT ),
+	DEFINE_FIELD( m_flAddAccel, FIELD_FLOAT ),
 	DEFINE_FIELD( m_flGroundSpeed, FIELD_FLOAT ),
 	DEFINE_FIELD( m_flLastEventCheck, FIELD_TIME ),
 	DEFINE_FIELD( m_bSequenceFinished, FIELD_BOOLEAN ),
@@ -283,6 +285,9 @@ CBaseAnimating::CBaseAnimating()
 	m_fadeMaxDist = 0;
 	m_flFadeScale = 0.0f;
 	m_fBoneCacheFlags = 0;
+
+	m_flAddGroundSpeed	= 0;
+	m_flAddAccel		= 50;
 }
 
 CBaseAnimating::~CBaseAnimating()
@@ -970,16 +975,26 @@ float CBaseAnimating::GetSequenceGroundSpeed( CStudioHdr *pStudioHdr, int iSeque
 	}
 }
 
+void CBaseAnimating::SetAddSpeed(float speed)
+{
+	m_flAddGroundSpeed = speed;
+}
+
+void CBaseAnimating::SetAddAccel(float accel)
+{
+	m_flAddAccel = accel;
+}
+
 float CBaseAnimating::GetIdealSpeed( ) const
 {
-	return m_flGroundSpeed;
+	return m_flGroundSpeed + m_flAddGroundSpeed;
 }
 
 float CBaseAnimating::GetIdealAccel( ) const
 {
 	// return ideal max velocity change over 1 second.
 	// tuned for run-walk range of humans
-	return GetIdealSpeed() + 50;
+	return GetIdealSpeed() + m_flAddAccel;
 }
 
 //-----------------------------------------------------------------------------

@@ -181,4 +181,12 @@ protected:
 	ThreeStateDist_t	m_CriterionDistance;
 };
 
+static void DispatchActivate( CBaseEntity *pEntity )
+{
+	bool bAsyncAnims = mdlcache->SetAsyncLoad( MDLCACHE_ANIMBLOCK, false );
+	pEntity->Activate();
+	mdlcache->SetAsyncLoad( MDLCACHE_ANIMBLOCK, bAsyncAnims );
+}
+
+
 #endif // MONSTERMAKER_H

@@ -36,7 +36,8 @@
 #include "grenade_spit.h"
 #include "grenade_brickbat.h"
 
-#include "player.h"
+//#include "player.h"
+//#include "in_player.h"
 #include "gamerules.h"
 #include "shake.h"
 
@@ -60,9 +61,6 @@ ConVar sk_grunt_debug_health("sk_grunt_debug_health", "0", 0, "Muestra la salud 
 ConVar sk_grunt_dmg_high	("sk_grunt_dmg_high", "0", 0, "Daño causado por un golpe alto");
 ConVar sk_grunt_dmg_low		("sk_grunt_dmg_low", "0", 0, "Daño causado por un golpe bajo");
 
-// Necesario para la música de fondo.
-extern ISoundEmitterSystemBase *soundemitterbase;
-
 //=========================================================
 // Configuración del NPC
 //=========================================================
@@ -75,13 +73,13 @@ extern ISoundEmitterSystemBase *soundemitterbase;
 #define CAPABILITIES	bits_CAP_MOVE_GROUND | bits_CAP_INNATE_MELEE_ATTACK1 | bits_CAP_INNATE_MELEE_ATTACK2 | bits_CAP_MOVE_JUMP | bits_CAP_MOVE_CLIMB | bits_CAP_TURN_HEAD
 
 // Color de la sangre.
-#define BLOOD			BLOOD_COLOR_YELLOW
+#define BLOOD			DONT_BLEED
 
 // Distancia de visibilidad.
 #define SEE_DIST		9000.0
 
 // Campo de visión
-#define FOV				-0.5
+#define FOV				-0.4f
 
 // Propiedades
 // No disolverse (Con la bola de energía) - No morir con la super arma de gravedad.
@@ -144,13 +142,10 @@ LINK_ENTITY_TO_CLASS(npc_grunt, CNPC_Grunt);
 
 BEGIN_DATADESC(CNPC_Grunt)
 
-	DEFINE_THINKFUNC(MusicThink),
-
 	DEFINE_FIELD(m_flLastHurtTime,			FIELD_TIME),
-	DEFINE_FIELD(m_nextAlertSoundTime,		FIELD_TIME),
+	DEFINE_FIELD(t_nextAlertSound,			FIELD_TIME),
+	DEFINE_FIELD(t_nextPainSound,			FIELD_TIME),
 	DEFINE_FIELD(m_flNextThrow,				FIELD_TIME),
-
-	DEFINE_FIELD(m_volumeFadeOutBackgound,	FIELD_FLOAT),
 
 	DEFINE_FIELD(m_hPhysicsEnt,				FIELD_EHANDLE),
 	DEFINE_FIELD(m_hPhysicsCanThrow,		FIELD_BOOLEAN),
@@ -164,7 +159,6 @@ END_DATADESC()
 void CNPC_Grunt::Spawn()
 {
 	Precache();
-	NPCInit();
 
 	// Modelo y color de sangre.
 	SetModel(MODEL_BASE);
@@ -177,8 +171,8 @@ void CNPC_Grunt::Spawn()
 
 	// Navegación, estado físico y opciones extra.
 	SetSolid(SOLID_BBOX);
-	SetNavType(NAV_GROUND);	
 	AddSolidFlags(FSOLID_NOT_STANDABLE);
+	SetNavType(NAV_GROUND);	
 	SetMoveType(MOVETYPE_STEP);
 	
 	SetRenderColor(255, 255, 255, 255);
@@ -192,10 +186,10 @@ void CNPC_Grunt::Spawn()
 
 	// Más información
 	m_flNextThrow				= gpGlobals->curtime;
-	m_nextAlertSoundTime		= gpGlobals->curtime + 3;
+	t_nextAlertSound			= gpGlobals->curtime + 3;
+	t_nextPainSound				= gpGlobals->curtime;
 	m_hPhysicsEnt				= NULL;
 	m_hPhysicsCanThrow			= false;
-	m_backgroundMusicStarted	= false;
 
 	// Capacidades
 	CapabilitiesClear();
@@ -204,9 +198,7 @@ void CNPC_Grunt::Spawn()
 	// Caracteristicas
 	AddEFlags(EFLAGS);
 
-	RegisterThinkContext("MusicBackgroundThink");
-	SetContextThink(&CNPC_Grunt::MusicThink, gpGlobals->curtime, "MusicBackgroundThink");
-
+	NPCInit();
 	BaseClass::Spawn();
 }
 
@@ -257,7 +249,11 @@ void CNPC_Grunt::IdleSound()
 //=========================================================
 void CNPC_Grunt::PainSound(const CTakeDamageInfo &info)
 {
-	EmitSound("NPC_Grunt.Pain");
+	if (gpGlobals->curtime >= t_nextPainSound)
+	{
+		EmitSound("NPC_Grunt.Pain");
+		t_nextPainSound = gpGlobals->curtime + random->RandomFloat(.5, 1.0);
+	}
 }
 
 //=========================================================
@@ -266,10 +262,10 @@ void CNPC_Grunt::PainSound(const CTakeDamageInfo &info)
 //=========================================================
 void CNPC_Grunt::AlertSound()
 {
-	if (gpGlobals->curtime >= m_nextAlertSoundTime)
+	if (gpGlobals->curtime >= t_nextAlertSound)
 	{
 		EmitSound("NPC_Grunt.Alert");
-		m_nextAlertSoundTime = gpGlobals->curtime + random->RandomInt(.5, 2.0);
+		t_nextAlertSound = gpGlobals->curtime + random->RandomFloat(.5, 2.0);
 	}
 }
 
@@ -298,38 +294,6 @@ void CNPC_Grunt::HighAttackSound()
 void CNPC_Grunt::LowAttackSound()
 {
 	EmitSound("NPC_Grunt.LowAttack");
-}
-
-//=========================================================
-// StartBackgroundMusic()
-// Reproducir música de fondo.
-//=========================================================
-void CNPC_Grunt::StartBackgroundMusic()
-{
-	CSoundParameters params;
-
-	if (!soundemitterbase->GetParametersForSound("NPC_Grunt.BackgroundMusic", params, GENDER_NONE))
-		return;
-
-	m_volumeFadeOutBackgound = 1.0f;
-	UTIL_EmitAmbientSound(GetSoundSourceIndex(), GetAbsOrigin(), params.soundname, params.volume, params.soundlevel, 0, params.pitch);
-}
-
-//=========================================================
-// VolumeBackgroundMusic()
-// Actualizar el volumen de la música de fondo.
-//=========================================================
-void CNPC_Grunt::VolumeBackgroundMusic(float volume)
-{
-	CSoundParameters params;
-
-	if (!soundemitterbase->GetParametersForSound("NPC_Grunt.BackgroundMusic", params, GENDER_NONE))
-		return;
-
-	if(volume > 0)
-		UTIL_EmitAmbientSound(GetSoundSourceIndex(), GetAbsOrigin(), params.soundname, volume, params.soundlevel, SND_CHANGE_VOL, params.pitch);
-	else
-		UTIL_EmitAmbientSound(GetSoundSourceIndex(), GetAbsOrigin(), params.soundname, volume, params.soundlevel, SND_STOP, params.pitch);
 }
 
 //=========================================================
@@ -363,7 +327,7 @@ float CNPC_Grunt::MaxYawSpeed()
 void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 {
 	const char *pName = EventList_NameForIndex(pEvent->event);
-	DevMsg("GRUNT: Se ha producido el evento %s \n", pName);
+	DevMsg("[GRUNT] Se ha producido el evento %s \n", pName);
 
 	if (pEvent->event == AE_AGRUNT_MELEE_ATTACK_HIGH)
 	{
@@ -374,14 +338,6 @@ void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 	if (pEvent->event == AE_AGRUNT_MELEE_ATTACK_LOW)
 	{
 		MeleeAttack2();
-		return;
-	}
-
-	if(pEvent->event == NPC_EVENT_LEFTFOOT || pEvent->event == NPC_EVENT_RIGHTFOOT)
-	{
-		EmitSound("NPC_Grunt.Step", pEvent->eventtime);
-		UTIL_ScreenShake(GetAbsOrigin(), 5.0, 10.0, 3.0, 350, SHAKE_START, false);
-
 		return;
 	}
 
@@ -396,7 +352,7 @@ void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 void CNPC_Grunt::MeleeAttack1()
 {
 	// Atacar
-	CBaseEntity *pHurt = CheckTraceHullAttack(70, Vector(-16,-16,-16), Vector(16,16,16), sk_grunt_dmg_high.GetFloat(), DMG_SLASH | DMG_ALWAYSGIB);
+	CBaseEntity *pHurt = CheckTraceHullAttack(140, Vector(-16,-16,-16), Vector(16,16,16), sk_grunt_dmg_high.GetFloat(), DMG_SLASH | DMG_ALWAYSGIB, 1.0f, true);
 
 	// ¿Le hice daño?
 	if (pHurt) 
@@ -408,7 +364,7 @@ void CNPC_Grunt::MeleeAttack1()
 		if (pHurt->GetFlags() & (FL_NPC | FL_CLIENT))
 			 pHurt->ViewPunch(QAngle(70, 0, -70));
 			
-		pHurt->ApplyAbsVelocityImpulse(400 * (up + 1*forward));
+		pHurt->ApplyAbsVelocityImpulse(400 * (up + 2 * forward));
 	}
 
 	HighAttackSound();
@@ -447,16 +403,17 @@ void CNPC_Grunt::MeleeAttack2()
 //=========================================================
 int CNPC_Grunt::MeleeAttack1Conditions(float flDot, float flDist)
 {
+	// El Grunt es muy poderoso, no podemos matar a los personajes vitales.
 	if (GetEnemy()->Classify() == CLASS_PLAYER_ALLY_VITAL)
 		return COND_NONE;
-
+	
+	// Distancia y angulo correcto, ¡ataque!
 	if (flDist <= 85 && flDot >= 0.7)
 	{
 		m_flNextThrow += 2.0;
 		return COND_CAN_MELEE_ATTACK1;
 	}
 
-	// Build a cube-shaped hull, the same hull that MeleeAttack is going to use.
 	Vector vecMins = GetHullMins();
 	Vector vecMaxs = GetHullMaxs();
 	vecMins.z = vecMins.x;
@@ -464,8 +421,9 @@ int CNPC_Grunt::MeleeAttack1Conditions(float flDot, float flDist)
 
 	Vector forward;
 	GetVectors(&forward, NULL, NULL);
+
 	trace_t	tr;
-	AI_TraceHull(WorldSpaceCenter(), WorldSpaceCenter() + forward * 50, vecMins, vecMaxs, MASK_NPCSOLID, this, COLLISION_GROUP_NONE, &tr);
+	AI_TraceHull(WorldSpaceCenter(), WorldSpaceCenter() + forward * 150, vecMins, vecMaxs, MASK_NPCSOLID, this, COLLISION_GROUP_NONE, &tr);
 
 	if (tr.fraction == 1.0 || !tr.m_pEnt)
 		return COND_TOO_FAR_TO_ATTACK;
@@ -476,18 +434,18 @@ int CNPC_Grunt::MeleeAttack1Conditions(float flDot, float flDist)
 	if (!tr.m_pEnt->IsWorld() && GetEnemy() && GetEnemy()->GetGroundEntity() == tr.m_pEnt)
 		return COND_CAN_MELEE_ATTACK1;
 
- 	if (!tr.m_pEnt->IsWorld() && tr.m_pEnt->VPhysicsGetObject()->IsMoveable() && tr.m_pEnt->VPhysicsGetObject()->GetMass() <= THROW_PHYSICS_MAX_MASS)
-		return COND_CAN_MELEE_ATTACK1;
+ 	//if (!tr.m_pEnt->IsWorld() && tr.m_pEnt->VPhysicsGetObject()->IsMoveable() && tr.m_pEnt->VPhysicsGetObject()->GetMass() <= THROW_PHYSICS_MAX_MASS)
+	//	return COND_CAN_MELEE_ATTACK1;
 
-	if (m_hPhysicsCanThrow)
+	/*if (m_hPhysicsCanThrow)
 	{
-		Msg("CANTHROW!! \r\n");
+		Msg("[GRUNT] CANTHROW!! \r\n");
 
 		m_hPhysicsCanThrow	= false;
 		m_flNextThrow		+= 2.0;
 
 		return COND_CAN_MELEE_ATTACK1;
-	}
+	}*/
 	
 	return COND_TOO_FAR_TO_ATTACK;
 }
@@ -507,7 +465,7 @@ int CNPC_Grunt::MeleeAttack2Conditions(float flDot, float flDist)
 
 	if (m_hPhysicsCanThrow)
 	{
-		Msg("CANTHROW\r\n");
+		Msg("[GRUNT] CANTHROW\r\n");
 
 		m_hPhysicsCanThrow	= false;
 		m_flNextThrow		+= 2.0;
@@ -533,44 +491,10 @@ int CNPC_Grunt::OnTakeDamage_Alive(const CTakeDamageInfo &inputInfo)
 //=========================================================
 void CNPC_Grunt::Event_Killed(const CTakeDamageInfo &info)
 {
-	if(!HasSpawnFlags(SF_GRUNT_NO_BACKGROUND_MUSIC))
-		VolumeBackgroundMusic(-1);
+	//if(!HasSpawnFlags(SF_GRUNT_NO_BACKGROUND_MUSIC))
+	//	VolumeBackgroundMusic(-1);
 
 	BaseClass::Event_Killed(info);
-}
-
-//=========================================================
-// MusicThink()
-// Bucle de tareas para la música de fondo.
-// Disminuye el sonido de la música conforme se mata al NPC.
-//=========================================================
-void CNPC_Grunt::MusicThink()
-{
-	if(sk_grunt_debug_health.GetBool())
-		DevMsg("SALUD DEL ALIEN GRUNT: %i\r\n", GetHealth());
-
-	if(!HasSpawnFlags(SF_GRUNT_NO_BACKGROUND_MUSIC) && !m_backgroundMusicStarted)
-	{
-		StartBackgroundMusic();
-		m_backgroundMusicStarted = true;
-	}
-
-	if(!m_backgroundMusicStarted)
-		return;
-
-	if(GetHealth() <= 250)
-	{
-		m_volumeFadeOutBackgound = (0.05f * GetHealth());
-		VolumeBackgroundMusic(m_volumeFadeOutBackgound);
-
-		if(m_volumeFadeOutBackgound == 0 || m_volumeFadeOutBackgound == 0.0f)
-		{
-			SetNextThink(0);
-			return;
-		}
-	}
-
-	SetNextThink(gpGlobals->curtime + .5, "MusicBackgroundThink");
 }
 
 //=========================================================
@@ -581,8 +505,8 @@ void CNPC_Grunt::GatherConditions()
 {
 	BaseClass::GatherConditions();
 
-	if(gpGlobals->curtime >= m_flNextThrow && m_hPhysicsEnt == NULL)
-		FindNearestPhysicsObject();
+	//if(gpGlobals->curtime >= m_flNextThrow && m_hPhysicsEnt == NULL)
+	//	FindNearestPhysicsObject();
 
 	if(m_hPhysicsEnt != NULL && gpGlobals->curtime >= m_flNextThrow)
 		SetCondition(COND_CAN_THROW);

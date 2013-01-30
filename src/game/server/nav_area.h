@@ -200,6 +200,8 @@ public:
 	bool IsRoughlySquare( void ) const;							///< return true if this area is approximately square
 	bool IsFlat( void ) const;									///< return true if this area is approximately flat
 
+	//bool FindRandomSpot(Vector *pResult);
+
 	bool IsEdge( NavDirType dir ) const;						///< return true if there are no bi-directional links on the given side
 
 	bool IsVisible( const Vector &eye, Vector *visSpot = NULL ) const;	///< return true if area is visible from the given eyepoint, return visible spot

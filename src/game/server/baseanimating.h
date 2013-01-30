@@ -77,6 +77,9 @@ public:
 
 
 	// Basic NPC Animation functions
+	void	SetAddSpeed(float speed);
+	void	SetAddAccel(float accel);
+
 	virtual float	GetIdealSpeed( ) const;
 	virtual float	GetIdealAccel( ) const;
 	virtual void	StudioFrameAdvance(); // advance animation frame to some time in the future
@@ -305,6 +308,9 @@ public:
 	// animation needs
 	float				m_flGroundSpeed;	// computed linear movement rate for current sequence
 	float				m_flLastEventCheck;	// cycle index of when events were last checked
+
+	float				m_flAddGroundSpeed;
+	float				m_flAddAccel;
 
 	virtual void SetLightingOriginRelative( CBaseEntity *pLightingOriginRelative );
 	void SetLightingOriginRelative( string_t strLightingOriginRelative );

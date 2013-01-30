@@ -67,6 +67,8 @@
 #include "gameinterface.h"
 #include "hl2orange.spa.h"
 
+#include "director.h"
+
 #ifdef HL2_DLL
 	#include "combine_mine.h"
 	#include "weapon_physcannon.h"
@@ -104,24 +106,6 @@ extern ConVar *sv_maxreplay;
 
 extern CServerGameDLL g_ServerGameDLL;
 extern CMoveData *g_pMoveData;
-
-//----------------------------------------------------
-// InSource - Definición de variables de configuración.
-//---------------------------------------------------
-
-// Regeneración de salud.
-ConVar in_regeneration("in_regeneration", "1", FCVAR_REPLICATED, "Estado de la regeneracion de salud");
-ConVar in_regeneration_wait_time("in_regeneration_wait_time", "10.0", FCVAR_REPLICATED, "Tiempo de espera para regenerar");
-ConVar in_regeneration_rate("in_regeneration_rate", "0.1", FCVAR_REPLICATED, "Rango de tiempo para regenerar");
-
-// Recarga automatica de arma.
-ConVar in_automatic_reload("in_automatic_reload", "0", FCVAR_REPLICATED | FCVAR_ARCHIVE, "Recarga automatica del arma");
-
-// Efecto de cansancio.
-ConVar in_tired_effect("in_tired_effect", "1", FCVAR_REPLICATED | FCVAR_ARCHIVE, "Activa o desactiva el efecto de cansancio al perder salud.");
-
-// Camara lenta.
-ConVar in_timescale_effect("in_timescale_effect", "1", FCVAR_REPLICATED | FCVAR_ARCHIVE, "Activa o desactiva el efecto de camara lenta al perder salud.");
 
 //----------------------------------------------------
 // Tiempo para los tipos de daños.
@@ -206,14 +190,6 @@ extern void	SpawnBlood(Vector vecSpot, const Vector &vecDir, int bloodColor, flo
 extern void AddMultiDamage( const CTakeDamageInfo &info, CBaseEntity *pEntity );
 
 #define CMD_MOSTRECENT 0
-
-//----------------------------------------------------
-// InSource - Definición de variables globales.
-//----------------------------------------------------
-
-float			m_fRegenRemander;	// Tiempo de la última regeneración de salud.
-float			m_fDeadTimer;		// Tiempo para la ejecución del efecto de muerte.
-float			m_fTasksTimer;		// Tiempo para la ejecución de tareas.
 
 //----------------------------------------------------
 // Definición de variables de daño al jugador.
@@ -608,12 +584,6 @@ CBasePlayer::CBasePlayer()
 
 	m_nBodyPitchPoseParam	= -1;
 	m_flForwardMove			= 0;
-
-	/* InSource */
-
-	m_fRegenRemander	= 0; // Regeneración de salud
-	m_fDeadTimer		= 0; // Efecto de muerte.
-	m_fTasksTimer		= 0; // Tareas.
 }
 
 CBasePlayer::~CBasePlayer( )
@@ -1285,44 +1255,6 @@ int CBasePlayer::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 	}
 
 	m_Local.m_vecPunchAngle.SetX(flPunch);
-	
-	// InSource - Sonidos del traje realisticos.
-	if (!ftrivial && fmajor && flHealthPrev >= 75) 
-	{
-		SetSuitUpdate("!HEV_MED2", false, SUIT_NEXT_IN_30MIN);	// Administrando atención medica.
-
-		// 15+ de salud por daños.
-		TakeHealth(15, DMG_GENERIC);
-
-		SetSuitUpdate("!HEV_HEAL7", false, SUIT_NEXT_IN_30MIN);	// Administrado morfina.
-	}
-
-	if (!ftrivial && fcritical && flHealthPrev < 75)
-	{
-		if (m_iHealth <= 5)
-			SetSuitUpdate("!HEV_HLTH6", false, SUIT_NEXT_IN_10MIN);	// ¡Emergencia! Muerte inminente del usuario, evacuar zona de inmediato.
-
-		else if (m_iHealth <= 10)
-			SetSuitUpdate("!HEV_HLTH3", false, SUIT_NEXT_IN_10MIN);	// ¡Emergencia! Muerte inminente del usuario.
-
-		else if (m_iHealth < 20)
-			SetSuitUpdate("!HEV_HLTH2", false, SUIT_NEXT_IN_10MIN);	// Precaución, signos vitales criticos.
-
-		// Alertas al azar.
-		if (!random->RandomInt(0,3) && flHealthPrev < 50)
-			SetSuitUpdate("!HEV_DMG7", false, SUIT_NEXT_IN_5MIN);	// Cuidados medicos necesarios.
-	}
-
-	if (g_pGameRules->Damage_IsTimeBased(info.GetDamageType()) && flHealthPrev < 75)
-	{
-		if (flHealthPrev < 50)
-		{
-			if (!random->RandomInt(0,3))
-				SetSuitUpdate("!HEV_DMG7", false, SUIT_NEXT_IN_5MIN);	// Cuidados medicos necesarios.
-		}
-		else
-			SetSuitUpdate("!HEV_HLTH1", false, SUIT_NEXT_IN_10MIN);		// Signos vitales debilitandose.
-	}
 
 	// Daño por explosión.
 	if (bitsDamage & DMG_BLAST)
@@ -1330,29 +1262,6 @@ int CBasePlayer::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 
 	// Última vez que se ha sufrido daño.
 	m_flLastDamageTime = gpGlobals->curtime;
-
-	/*
-		InSource
-	*/
-
-	// Si seguimos vivos y los efectos estan activados.
-	if(IsAlive() && in_tired_effect.GetInt() == 1)
-	{
-		// Efectos - cansancio/muerte
-		ConVarRef mat_yuv("mat_yuv");
-
-		if(m_iHealth < 10 && mat_yuv.GetInt() == 0)
-		{
-			mat_yuv.SetValue(1);
-
-			// ¡Estamos muriendo!
-			EmitSound("Player.Music.Dying");
-		}
-	}
-
-	/*
-		InSource
-	*/
 
 	// Última vez que se ha sufrido daño.
 	m_flLastDamageTime = gpGlobals->curtime;
@@ -1973,20 +1882,6 @@ void CBasePlayer::PlayerDeathThink(void)
 	float flForward;
 	SetNextThink(gpGlobals->curtime + 0.1f);
 
-	/*
-		InSource
-	*/
-	
-	// Camara lenta al morir.
-	ConVarRef host_timescale("host_timescale");
-
-	if(host_timescale.GetFloat() != 0.3)
-		engine->ClientCommand(edict(), "host_timescale 0.3");
-
-	/*
-		InSource
-	*/
-
 	if (GetFlags() & FL_ONGROUND)
 	{
 		flForward = GetAbsVelocity().Length() - 20;
@@ -2052,17 +1947,6 @@ void CBasePlayer::PlayerDeathThink(void)
 	if (!fAnyButtonDown 
 		&& !( g_pGameRules->IsMultiplayer() && forcerespawn.GetInt() > 0 && (gpGlobals->curtime > (m_flDeathTime + 5))))
 		return;
-
-	/*
-		InSource
-	*/
-
-	// Volver al tiempo real
-	engine->ClientCommand(edict(), "host_timescale 1");
-
-	/*
-		InSource
-	*/
 
 	m_nButtons			= 0;
 	m_iRespawnFrames	= 0;
@@ -4043,82 +3927,6 @@ void CBasePlayer::PostThink()
 					SetAnimation(PLAYER_WALK);
 				else if (GetWaterLevel() > 1)
 					SetAnimation(PLAYER_WALK);
-
-			/*
-				InSource
-			*/
-
-			ConVarRef mat_yuv("mat_yuv");
-			ConVarRef host_timescale("host_timescale");
-			
-			// Regeneración de salud
-			if(m_iHealth < GetMaxHealth() && (in_regeneration.GetInt() == 1))
-			{
-				if(gpGlobals->curtime > m_flLastDamageTime + in_regeneration_wait_time.GetFloat())
-				{
-					m_fRegenRemander += in_regeneration_rate.GetFloat() * gpGlobals->frametime;
-
-					if(m_fRegenRemander >= 1)
-					{
-						TakeHealth(m_fRegenRemander, DMG_GENERIC);
-						m_fRegenRemander = 0;
-					}
-				}
-			}
-
-			// Efectos de cansancio.
-			if(in_tired_effect.GetInt() == 1)
-			{
-				// Desactivar escala de grises, me estoy reponiendo.
-				if(m_iHealth > 10 && mat_yuv.GetInt() == 1)
-				{
-					mat_yuv.SetValue(0);
-					StopSound("Player.Music.Dying");
-				}
-
-				if(m_iHealth <= 30)
-				{
-					int DeathFade = (230 - (6 * m_iHealth));
-					color32 black = {0, 0, 0, DeathFade};
-
-					UTIL_ScreenFade(this, black, 1.0f, 0.1f, FFADE_IN);
-				}
-
-				if(m_iHealth < 10)
-					UTIL_ScreenShake(GetAbsOrigin(), 1.0, 1.0, 1.0, 750, SHAKE_START, true);
-			}
-
-			// Camara lenta.
-			if(in_timescale_effect.GetInt() == 1)
-			{
-				if(m_iHealth < 10 && host_timescale.GetFloat() != 0.6)
-					engine->ClientCommand(edict(), "host_timescale 0.6");
-
-				else if(m_iHealth < 15 && host_timescale.GetFloat() != 0.8)
-					engine->ClientCommand(edict(), "host_timescale 0.8");
-
-				else if(m_iHealth > 15 && host_timescale.GetFloat() != 1)
-					host_timescale.SetValue(1);
-			}
-
-			// Me duele el cuerpo, efecto de cansancio.
-			if(m_iHealth < 60)
-			{
-				m_fDeadTimer += 0.2 * gpGlobals->frametime;
-
-				if(m_fDeadTimer >= 1)
-				{
-					int AngHealth = (100 - m_iHealth) / 8;
-					ViewPunch(QAngle(random->RandomInt(2.0, AngHealth), random->RandomInt(2.0, AngHealth), random->RandomInt(2.0, AngHealth)));
-				}
-			}
-
-			if(m_fDeadTimer >= 1)
-				m_fDeadTimer = 0;
-
-			/*
-				InSource
-			*/
 		}
 
 		if (GetSequence() == -1)
@@ -4627,20 +4435,6 @@ void CBasePlayer::Spawn( void )
 
 	InitVCollision(GetAbsOrigin(), GetAbsVelocity());
 
-	/*
-		InSource
-	*/
-
-	// Resetear el tiempo.
-	ConVarRef host_timescale("host_timescale");
-
-	if(host_timescale.GetInt() != 1)
-		engine->ClientCommand(edict(), "host_timescale 1");
-
-	/*
-		InSource
-	*/
-
 	IGameEvent *event = gameeventmanager->CreateEvent("player_spawn");
 	
 	if (event)
@@ -4683,13 +4477,6 @@ void CBasePlayer::Precache( void )
 	PrecacheScriptSound("Player.Wade");
 	PrecacheScriptSound("Player.AmbientUnderWater");
 
-	/*
-		InSource
-	*/
-
-	PrecacheScriptSound("Player.Pain");
-	PrecacheScriptSound("Player.Music.Dying");
-	PrecacheScriptSound("Player.Music.Dead");
 
 	enginesound->PrecacheSentenceGroup("HEV");
 

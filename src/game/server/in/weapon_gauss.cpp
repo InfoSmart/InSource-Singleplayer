@@ -21,39 +21,45 @@
 
 #include "weapon_gauss.h"
 
-//-----------------------------------------------------------------------------
-// Gauss gun
-//-----------------------------------------------------------------------------
+#include "tier0/memdbgon.h"
 
-IMPLEMENT_SERVERCLASS_ST( CWeaponGaussGun, DT_WeaponGaussGun )
+//=========================================================
+// Definición de variables para la configuración.
+//=========================================================
+
+ConVar sk_plr_dmg_gauss("sk_plr_dmg_gauss", "0", 0, "Daño causado por el arma Gauss");
+ConVar sk_plr_max_dmg_gauss("sk_plr_max_dmg_gauss", "0", 0, "Daño máximo causado por el arma Gauss");
+
+//=========================================================
+// Guardado y definición de datos
+//=========================================================
+
+IMPLEMENT_SERVERCLASS_ST(CWeaponGaussGun, DT_WeaponGaussGun)
 END_SEND_TABLE()
 
-LINK_ENTITY_TO_CLASS( weapon_gauss, CWeaponGaussGun );
-PRECACHE_WEAPON_REGISTER( weapon_gauss );
+LINK_ENTITY_TO_CLASS(weapon_gauss, CWeaponGaussGun);
+PRECACHE_WEAPON_REGISTER(weapon_gauss);
+
+BEGIN_DATADESC(CWeaponGaussGun)
+END_DATADESC()
+
+//=========================================================
+// Tabla de animaciones
+//=========================================================
 
 acttable_t	CWeaponGaussGun::m_acttable[] = 
 {
 	{ ACT_RANGE_ATTACK1, ACT_RANGE_ATTACK_AR2, true },
 };
 
-IMPLEMENT_ACTTABLE( CWeaponGaussGun );
+IMPLEMENT_ACTTABLE(CWeaponGaussGun);
 
-//---------------------------------------------------------
-// Save/Restore
-//---------------------------------------------------------
-BEGIN_DATADESC( CWeaponGaussGun )
-END_DATADESC()
-
-
-ConVar sk_plr_dmg_gauss( "sk_plr_dmg_gauss", "0" );
-ConVar sk_plr_max_dmg_gauss( "sk_plr_max_dmg_gauss", "0" );
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-CWeaponGaussGun::CWeaponGaussGun( void )
+//=========================================================
+// Constructor
+//=========================================================
+CWeaponGaussGun::CWeaponGaussGun()
 {
-	m_hViewModel = NULL;
+	m_hViewModel		= NULL;
 	m_flNextChargeTime	= 0;
 	m_flChargeStartTime = 0;
 	m_sndCharge			= NULL;
@@ -61,52 +67,52 @@ CWeaponGaussGun::CWeaponGaussGun( void )
 	m_bChargeIndicated	= false;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CWeaponGaussGun::Precache( void )
+//=========================================================
+// Guardar los objetos necesarios en caché.
+//=========================================================
+void CWeaponGaussGun::Precache()
 {
-	
-	enginesound->PrecacheSound( "weapons/gauss/chargeloop.wav" );
+	PrecacheScriptSound("Weapon_Gauss.ChargeLoop");
+	PrecacheParticleSystem("plasmabeam");
+	PrecacheParticleSystem(GAUSS_BEAM_SPRITE);
 
 	BaseClass::Precache();
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CWeaponGaussGun::Spawn( void )
+//=========================================================
+// Creación del arma.
+//=========================================================
+void CWeaponGaussGun::Spawn()
 {
 	BaseClass::Spawn();
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CWeaponGaussGun::Fire( void )
+//=========================================================
+// Disparo
+//=========================================================
+void CWeaponGaussGun::Fire()
 {
-	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
+	CBasePlayer *pOwner = ToBasePlayer(GetOwner());
 	
-	if ( pOwner == NULL )
+	// ¿El jugador no ha sido creado?
+	if (!pOwner)
 		return;
 
 	m_bCharging = false;
 
-	if ( m_hViewModel == NULL )
+	if (m_hViewModel == NULL)
 	{
 		CBaseViewModel *vm = pOwner->GetViewModel();
 
-		if ( vm )
-		{
-			m_hViewModel.Set( vm );
-		}
+		if (vm)
+			m_hViewModel.Set(vm);
 	}
 
-	Vector	startPos= pOwner->Weapon_ShootPosition();
-	Vector	aimDir	= pOwner->GetAutoaimVector( AUTOAIM_5DEGREES );
+	Vector	startPos	= pOwner->Weapon_ShootPosition();
+	Vector	aimDir		= pOwner->GetAutoaimVector(AUTOAIM_5DEGREES);
 
 	Vector vecUp, vecRight;
-	VectorVectors( aimDir, vecRight, vecUp );
+	VectorVectors(aimDir, vecRight, vecUp);
 
 	float x, y, z;
 
@@ -117,89 +123,82 @@ void CWeaponGaussGun::Fire( void )
 		z = x*x+y*y;
 	} while (z > 1);
 
-	aimDir = aimDir + x * GetBulletSpread().x * vecRight + y * GetBulletSpread().y * vecUp;
-
-	Vector	endPos	= startPos + ( aimDir * MAX_TRACE_LENGTH );
+	aimDir			= aimDir + x * GetBulletSpread().x * vecRight + y * GetBulletSpread().y * vecUp;
+	Vector endPos	= startPos + (aimDir * MAX_TRACE_LENGTH);
 	
 	//Shoot a shot straight out
 	trace_t	tr;
-	UTIL_TraceLine( startPos, endPos, MASK_SHOT, pOwner, COLLISION_GROUP_NONE, &tr );
+	UTIL_TraceLine(startPos, endPos, MASK_SHOT, pOwner, COLLISION_GROUP_NONE, &tr);
 	
 	ClearMultiDamage();
 
-	CBaseEntity *pHit = tr.m_pEnt;
-	
-	CTakeDamageInfo dmgInfo( this, pOwner, sk_plr_dmg_gauss.GetFloat(), DMG_SHOCK );
+	CBaseEntity *pHit = tr.m_pEnt;	
+	CTakeDamageInfo dmgInfo(this, pOwner, sk_plr_dmg_gauss.GetFloat(), DMG_SHOCK);
 
-	if ( pHit != NULL )
+	if (pHit != NULL)
 	{
-		CalculateBulletDamageForce( &dmgInfo, m_iPrimaryAmmoType, aimDir, tr.endpos );
-		pHit->DispatchTraceAttack( dmgInfo, aimDir, &tr );
+		CalculateBulletDamageForce(&dmgInfo, m_iPrimaryAmmoType, aimDir, tr.endpos);
+		pHit->DispatchTraceAttack(dmgInfo, aimDir, &tr);
 	}
 	
-	if ( tr.DidHitWorld() )
+	if (tr.DidHitWorld())
 	{
 		float hitAngle = -DotProduct( tr.plane.normal, aimDir );
 
-		if ( hitAngle < 0.5f )
+		if (hitAngle < 0.5f)
 		{
 			Vector vReflection;
 		
-			vReflection = 2.0 * tr.plane.normal * hitAngle + aimDir;
-			
+			vReflection = 2.0 * tr.plane.normal * hitAngle + aimDir;			
 			startPos	= tr.endpos;
-			endPos		= startPos + ( vReflection * MAX_TRACE_LENGTH );
+			endPos		= startPos + (vReflection * MAX_TRACE_LENGTH);
 			
-			//Draw beam to reflection point
-			DrawBeam( tr.startpos, tr.endpos, 1.6, true );
+			// Draw beam to reflection point
+			DrawBeam(tr.startpos, tr.endpos, 15, true);
 
-			CPVSFilter filter( tr.endpos );
-			te->GaussExplosion( filter, 0.0f, tr.endpos, tr.plane.normal, 0 );
+			CPVSFilter filter(tr.endpos);
+			te->GaussExplosion(filter, 0.0f, tr.endpos, tr.plane.normal, 0);
 
-			UTIL_ImpactTrace( &tr, GetAmmoDef()->DamageType(m_iPrimaryAmmoType), "ImpactGauss" );
+			UTIL_ImpactTrace(&tr, GetAmmoDef()->DamageType(m_iPrimaryAmmoType), "ImpactGauss");
 
 			//Find new reflection end position
-			UTIL_TraceLine( startPos, endPos, MASK_SHOT, pOwner, COLLISION_GROUP_NONE, &tr );
+			UTIL_TraceLine(startPos, endPos, MASK_SHOT, pOwner, COLLISION_GROUP_NONE, &tr);
 
-			if ( tr.m_pEnt != NULL )
+			if (tr.m_pEnt != NULL)
 			{
-				dmgInfo.SetDamageForce( GetAmmoDef()->DamageForce(m_iPrimaryAmmoType) * vReflection );
-				dmgInfo.SetDamagePosition( tr.endpos );
-				tr.m_pEnt->DispatchTraceAttack( dmgInfo, vReflection, &tr );
+				dmgInfo.SetDamageForce(GetAmmoDef()->DamageForce(m_iPrimaryAmmoType) * vReflection);
+				dmgInfo.SetDamagePosition(tr.endpos);
+				tr.m_pEnt->DispatchTraceAttack(dmgInfo, vReflection, &tr);
 			}
 
-			//Connect reflection point to end
-			DrawBeam( tr.startpos, tr.endpos, 0.4 );
+			// Connect reflection point to end
+			DrawBeam(tr.startpos, tr.endpos, 10);
 		}
 		else
-		{
-			DrawBeam( tr.startpos, tr.endpos, 1.6, true );
-		}
+			DrawBeam(tr.startpos, tr.endpos, 15, true);
 	}
 	else
-	{
-		DrawBeam( tr.startpos, tr.endpos, 1.6, true );
-	}
+		DrawBeam(tr.startpos, tr.endpos, 15, true);
 	
 	ApplyMultiDamage();
 
-	UTIL_ImpactTrace( &tr, GetAmmoDef()->DamageType(m_iPrimaryAmmoType), "ImpactGauss" );
+	UTIL_ImpactTrace(&tr, GetAmmoDef()->DamageType(m_iPrimaryAmmoType), "ImpactGauss");
 
-	CPVSFilter filter( tr.endpos );
-	te->GaussExplosion( filter, 0.0f, tr.endpos, tr.plane.normal, 0 );
+	CPVSFilter filter(tr.endpos);
+	te->GaussExplosion(filter, 0.0f, tr.endpos, tr.plane.normal, 0);
 
 	m_flNextSecondaryAttack = gpGlobals->curtime + 0.5f;
 
 	AddViewKick();
 
 	// Register a muzzleflash for the AI
-	pOwner->SetMuzzleFlashTime( gpGlobals->curtime + 0.5 );
+	pOwner->SetMuzzleFlashTime(gpGlobals->curtime + 0.5);
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CWeaponGaussGun::ChargedFire( void )
+void CWeaponGaussGun::ChargedFire()
 {
 	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
 	
@@ -285,7 +284,7 @@ void CWeaponGaussGun::ChargedFire( void )
 
 	pOwner->ViewPunch( viewPunch );
 
-	DrawBeam( startPos, tr.endpos, 9.6, true );
+	DrawBeam( startPos, tr.endpos, 25, true );
 
 	Vector	recoilForce = pOwner->BodyDirection2D() * -( flDamage * 10.0f );
 	recoilForce[2] += 300.0f;//128
@@ -309,20 +308,18 @@ void CWeaponGaussGun::ChargedFire( void )
 //-----------------------------------------------------------------------------
 void CWeaponGaussGun::DrawBeam( const Vector &startPos, const Vector &endPos, float width, bool useMuzzle )
 {
-	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
+	CBasePlayer *pOwner = ToBasePlayer(GetOwner());
 	
-	if ( pOwner == NULL )
+	if (!pOwner)
 		return;
 
 	//Check to store off our view model index
-	if ( m_hViewModel == NULL )
+	if (m_hViewModel == NULL)
 	{
 		CBaseViewModel *vm = pOwner->GetViewModel();
 
-		if ( vm )
-		{
-			m_hViewModel.Set( vm );
-		}
+		if (vm)
+			m_hViewModel.Set(vm);
 	}
 
 	//Draw the main beam shaft
@@ -376,7 +373,7 @@ void CWeaponGaussGun::DrawBeam( const Vector &startPos, const Vector &endPos, fl
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CWeaponGaussGun::PrimaryAttack( void )
+void CWeaponGaussGun::PrimaryAttack()
 {
 	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
 	
@@ -403,7 +400,7 @@ void CWeaponGaussGun::PrimaryAttack( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CWeaponGaussGun::IncreaseCharge( void )
+void CWeaponGaussGun::IncreaseCharge()
 {
 	if ( m_flNextChargeTime > gpGlobals->curtime )
 		return;
@@ -456,7 +453,7 @@ void CWeaponGaussGun::IncreaseCharge( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CWeaponGaussGun::SecondaryAttack( void )
+void CWeaponGaussGun::SecondaryAttack()
 {
 	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
 	
@@ -499,7 +496,7 @@ void CWeaponGaussGun::SecondaryAttack( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CWeaponGaussGun::AddViewKick( void )
+void CWeaponGaussGun::AddViewKick()
 {
 	//Get the view kick
 	CBasePlayer *pPlayer = ToBasePlayer( GetOwner() );
@@ -519,7 +516,7 @@ void CWeaponGaussGun::AddViewKick( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CWeaponGaussGun::ItemPostFrame( void )
+void CWeaponGaussGun::ItemPostFrame()
 {
 	//Get the view kick
 	CBasePlayer *pPlayer = ToBasePlayer( GetOwner() );
@@ -552,7 +549,7 @@ void CWeaponGaussGun::ItemPostFrame( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CWeaponGaussGun::StopChargeSound( void )
+void CWeaponGaussGun::StopChargeSound()
 {
 	if ( m_sndCharge != NULL )
 	{

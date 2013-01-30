@@ -29,9 +29,6 @@ public:
 	void HighAttackSound();
 	void LowAttackSound	();
 
-	void StartBackgroundMusic	();
-	void VolumeBackgroundMusic	(float volume);
-
 	float MaxYawSpeed		();
 	void HandleAnimEvent	(animevent_t *pEvent);
 
@@ -59,17 +56,15 @@ public:
 	DEFINE_CUSTOM_AI;
 
 protected:
-	void MusicThink();
-
 	EHANDLE m_hPhysicsEnt;
 
 private:
 	float m_flLastHurtTime;
-	float m_nextAlertSoundTime;
-	float m_volumeFadeOutBackgound;
+	float t_nextAlertSound;
+	float t_nextPainSound;
+
 	float m_flNextThrow;
 	bool m_hPhysicsCanThrow;
-	bool m_backgroundMusicStarted;
 };
 
 #endif // NPC_GRUNT_H

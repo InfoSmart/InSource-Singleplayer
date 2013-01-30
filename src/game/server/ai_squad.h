@@ -22,7 +22,7 @@ typedef CHandle<CAI_BaseNPC> AIHANDLE;
 DECLARE_POINTER_HANDLE(AISquadsIter_t);
 DECLARE_POINTER_HANDLE(AISquadIter_t);
 
-#define	MAX_SQUAD_MEMBERS	16
+#define	MAX_SQUAD_MEMBERS	100
 #define MAX_SQUAD_DATA_SLOTS 4
 
 //-----------------------------------------------------------------------------

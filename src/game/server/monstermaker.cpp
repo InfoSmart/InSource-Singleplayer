@@ -21,12 +21,6 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-static void DispatchActivate( CBaseEntity *pEntity )
-{
-	bool bAsyncAnims = mdlcache->SetAsyncLoad( MDLCACHE_ANIMBLOCK, false );
-	pEntity->Activate();
-	mdlcache->SetAsyncLoad( MDLCACHE_ANIMBLOCK, bAsyncAnims );
-}
 
 ConVar ai_inhibit_spawners( "ai_inhibit_spawners", "0", FCVAR_CHEAT );
 
@@ -233,7 +227,8 @@ bool CBaseNPCMaker::CanMakeNPC( bool bIgnoreSolidEntities )
 				{
 					if ( !(pPlayer->GetFlags() & FL_NOTARGET) )
 						return false;
-					DevMsg( 2, "Spawner %s spawning even though seen due to notarget\n", STRING( GetEntityName() ) );
+
+					DevMsg("[SPAWN] Spawner %s spawning even though seen due to notarget\n", STRING( GetEntityName() ) );
 				}
 			}
 		}

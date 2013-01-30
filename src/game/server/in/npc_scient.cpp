@@ -16,7 +16,7 @@
 #include "ai_route.h"
 #include "ai_navigator.h"
 
-#include "npc_base.h" // Cambiame a la cabecera del este archivo.
+#include "npc_scientist.h"
 
 #include "npcevent.h"
 #include "activitylist.h"
@@ -43,31 +43,27 @@
 // Definición de variables para la configuración.
 //=========================================================
 
-ConVar sk_basenpc_health("sk_basenpc_health", "0", 0, "Salud del NPC");
+ConVar sk_scient_health("sk_scient_health", "0", 0, "Salud del NPC");
 
 //=========================================================
 // Configuración del NPC
 //=========================================================
 
 // Modelo
-#define MODEL_BASE		"models/.mdl"
+#define MODEL_BASE		"models/humans/scientist.mdl"
 
 // ¿Qué capacidades tendrá?
 // Moverse en el suelo - Ataque cuerpo a cuerpo 1 - Ataque cuerpo a cuerpo 2
-#define CAPABILITIES	bits_CAP_MOVE_GROUND | bits_CAP_INNATE_MELEE_ATTACK1 | bits_CAP_INNATE_MELEE_ATTACK2
+#define CAPABILITIES	bits_CAP_MOVE_GROUND
 
 // Color de la sangre.
-#define BLOOD			BLOOD_COLOR_YELLOW
+#define BLOOD			BLOOD_COLOR_RED
 
 // Distancia de visibilidad.
 #define SEE_DIST		300.0
 
 // Campo de visión
-#define FOV				0.2f
-
-// Propiedades
-// No disolverse (Con la bola de energía) - No morir con la super arma de gravedad.
-#define EFLAGS			EFL_NO_DISSOLVE | EFL_NO_MEGAPHYSCANNON_RAGDOLL
+#define FOV				0.1
 
 //=========================================================
 // Tareas programadas
@@ -102,9 +98,9 @@ enum
 // Guardado y definición de datos
 //=========================================================
 
-LINK_ENTITY_TO_CLASS(npc_base, CNPC_Base);
+LINK_ENTITY_TO_CLASS(npc_scient, CNPC_Scient);
 
-BEGIN_DATADESC(CNPC_Base)
+BEGIN_DATADESC(CNPC_Scient)
 
 	DEFINE_FIELD(m_flLastHurtTime,		FIELD_TIME),
 	DEFINE_FIELD(m_nextAlertSoundTime,	FIELD_TIME),
@@ -115,7 +111,7 @@ END_DATADESC()
 // Spawn()
 // Crear un nuevo 
 //=========================================================
-void CNPC_Base::Spawn()
+void CNPC_Scient::Spawn()
 {
 	Precache();
 
@@ -129,8 +125,8 @@ void CNPC_Base::Spawn()
 
 	// Navegación, estado físico y opciones extra.
 	SetSolid(SOLID_BBOX);
-	AddSolidFlags(FSOLID_NOT_STANDABLE);
 	SetNavType(NAV_GROUND);	
+	AddSolidFlags(FSOLID_NOT_STANDABLE);
 	SetMoveType(MOVETYPE_STEP);
 	
 	SetRenderColor(255, 255, 255, 255);
@@ -138,16 +134,13 @@ void CNPC_Base::Spawn()
 
 	// Reseteo de variables.
 	// Salud, estado del NPC y vista.
-	m_iHealth			= in_basenpc_health.GetFloat();
+	m_iHealth			= sk_scient_health.GetFloat();
 	m_NPCState			= NPC_STATE_NONE;
 	m_flFieldOfView		= FOV;
 
 	// Capacidades
 	CapabilitiesClear();
 	CapabilitiesAdd(CAPABILITIES);
-
-	// Caracteristicas
-	AddEFlags(EFLAGS);
 
 	NPCInit();
 	BaseClass::Spawn();
@@ -157,7 +150,7 @@ void CNPC_Base::Spawn()
 // Precache()
 // Guardar en caché objetos necesarios.
 //=========================================================
-void CNPC_Base::Precache()
+void CNPC_Scient::Precache()
 {
 	// Modelo
 	PrecacheModel(MODEL_BASE);
@@ -178,16 +171,16 @@ void CNPC_Base::Precache()
 // Devuelve el tipo de NPC.
 // Con el fin de usarse en la tabla de relaciones.
 //=========================================================
-Class_T	CNPC_Base::Classify()
+Class_T	CNPC_Scient::Classify()
 {
-	return CLASS_BASE; 
+	return CLASS_SCIENT;
 }
 
 //=========================================================
 // IdleSound()
 // Reproducir sonido al azar de descanso.
 //=========================================================
-void CNPC_Base::IdleSound()
+void CNPC_Scient::IdleSound()
 {
 	EmitSound("NPC_Base.Idle");
 } 
@@ -196,7 +189,7 @@ void CNPC_Base::IdleSound()
 // PainSound()
 // Reproducir sonido de dolor.
 //=========================================================
-void CNPC_Base::PainSound(const CTakeDamageInfo &info)
+void CNPC_Scient::PainSound(const CTakeDamageInfo &info)
 {
 	EmitSound("NPC_Base.Pain");
 }
@@ -205,7 +198,7 @@ void CNPC_Base::PainSound(const CTakeDamageInfo &info)
 // AlertSound()
 // Reproducir sonido de alerta.
 //=========================================================
-void CNPC_Base::AlertSound()
+void CNPC_Scient::AlertSound()
 {
 	if (gpGlobals->curtime >= m_nextAlertSoundTime)
 	{
@@ -218,7 +211,7 @@ void CNPC_Base::AlertSound()
 // DeathSound()
 // Reproducir sonido de muerte.
 //=========================================================
-void CNPC_Base::DeathSound(const CTakeDamageInfo &info)
+void CNPC_Scient::DeathSound(const CTakeDamageInfo &info)
 {
 	EmitSound("NPC_Base.Death");
 }
@@ -227,7 +220,7 @@ void CNPC_Base::DeathSound(const CTakeDamageInfo &info)
 // AttackSound()
 // Reproducir sonido al azar de ataque.
 //=========================================================
-void CNPC_Base::AttackSound()
+void CNPC_Scient::AttackSound()
 {
 	EmitSound("NPC_Base.Attack1");
 }
@@ -237,7 +230,7 @@ void CNPC_Base::AttackSound()
 // Devuelve la velocidad máxima del yaw dependiendo de la
 // actividad actual.
 //=========================================================
-float CNPC_Base::MaxYawSpeed()
+float CNPC_Scient::MaxYawSpeed()
 {
 	switch (GetActivity())
 	{
@@ -260,12 +253,12 @@ float CNPC_Base::MaxYawSpeed()
 // Ejecuta una acción al momento que el modelo hace
 // la animación correspondiente.
 //=========================================================
-void CNPC_Base::HandleAnimEvent(animevent_t *pEvent)
+void CNPC_Scient::HandleAnimEvent(animevent_t *pEvent)
 {
 	// DEBUG
 	// Eliminalo cuando esto este listo.
 	const char *pName = EventList_NameForIndex(pEvent->event);
-	DevMsg("[NPC] Se ha producido el evento %s \n", pName);
+	DevMsg("NPC: Se ha producido el evento %s \n", pName);
 
 	/*if (pEvent->event == AE_AGRUNT_MELEE_ATTACK_HIGH)
 	{
@@ -281,7 +274,7 @@ void CNPC_Base::HandleAnimEvent(animevent_t *pEvent)
 // Ataque cuerpo a cuerpo #1
 // En este caso: 
 //=========================================================
-void CNPC_Base::MeleeAttack1()
+void CNPC_Scient::MeleeAttack1()
 {
 	/*
 		Ataque cuerpo a cuerpo ¡Ejemplo!
@@ -314,7 +307,7 @@ void CNPC_Base::MeleeAttack1()
 // Ataque cuerpo a cuerpo #2
 // En este caso: 
 //=========================================================
-void CNPC_Base::MeleeAttack2()
+void CNPC_Scient::MeleeAttack2()
 {
 }
 
@@ -323,7 +316,7 @@ void CNPC_Base::MeleeAttack2()
 // Verifica si es conveniente hacer un ataque cuerpo a cuerpo.
 // En este caso: 
 //=========================================================
-int CNPC_Base::MeleeAttack1Conditions(float flDot, float flDist)
+int CNPC_Scient::MeleeAttack1Conditions(float flDot, float flDist)
 {
 	// Lo tengo a mi alcanze
 	if (flDist <= 85 && flDot >= 0.7)
@@ -337,7 +330,7 @@ int CNPC_Base::MeleeAttack1Conditions(float flDot, float flDist)
 // Verifica si es conveniente hacer un ataque cuerpo a cuerpo.
 // En este caso: 
 //=========================================================
-int CNPC_Base::MeleeAttack2Conditions(float flDot, float flDist)
+int CNPC_Scient::MeleeAttack2Conditions(float flDot, float flDist)
 {
 	// Lo tengo a mi alcanze y no haremos el primer ataque cuerpo a cuerpo.
 	if (flDist <= 85 && flDot >= 0.7 && !HasCondition(COND_CAN_MELEE_ATTACK1))
@@ -350,7 +343,7 @@ int CNPC_Base::MeleeAttack2Conditions(float flDot, float flDist)
 // OnTakeDamage_Alive()
 // 
 //=========================================================
-int CNPC_Base::OnTakeDamage_Alive(const CTakeDamageInfo &inputInfo)
+int CNPC_Scient::OnTakeDamage_Alive(const CTakeDamageInfo &inputInfo)
 {
 	return BaseClass::OnTakeDamage_Alive(inputInfo);
 }
@@ -359,7 +352,7 @@ int CNPC_Base::OnTakeDamage_Alive(const CTakeDamageInfo &inputInfo)
 // SelectSchedule()
 // Seleccionar una tarea programada dependiendo del estado
 //=========================================================
-int CNPC_Base::SelectSchedule()
+int CNPC_Scient::SelectSchedule()
 {
 	switch	(m_NPCState)
 	{
@@ -403,7 +396,7 @@ int CNPC_Base::SelectSchedule()
 // StartTask()
 // Realiza los calculos necesarios al iniciar una tarea.
 //=========================================================
-void CNPC_Base::StartTask(const Task_t *pTask)
+void CNPC_Scient::StartTask(const Task_t *pTask)
 {
 	switch (pTask->iTask)
 	{
@@ -424,7 +417,7 @@ void CNPC_Base::StartTask(const Task_t *pTask)
 // RunTask
 //
 //=========================================================
-void CNPC_Base::RunTask(const Task_t *pTask)
+void CNPC_Scient::RunTask(const Task_t *pTask)
 {
 	BaseClass::RunTask(pTask);
 }
@@ -433,7 +426,7 @@ void CNPC_Base::RunTask(const Task_t *pTask)
 // SelectIdealState()
 // 
 //=========================================================
-NPC_STATE CNPC_Base::SelectIdealState( void )
+NPC_STATE CNPC_Scient::SelectIdealState( void )
 {
 	switch (m_NPCState)
 	{
@@ -460,7 +453,7 @@ NPC_STATE CNPC_Base::SelectIdealState( void )
 //=========================================================
 //=========================================================
 
-AI_BEGIN_CUSTOM_NPC(npc_base, CNPC_Base)
+AI_BEGIN_CUSTOM_NPC(npc_base, CNPC_Scient)
 
 	//DECLARE_TASK(TASK_EAT)
 

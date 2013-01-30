@@ -495,7 +495,7 @@ bool CNPC_BaseZombie::OverrideMoveFacing(const AILocalMoveGoal_t &move, float fl
 			else
 				idealYaw = flMoveYaw + UTIL_AngleDiff(flEYaw, flMoveYaw) * (2 - flEDist / 128.0);
 
-			DevMsg("Zombie was %.0f now %.0f\n", flMoveYaw, idealYaw);
+			//DevMsg("Zombie was %.0f now %.0f\n", flMoveYaw, idealYaw);
 		}
 	}
 

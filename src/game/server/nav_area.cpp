@@ -1261,6 +1261,27 @@ bool CNavArea::Contains( const Vector &pos ) const
 	return true;
 }
 
+/*
+bool CNavArea::FindRandomSpot( Vector *pResult )
+{
+	FOR_EACH_LL( m_overlapList, it )
+	{
+		CNavArea *area = m_overlapList[ it ];
+
+		if(random->RandomInt(1, 10) > 5)
+		{
+			area->Is
+
+			//*pResult = (Vector *)area->
+
+			return true;
+		}
+	}
+
+	return false;
+}
+*/
+
 
 //--------------------------------------------------------------------------------------------------------------
 void CNavArea::ComputeNormal( Vector *normal, bool alternate ) const

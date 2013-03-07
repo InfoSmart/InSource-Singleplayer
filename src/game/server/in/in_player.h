@@ -6,6 +6,8 @@
 #include "hl2_player.h"
 #include "director.h"
 
+#define ENVELOPE_CONTROLLER (CSoundEnvelopeController::GetController())
+
 class CIN_Player : public CHL2_Player
 {
 public:
@@ -49,11 +51,11 @@ public:
 private:
 	// Variables
 
-	CInDirector		m_Director;
+	CInDirector		Director;
 
-	float			m_fRegenRemander;
-	float			t_bodyHurt;
-	float			m_fTasksTimer;
+	float			RegenRemander;
+	float			BodyHurt;
+	float			TasksTimer;
 };
 
 inline CIN_Player *ToInPlayer(CBasePlayer *pEntity)

@@ -14,6 +14,7 @@
 #include "sprite.h"
 
 extern ConVar hopwire_trap;
+//ConVarRef hopwire_trap("hopwire_trap");
 
 class CGravityVortexController;
 

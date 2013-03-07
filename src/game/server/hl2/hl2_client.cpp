@@ -107,7 +107,7 @@ void ClientGamePrecache( void )
 {
 	// Apocalypse
 	//CBaseEntity::PrecacheModel("models/player.mdl");
-	CBaseEntity::PrecacheModel("models/player/chell.mdl");
+	//CBaseEntity::PrecacheModel("models/player/chell.mdl");
 
 	CBaseEntity::PrecacheModel( "models/gibs/agibs.mdl" );
 	CBaseEntity::PrecacheModel ("models/weapons/v_hands.mdl");

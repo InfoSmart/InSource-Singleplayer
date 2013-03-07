@@ -515,7 +515,7 @@ void CFastZombie::PrescheduleThink( void )
 		GetGroundEntity()->TakeDamage( info );
 	}
 
- 	if( m_pMoanSound && gpGlobals->curtime > m_flTimeUpdateSound )
+ 	if( sMoanSound && gpGlobals->curtime > m_flTimeUpdateSound )
 	{
 		// Manage the snorting sound, pitch up for closer.
 		float flDistNoBBox;
@@ -537,7 +537,7 @@ void CFastZombie::PrescheduleThink( void )
 			// Go back to normal pitch.
 			m_flDistFactor = 1.0;
 
-			ENVELOPE_CONTROLLER.SoundChangePitch( m_pMoanSound, FASTZOMBIE_IDLE_PITCH, FASTZOMBIE_SOUND_UPDATE_FREQ );
+			ENVELOPE_CONTROLLER.SoundChangePitch( sMoanSound, FASTZOMBIE_IDLE_PITCH, FASTZOMBIE_SOUND_UPDATE_FREQ );
 		}
 		else if( flDistNoBBox < FASTZOMBIE_EXCITE_DIST )
 		{
@@ -546,7 +546,7 @@ void CFastZombie::PrescheduleThink( void )
 
 			m_flDistFactor = min( 1.0, 1 - flDistNoBBox / FASTZOMBIE_EXCITE_DIST ); 
 			iPitch = FASTZOMBIE_MIN_PITCH + ( ( FASTZOMBIE_MAX_PITCH - FASTZOMBIE_MIN_PITCH ) * m_flDistFactor); 
-			ENVELOPE_CONTROLLER.SoundChangePitch( m_pMoanSound, iPitch, FASTZOMBIE_SOUND_UPDATE_FREQ );
+			ENVELOPE_CONTROLLER.SoundChangePitch( sMoanSound, iPitch, FASTZOMBIE_SOUND_UPDATE_FREQ );
 		}
 
 		m_flTimeUpdateSound = gpGlobals->curtime + FASTZOMBIE_SOUND_UPDATE_FREQ;
@@ -574,13 +574,13 @@ void CFastZombie::PrescheduleThink( void )
 //-----------------------------------------------------------------------------
 void CFastZombie::SoundInit( void )
 {
-	if( !m_pMoanSound )
+	if( !sMoanSound )
 	{
 		// !!!HACKHACK - kickstart the moan sound. (sjb)
 		MoanSound( envFastZombieMoanVolume, ARRAYSIZE( envFastZombieMoanVolume ) );
 
 		// Clear the commands that the base class gave the moaning sound channel.
-		ENVELOPE_CONTROLLER.CommandClear( m_pMoanSound );
+		ENVELOPE_CONTROLLER.CommandClear( sMoanSound );
 	}
 
 	CPASAttenuationFilter filter( this );
@@ -603,10 +603,10 @@ void CFastZombie::SoundInit( void )
 void CFastZombie::SetIdleSoundState( void )
 {
 	// Main looping sound
-	if ( m_pMoanSound )
+	if ( sMoanSound )
 	{
-		ENVELOPE_CONTROLLER.SoundChangePitch( m_pMoanSound, FASTZOMBIE_IDLE_PITCH, 1.0 );
-		ENVELOPE_CONTROLLER.SoundChangeVolume( m_pMoanSound, 0.75, 1.0 );
+		ENVELOPE_CONTROLLER.SoundChangePitch( sMoanSound, FASTZOMBIE_IDLE_PITCH, 1.0 );
+		ENVELOPE_CONTROLLER.SoundChangeVolume( sMoanSound, 0.75, 1.0 );
 	}
 
 	// Second Layer
@@ -623,7 +623,7 @@ void CFastZombie::SetIdleSoundState( void )
 //-----------------------------------------------------------------------------
 void CFastZombie::SetAngrySoundState( void )
 {
-	if (( !m_pMoanSound ) || ( !m_pLayer2 ))
+	if (( !sMoanSound ) || ( !m_pLayer2 ))
 	{
 		return;
 	}
@@ -631,8 +631,8 @@ void CFastZombie::SetAngrySoundState( void )
 	EmitSound( "NPC_FastZombie.LeapAttack" );
 
 	// Main looping sound
-	ENVELOPE_CONTROLLER.SoundChangePitch( m_pMoanSound, FASTZOMBIE_MIN_PITCH, 0.5 );
-	ENVELOPE_CONTROLLER.SoundChangeVolume( m_pMoanSound, 1.0, 0.5 );
+	ENVELOPE_CONTROLLER.SoundChangePitch( sMoanSound, FASTZOMBIE_MIN_PITCH, 0.5 );
+	ENVELOPE_CONTROLLER.SoundChangeVolume( sMoanSound, 1.0, 0.5 );
 
 	// Second Layer
 	ENVELOPE_CONTROLLER.SoundChangePitch( m_pLayer2, 100, 1.0 );
@@ -650,16 +650,16 @@ void CFastZombie::Spawn( void )
 
 	m_fJustJumped = false;
 
-	m_fIsTorso = m_fIsHeadless = false;
+	IsTorso = IsHeadless = false;
 
 	if( FClassnameIs( this, "npc_fastzombie" ) )
 	{
-		m_fIsTorso = false;
+		IsTorso = false;
 	}
 	else
 	{
 		// This was placed as an npc_fastzombie_torso
-		m_fIsTorso = true;
+		IsTorso = true;
 	}
 
 #ifdef HL2_EPISODIC
@@ -676,7 +676,7 @@ void CFastZombie::Spawn( void )
 	CapabilitiesClear();
 	CapabilitiesAdd( bits_CAP_MOVE_CLIMB | bits_CAP_MOVE_JUMP | bits_CAP_MOVE_GROUND | bits_CAP_INNATE_RANGE_ATTACK1 /* | bits_CAP_INNATE_MELEE_ATTACK1 */);
 
-	if ( m_fIsTorso == true )
+	if ( IsTorso == true )
 	{
 		CapabilitiesRemove( bits_CAP_MOVE_JUMP | bits_CAP_INNATE_RANGE_ATTACK1 );
 	}
@@ -752,7 +752,7 @@ void CFastZombie::SetZombieModel( void )
 {
 	Hull_t lastHull = GetHullType();
 
-	if ( m_fIsTorso )
+	if ( IsTorso )
 	{
 		SetModel( "models/zombie/fast_torso.mdl" );
 		SetHullType(HULL_TINY);
@@ -763,7 +763,7 @@ void CFastZombie::SetZombieModel( void )
 		SetHullType(HULL_HUMAN);
 	}
 
-	SetBodygroup( ZOMBIE_BODYGROUP_HEADCRAB, !m_fIsHeadless );
+	SetBodygroup( ZOMBIE_BODYGROUP_HEADCRAB, !IsHeadless );
 
 	SetHullSizeNormal( true );
 	SetDefaultEyeOffset();
@@ -902,8 +902,8 @@ void CFastZombie::PainSound( const CTakeDamageInfo &info )
 {
 	if ( m_pLayer2 )
 		ENVELOPE_CONTROLLER.SoundPlayEnvelope( m_pLayer2, SOUNDCTRL_CHANGE_VOLUME, envFastZombieVolumePain, ARRAYSIZE(envFastZombieVolumePain) );
-	if ( m_pMoanSound )
-		ENVELOPE_CONTROLLER.SoundPlayEnvelope( m_pMoanSound, SOUNDCTRL_CHANGE_VOLUME, envFastZombieInverseVolumePain, ARRAYSIZE(envFastZombieInverseVolumePain) );
+	if ( sMoanSound )
+		ENVELOPE_CONTROLLER.SoundPlayEnvelope( sMoanSound, SOUNDCTRL_CHANGE_VOLUME, envFastZombieInverseVolumePain, ARRAYSIZE(envFastZombieInverseVolumePain) );
 }
 
 //-----------------------------------------------------------------------------
@@ -1414,7 +1414,7 @@ int CFastZombie::TranslateSchedule( int scheduleType )
 		break;
 
 	case SCHED_MELEE_ATTACK1:
-		if ( m_fIsTorso == true )
+		if ( IsTorso == true )
 		{
 			return SCHED_FASTZOMBIE_TORSO_MELEE_ATTACK1;
 		}
@@ -1527,10 +1527,10 @@ void CFastZombie::ClimbTouch( CBaseEntity *pOther )
 //-----------------------------------------------------------------------------
 void CFastZombie::StopLoopingSounds( void )
 {
-	if ( m_pMoanSound )
+	if ( sMoanSound )
 	{
-		ENVELOPE_CONTROLLER.SoundDestroy( m_pMoanSound );
-		m_pMoanSound = NULL;
+		ENVELOPE_CONTROLLER.SoundDestroy( sMoanSound );
+		sMoanSound = NULL;
 	}
 
 	if ( m_pLayer2 )
@@ -1667,23 +1667,23 @@ void CFastZombie::OnChangeActivity( Activity NewActivity )
 		// Landed a jump
 		EndNavJump();
 
-		if ( m_pMoanSound )
-			ENVELOPE_CONTROLLER.SoundChangePitch( m_pMoanSound, FASTZOMBIE_MIN_PITCH, 0.3 );
+		if ( sMoanSound )
+			ENVELOPE_CONTROLLER.SoundChangePitch( sMoanSound, FASTZOMBIE_MIN_PITCH, 0.3 );
 	}
 
 	if ( NewActivity == ACT_CLIMB_UP )
 	{
 		// Started a climb!
-		if ( m_pMoanSound )
-			ENVELOPE_CONTROLLER.SoundChangeVolume( m_pMoanSound, 0.0, 0.2 );
+		if ( sMoanSound )
+			ENVELOPE_CONTROLLER.SoundChangeVolume( sMoanSound, 0.0, 0.2 );
 
 		SetTouch( &CFastZombie::ClimbTouch );
 	}
 	else if ( GetActivity() == ACT_CLIMB_DISMOUNT || ( GetActivity() == ACT_CLIMB_UP && NewActivity != ACT_CLIMB_DISMOUNT ) )
 	{
 		// Ended a climb
-		if ( m_pMoanSound )
-			ENVELOPE_CONTROLLER.SoundChangeVolume( m_pMoanSound, 1.0, 0.2 );
+		if ( sMoanSound )
+			ENVELOPE_CONTROLLER.SoundChangeVolume( sMoanSound, 1.0, 0.2 );
 
 		SetTouch( NULL );
 	}
@@ -1785,7 +1785,7 @@ void CFastZombie::OnStateChange( NPC_STATE OldState, NPC_STATE NewState )
 	{
 		SetAngrySoundState();
 	}
-	else if( (m_pMoanSound) && ( NewState == NPC_STATE_IDLE || NewState == NPC_STATE_ALERT ) ) ///!!!HACKHACK - sjb
+	else if( (sMoanSound) && ( NewState == NPC_STATE_IDLE || NewState == NPC_STATE_ALERT ) ) ///!!!HACKHACK - sjb
 	{
 		// Don't make this sound while we're slumped
 		if ( IsSlumped() == false )
@@ -1849,7 +1849,7 @@ void CFastZombie::Event_Killed( const CTakeDamageInfo &info )
 //-----------------------------------------------------------------------------
 bool CFastZombie::ShouldBecomeTorso( const CTakeDamageInfo &info, float flDamageThreshold )
 {
-	if( m_fIsTorso )
+	if( IsTorso )
 	{
 		// Already split.
 		return false;

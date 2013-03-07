@@ -9,62 +9,76 @@
 #ifndef NPC_GRUNT_H
 #define NPC_GRUNT_H
 
-#include "AI_BaseNPC.h"
+#include "ai_basenpc.h"
+#include "ai_behavior_actbusy.h"
+#include "ai_blended_movement.h"
 
-class CNPC_Grunt : public CAI_BaseNPC
+//=========================================================
+//=========================================================
+
+typedef CAI_BlendingHost< CAI_BehaviorHost<CAI_BaseNPC> > CAI_BaseGrunt;
+
+class CNPC_Grunt : public CAI_BaseGrunt
 {
 	DECLARE_DATADESC();
 
 public:
-	DECLARE_CLASS(CNPC_Grunt, CAI_BaseNPC);
+	DECLARE_CLASS(CNPC_Grunt, CAI_BaseGrunt);
 
-	void Spawn		();
-	void Precache	();
+	void Spawn();
+	void Precache();
 	Class_T	Classify();
 
-	void IdleSound		();
-	void PainSound		(const CTakeDamageInfo &info);
-	void AlertSound		();
-	void DeathSound		(const CTakeDamageInfo &info);
-	void HighAttackSound();
-	void LowAttackSound	();
+	void IdleSound();
+	void PainSound(const CTakeDamageInfo &info);
+	void AlertSound();
+	void DeathSound(const CTakeDamageInfo &info);
+	void AttackSound(bool highAttack = false);
 
-	float MaxYawSpeed		();
-	void HandleAnimEvent	(animevent_t *pEvent);
+	float MaxYawSpeed();
+	void HandleAnimEvent(animevent_t *pEvent);
 
-	void MeleeAttack1();
-	void MeleeAttack2();
+	bool IsJumpLegal(const Vector &startPos, const Vector &apex, const Vector &endPos) const;
+
+	CBaseEntity *MeleeAttack(bool highAttack = false);
+	//void RangeAttack1();
 
 	int MeleeAttack1Conditions(float flDot, float flDist);
 	int MeleeAttack2Conditions(float flDot, float flDist);
+	//int RangeAttack1Conditions(float flDot, float flDist);
 
-	int OnTakeDamage_Alive	(const CTakeDamageInfo &inputInfo);
-	void Event_Killed		(const CTakeDamageInfo &info);
+	int OnTakeDamage_Alive(const CTakeDamageInfo &inputInfo);
+	void Event_Killed(const CTakeDamageInfo &info);
 
 	int SelectCombatSchedule();
-	int SelectSchedule		();
-	void GatherConditions	();
+	int SelectSchedule();
+	int TranslateSchedule(int scheduleType);
+	void GatherConditions();
 
-	void StartTask	(const Task_t *pTask);
-	void RunTask	(const Task_t *pTask);
+	void StartTask(const Task_t *pTask);
+	void RunTask(const Task_t *pTask);
 
-	bool FindNearestPhysicsObject	();
-	float DistToPhysicsEnt			();
-	bool IsPhysicsObject			(CBaseEntity *pEntity);
+	bool FindNearestPhysicsObject();
+	float DistToPhysicsEnt();
+	bool IsPhysicsObject(CBaseEntity *pEntity);
 
 	NPC_STATE SelectIdealState();
 	DEFINE_CUSTOM_AI;
 
+	static int ACT_SWATLEFTMID;
+
 protected:
-	EHANDLE m_hPhysicsEnt;
+	EHANDLE PhysicsEnt;
 
 private:
-	float m_flLastHurtTime;
-	float t_nextAlertSound;
-	float t_nextPainSound;
+	float LastHurtTime;
+	float NextAlertSound;
+	float NextPainSound;
 
-	float m_flNextThrow;
-	bool m_hPhysicsCanThrow;
+	float NextRangeAttack1;
+
+	float NextThrow;
+	bool PhysicsCanThrow;
 };
 
 #endif // NPC_GRUNT_H

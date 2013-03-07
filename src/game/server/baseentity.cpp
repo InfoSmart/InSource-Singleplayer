@@ -855,14 +855,15 @@ void CBaseEntity::DrawDebugGeometryOverlays(void)
 int CBaseEntity::DrawDebugTextOverlays(void) 
 {
 	int offset = 1;
-	if (m_debugOverlays & OVERLAY_TEXT_BIT) 
+
+	if ( m_debugOverlays & OVERLAY_TEXT_BIT ) 
 	{
 		char tempstr[512];
 		Q_snprintf( tempstr, sizeof(tempstr), "(%d) Nombre: %s (%s)", entindex(), GetDebugName(), GetClassname() );
 		EntityText(offset,tempstr, 0);
 		offset++;
 
-		if( m_iGlobalname != NULL_STRING )
+		if ( m_iGlobalname != NULL_STRING )
 		{
 			Q_snprintf( tempstr, sizeof(tempstr), "GLOBALNAME: %s", m_iGlobalname );
 			EntityText(offset,tempstr, 0);
@@ -874,17 +875,30 @@ int CBaseEntity::DrawDebugTextOverlays(void)
 		EntityText( offset, tempstr, 0 );
 		offset++;
 
-		if( GetModelName() != NULL_STRING || GetBaseAnimating() )
+		if ( GetModelName() != NULL_STRING || GetBaseAnimating() )
 		{
 			Q_snprintf(tempstr, sizeof(tempstr), "Modelo: %s", STRING(GetModelName()) );
 			EntityText(offset,tempstr,0);
 			offset++;
 		}
 
-		if( m_hDamageFilter.Get() != NULL )
+		if ( m_hDamageFilter.Get() != NULL )
 		{
 			Q_snprintf( tempstr, sizeof(tempstr), "DAMAGE FILTER: %s", m_hDamageFilter->GetDebugName() );
 			EntityText( offset,tempstr,0 );
+			offset++;
+		}
+
+		CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+
+		if ( pPlayer )
+		{
+			Q_snprintf( tempstr, sizeof(tempstr), "InViewCone: %i", pPlayer->FInViewCone(vecOrigin) );
+			EntityText(offset, tempstr, 0);
+			offset++;
+
+			Q_snprintf( tempstr, sizeof(tempstr), "Visible: %i", pPlayer->FVisible(vecOrigin) );
+			EntityText(offset, tempstr, 0);
 			offset++;
 		}
 	}

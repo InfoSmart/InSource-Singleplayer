@@ -200,8 +200,8 @@ void CNPC_Zombine::Spawn( void )
 {
 	Precache();
 
-	m_fIsTorso = false;
-	m_fIsHeadless = false;
+	IsTorso = false;
+	IsHeadless = false;
 	
 #ifdef HL2_EPISODIC
 	SetBloodColor( BLOOD_COLOR_ZOMBIE );
@@ -221,7 +221,7 @@ void CNPC_Zombine::Spawn( void )
 	m_flSprintTime = 0.0f;
 	m_flSprintRestTime = 0.0f;
 
-	m_flNextMoanSound = gpGlobals->curtime + random->RandomFloat( 1.0, 4.0 );
+	NextMoanSound = gpGlobals->curtime + random->RandomFloat( 1.0, 4.0 );
 
 	g_flZombineGrenadeTimes = gpGlobals->curtime;
 	m_flGrenadePullTime = gpGlobals->curtime;
@@ -257,8 +257,7 @@ void CNPC_Zombine::SetZombieModel( void )
 	SetModel( "models/zombie/zombie_soldier.mdl" );
 	SetHullType( HULL_HUMAN );
 
-	//SetBodygroup( ZOMBIE_BODYGROUP_HEADCRAB, !m_fIsHeadless );
-	SetBodygroup(0, !m_fIsHeadless );
+	SetBodygroup( ZOMBIE_BODYGROUP_HEADCRAB, !IsHeadless );
 
 	SetHullSizeNormal( true );
 	SetDefaultEyeOffset();
@@ -269,18 +268,18 @@ void CNPC_Zombine::PrescheduleThink( void )
 {
 	GatherGrenadeConditions();
 
-	if( gpGlobals->curtime > m_flNextMoanSound )
+	if( gpGlobals->curtime > NextMoanSound )
 	{
 		if( CanPlayMoanSound() )
 		{
 			// Classic guy idles instead of moans.
 			IdleSound();
 
-			m_flNextMoanSound = gpGlobals->curtime + random->RandomFloat( 10.0, 15.0 );
+			NextMoanSound = gpGlobals->curtime + random->RandomFloat( 10.0, 15.0 );
 		}
 		else
 		{
-			m_flNextMoanSound = gpGlobals->curtime + random->RandomFloat( 2.5, 5.0 );
+			NextMoanSound = gpGlobals->curtime + random->RandomFloat( 2.5, 5.0 );
 		}
 	}
 
@@ -848,7 +847,7 @@ void CNPC_Zombine::AlertSound( void )
 	EmitSound( "Zombine.Alert" );
 
 	// Don't let a moan sound cut off the alert sound.
-	m_flNextMoanSound += random->RandomFloat( 2.0, 4.0 );
+	NextMoanSound += random->RandomFloat( 2.0, 4.0 );
 }
 
 //-----------------------------------------------------------------------------

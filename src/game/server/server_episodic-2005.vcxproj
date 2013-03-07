@@ -393,6 +393,8 @@ if exist "$(TargetDir)"server.dll copy "$(TargetDir)"server.dll "c:\program file
     <ClCompile Include="EnvShake.cpp" />
     <ClCompile Include="EnvSpark.cpp" />
     <ClCompile Include="..\shared\eventlist.cpp" />
+    <ClCompile Include="episodic\grenade_hopwire.cpp" />
+    <ClCompile Include="episodic\weapon_hopwire.cpp" />
     <ClCompile Include="EventLog.cpp" />
     <ClCompile Include="explode.cpp" />
     <ClCompile Include="..\..\public\filesystem_helpers.cpp">
@@ -1074,6 +1076,7 @@ if exist "$(TargetDir)"server.dll copy "$(TargetDir)"server.dll "c:\program file
     <ClInclude Include="EnvMessage.h" />
     <ClInclude Include="envmicrophone.h" />
     <ClInclude Include="..\..\public\event_flags.h" />
+    <ClInclude Include="episodic\grenade_hopwire.h" />
     <ClInclude Include="event_tempentity_tester.h" />
     <ClInclude Include="..\shared\eventlist.h" />
     <ClInclude Include="eventqueue.h" />

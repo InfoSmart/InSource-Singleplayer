@@ -17,16 +17,19 @@ public:
 	~CInDirector();
 
 	void Spawn();
-
+	void SpawnScriptedSchedule();
 	void Precache();
 	void Think();
 
+	void Enable();
+	void Disable();
+
+	int GetStatus() { return Status; };
 	void SetStatus(int status);
-	int Status();
 
 	void Relaxed();
 	void Horde(bool super = false);
-	void Climax();
+	void Climax(bool mini = false);
 
 	const char *MS();
 	const char *GetStatusName(int status);
@@ -41,17 +44,21 @@ public:
 	void InputForceSpawnGrunt(inputdata_t &inputdata);
 
 	void InputSetDisabledFor(inputdata_t &inputdata);
-	void InputSetMakerProximity(inputdata_t &inputdata);
+	void InputSetMakerDistance(inputdata_t &inputdata);
 	void InputSetHordeQueue(inputdata_t &inputdata);
+
+	void InputEnable(inputdata_t &inputdata);
+	void InputDisable(inputdata_t &inputdata);
+	void InputToggle(inputdata_t &inputdata);
 
 	/* FUNCIONES RELACIONADAS AL IA DEL DIRECTOR */
 	bool MayQueueZombies();
 	bool MayQueueHordeZombies();
 	bool MayQueueGrunt();
-	
+
 	/* FUNCIONES RELACIONADAS AL DIRECTOR ZOMBIE MAKER */
 	int CountZombies();
-	void CheckZombieMaker();
+	void CheckZombies();
 	void SpawnZombies();
 	void SpawnGrunt();
 
@@ -67,56 +74,79 @@ public:
 	/* FUNCIONES RELACIONADAS A OTROS */
 	int DrawDebugTextOverlays();
 
+	//=========================================================
+	// Estados de InDirector
+	//=========================================================
+
+	enum
+	{
+		RELAXED = 0,	// Relajado: Vamos con calma.
+		EXALTED,		// Exaltado: Algunos zombis por aquí y una música aterradora.
+		HORDE,			// Horda: ¡Ataquen mis valientes!
+		GRUNT,			// Grunt: Estado especial indicando la aparición de un Grunt.
+		CLIMAX			// Climax: ¡¡Se nos va!! ¡Ataquen sin compasión carajo!
+	};
+
 	DECLARE_DATADESC();
 
 private:
 
 	CSoundPatch *pSound;
-	
-	int		m_status;
-	int		m_left4Relax;
-	int		m_left4Horde;
-	int		t_blockedSpawn;
-	int		t_disabledDirector;
 
-	int			m_gruntsAlive;
-	bool		m_gruntsMusic;
-	CSoundPatch *s_gruntMusic;
-	bool		m_gruntSpawnPending;
+	int		Status;
+	int		Left4Exalted;
+	int		Left4Horde;
+	bool	Disabled;
+	int		SpawnBlocked;
+	int		DirectorDisabled;
 
-	bool		m_playingHordeMusic;
-	CSoundPatch *s_HordeMusic;
-	bool		m_playingHordeAMusic;
-	CSoundPatch *s_HordeAMusic;
-	bool		m_playingHordeBMusic;
-	CSoundPatch *s_HordeBMusic;
+	int			GruntsAlive;
+	bool		GruntsMusic;
+	CSoundPatch *Sound_GruntMusic;
+	bool		GruntSpawnPending;
 
-	int	t_lastSpawnZombis;
-	int m_zombiesHordeQueue;
+	bool		PlayingHordeMusic;
+	CSoundPatch *Sound_HordeMusic;
+	bool		PlayingHorde_A_Music;
+	CSoundPatch *Sound_Horde_A_Music;
+	bool		PlayingHorde_B_Music;
+	CSoundPatch *Sound_Horde_B_Music;
 
-	int m_zombiesAlive;
-	int m_zombiesTargetPlayer;
-	int m_zombieSpawnQueue;
-	int m_zombiesSpawned;
-	int m_zombiesExaltedSpawned;
+	int	LastSpawnZombies;
+	int HordeQueue;
 
-	int m_zombiesClassicAlive;
-	int m_zombinesAlive;
-	int m_zombiesFastAlive;
-	int m_zombiesPoisonAlive;
+	int ZombiesAlive;
+	int ZombiesTargetPlayer;
+	int SpawnQueue;
+	int ZombiesSpawned;
+	int ZombiesExaltedSpawned;
+
+	int ZombiesClassicAlive;
+	int ZombinesAlive;
+	int ZombiesFastAlive;
+	int ZombiesPoisonAlive;
 };
 
 inline CInDirector *ToBaseDirector(CBaseEntity *pEntity)
 {
-	if (!pEntity)
+	if ( !pEntity )
 		return NULL;
 
-#if _DEBUG
-	return dynamic_cast<CInDirector *>(pEntity);
-#else
-	return static_cast<CInDirector *>(pEntity);
-#endif
+	#if _DEBUG
+		return dynamic_cast<CInDirector *>(pEntity);
+	#else
+		return static_cast<CInDirector *>(pEntity);
+	#endif
+}
 
+inline CInDirector *GetDirector()
+{
+	CInDirector *pDirector = (CInDirector *)gEntList.FindEntityByClassname(NULL, "info_director");
+
+	if( !pDirector )
+		return NULL;
+
+	return pDirector;
 }
 
 #endif // INDIRECTOR_H

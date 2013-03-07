@@ -177,7 +177,7 @@ public:
 	virtual bool IsSquashed(const CTakeDamageInfo &info) { return false; }
 	virtual void DieChopped(const CTakeDamageInfo &info);
 	virtual void Ignite(float flFlameLifetime, bool bNPCOnly = true, float flSize = 0.0f, bool bCalledByLevelDesigner = false);
-	void CopyRenderColorTo(CBaseEntity *pOther);
+	//void CopyRenderColorTo(CBaseEntity *pOther);
 
 	virtual bool ShouldBecomeTorso( const CTakeDamageInfo &info, float flDamageThreshold );
 	virtual HeadcrabRelease_t ShouldReleaseHeadcrab( const CTakeDamageInfo &info, float flDamageThreshold );
@@ -241,39 +241,37 @@ public:
 
 public:
 	CAI_ActBusyBehavior		m_ActBusyBehavior;
-
-
+	const char *m_headcrabAttach;
 
 protected:
+	CSoundPatch	*sMoanSound;
 
-	CSoundPatch	*m_pMoanSound;
+	bool	IsTorso;			// is this is a half-zombie?
+	bool	IsHeadless;			// is this zombie headless
+	bool	AttachHeadcrab;		// ¿Este zombi tiene el headcrab en su cabeza?
 
-	bool	m_fIsTorso;			// is this is a half-zombie?
-	bool	m_fIsHeadless;		// is this zombie headless
+	float	NextFlinch;
 
-	float	m_flNextFlinch;
-
-	bool m_bHeadShot;			// Used to determine the survival of our crab beyond our death.
+	bool	HeadShot;			// Used to determine the survival of our crab beyond our death.
 
 	//
 	// Zombies catch on fire if they take too much burn damage in a given time period.
 	//
-	float	m_flBurnDamage;				// Keeps track of how much burn damage we've incurred in the last few seconds.
-	float	m_flBurnDamageResetTime;	// Time at which we reset the burn damage.
+	float	BurnDamage;				// Keeps track of how much burn damage we've incurred in the last few seconds.
+	float	BurnDamageResetTime;	// Time at which we reset the burn damage.
 
-	EHANDLE m_hPhysicsEnt;
+	EHANDLE PhysicsEnt;
 
-	float m_flNextMoanSound;
-	float m_flNextSwat;
-	float m_flNextSwatScan;
-	float m_crabHealth;
-	float m_flMoanPitch;
+	float	NextMoanSound;
+	float	NextSwat;
+	float	NextSwatScan;
+	float	CrabHealth;
+	float	MoanPitch;
 
-	EHANDLE	m_hObstructor;
+	EHANDLE Obstructor;
+	static int NumZombies;	// counts total number of existing zombies.
 
-	static int g_numZombies;	// counts total number of existing zombies.
-
-	int m_iMoanSound; // each zombie picks one of the 4 and keeps it.
+	int		pMoanSound; // each zombie picks one of the 4 and keeps it.
 
 	static int ACT_ZOM_SWATLEFTMID;
 	static int ACT_ZOM_SWATRIGHTMID;
@@ -283,11 +281,10 @@ protected:
 	static int ACT_ZOM_FALL;
 
 	DECLARE_DATADESC();
-
 	DEFINE_CUSTOM_AI;
 
 private:
-	bool m_bIsSlumped;
+	bool bIsSlumped;
 
 };
 

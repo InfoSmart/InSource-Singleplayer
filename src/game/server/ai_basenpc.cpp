@@ -638,23 +638,54 @@ void CAI_BaseNPC::Event_Killed( const CTakeDamageInfo &info )
 
 void CAI_BaseNPC::Ignite( float flFlameLifetime, bool bNPCOnly, float flSize, bool bCalledByLevelDesigner )
 {
-	BaseClass::Ignite( flFlameLifetime, bNPCOnly, flSize, bCalledByLevelDesigner );
+	BaseClass::Ignite(flFlameLifetime, bNPCOnly, flSize, bCalledByLevelDesigner);
 
-#ifdef HL2_EPISODIC
 	if ( AI_IsSinglePlayer() )
 	{
 		CBasePlayer *pPlayer = AI_GetSinglePlayer();
-		if ( pPlayer->IRelationType( this ) != D_LI )
+
+		if ( pPlayer->IRelationType(this) != D_LI )
 		{
 			CNPC_Alyx *alyx = CNPC_Alyx::GetAlyx();
 
 			if ( alyx )
-			{
-				alyx->EnemyIgnited( this );
-			}
+				alyx->EnemyIgnited(this);
 		}
 	}
-#endif
+
+	//if( !m_ActBusyBehavior.IsActive() )
+	//{
+		Activity activity			= GetActivity();
+		Activity burningActivity	= activity;
+
+		switch( activity )
+		{
+			case ACT_WALK:
+				burningActivity = ACT_WALK_ON_FIRE;
+			break;
+
+			case ACT_RUN:
+				burningActivity = ACT_RUN_ON_FIRE;
+			break;
+
+			case ACT_IDLE:
+				burningActivity = ACT_IDLE_ON_FIRE;
+			break;
+		}
+
+		// Make sure we have a sequence for this activity (torsos don't have any, for instance)
+		// to prevent the baseNPC & baseAnimating code from throwing red level errors.
+		if( HaveSequenceForActivity(burningActivity) )
+			SetActivity(burningActivity);
+	//}
+}
+
+//-----------------------------------------------------------------------------
+
+void CAI_BaseNPC::CopyRenderColorTo(CBaseEntity *pOther)
+{
+	color32 color = GetRenderColor();
+	pOther->SetRenderColor(color.r, color.g, color.b, color.a);
 }
 
 //-----------------------------------------------------------------------------

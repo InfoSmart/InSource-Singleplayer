@@ -285,7 +285,7 @@ void CNPC_PoisonZombie::Spawn( void )
 {
 	Precache();
 
-	m_fIsTorso = m_fIsHeadless = false;
+	IsTorso = IsHeadless = false;
 
 #ifdef HL2_EPISODIC
 	SetBloodColor( BLOOD_COLOR_ZOMBIE );
@@ -436,7 +436,7 @@ void CNPC_PoisonZombie::Event_Killed( const CTakeDamageInfo &info )
 		EmitSound( "NPC_PoisonZombie.Die" );
 	}
 
-	if ( !m_fIsTorso )
+	if ( !IsTorso )
 	{
 		EvacuateNest(info.GetDamageType() == DMG_BLAST, info.GetDamage(), info.GetAttacker() );
 	}
@@ -498,7 +498,7 @@ void CNPC_PoisonZombie::SetZombieModel( void )
 {
 	Hull_t lastHull = GetHullType();
 
-	if ( m_fIsTorso )
+	if ( IsTorso )
 	{
 		SetModel( "models/zombie/classic_torso.mdl" );
 		SetHullType(HULL_TINY);
@@ -509,7 +509,7 @@ void CNPC_PoisonZombie::SetZombieModel( void )
 		SetHullType(HULL_HUMAN);
 	}
 
-	SetBodygroup( ZOMBIE_BODYGROUP_HEADCRAB, !m_fIsHeadless );
+	SetBodygroup( ZOMBIE_BODYGROUP_HEADCRAB, !IsHeadless );
 
 	SetHullSizeNormal( true );
 	SetDefaultEyeOffset();
@@ -1037,7 +1037,7 @@ void CNPC_PoisonZombie::FootstepSound( bool fRightFoot )
 
 	if( ShouldPlayFootstepMoan() )
 	{
-		m_flNextMoanSound = gpGlobals->curtime;
+		NextMoanSound = gpGlobals->curtime;
 		MoanSound( envPoisonZombieMoanVolumeFast, ARRAYSIZE( envPoisonZombieMoanVolumeFast ) );
 	}
 }
@@ -1058,17 +1058,17 @@ bool CNPC_PoisonZombie::MustCloseToAttack(void)
 //-----------------------------------------------------------------------------
 void CNPC_PoisonZombie::MoanSound( envelopePoint_t *pEnvelope, int iEnvelopeSize )
 {
-	if( !m_pMoanSound )
+	if( !sMoanSound )
 	{
 		// Don't set this up until the code calls for it.
-		const char *pszSound = GetMoanSound( m_iMoanSound );
-		m_flMoanPitch = random->RandomInt( 98, 110 );
+		const char *pszSound = GetMoanSound( pMoanSound );
+		MoanPitch = random->RandomInt( 98, 110 );
 
 		CPASAttenuationFilter filter( this, 1.5 );
-		//m_pMoanSound = ENVELOPE_CONTROLLER.SoundCreate( entindex(), CHAN_STATIC, pszSound, ATTN_NORM );
-		m_pMoanSound = ENVELOPE_CONTROLLER.SoundCreate( filter, entindex(), CHAN_STATIC, pszSound, 1.5 );
+		//sMoanSound = ENVELOPE_CONTROLLER.SoundCreate( entindex(), CHAN_STATIC, pszSound, ATTN_NORM );
+		sMoanSound = ENVELOPE_CONTROLLER.SoundCreate( filter, entindex(), CHAN_STATIC, pszSound, 1.5 );
 
-		ENVELOPE_CONTROLLER.Play( m_pMoanSound, 0.5, m_flMoanPitch );
+		ENVELOPE_CONTROLLER.Play( sMoanSound, 0.5, MoanPitch );
 	}
 
 	envPoisonZombieMoanVolumeFast[ 1 ].durationMin = 0.1;
@@ -1079,12 +1079,12 @@ void CNPC_PoisonZombie::MoanSound( envelopePoint_t *pEnvelope, int iEnvelopeSize
 		IdleSound();
 	}
 
-	float duration = ENVELOPE_CONTROLLER.SoundPlayEnvelope( m_pMoanSound, SOUNDCTRL_CHANGE_VOLUME, pEnvelope, iEnvelopeSize );
+	float duration = ENVELOPE_CONTROLLER.SoundPlayEnvelope( sMoanSound, SOUNDCTRL_CHANGE_VOLUME, pEnvelope, iEnvelopeSize );
 
 	float flPitchShift = random->RandomInt( -4, 4 );
-	ENVELOPE_CONTROLLER.SoundChangePitch( m_pMoanSound, m_flMoanPitch + flPitchShift, 0.3 );
+	ENVELOPE_CONTROLLER.SoundChangePitch( sMoanSound, MoanPitch + flPitchShift, 0.3 );
 
-	m_flNextMoanSound = gpGlobals->curtime + duration + 9999;
+	NextMoanSound = gpGlobals->curtime + duration + 9999;
 }
 
 

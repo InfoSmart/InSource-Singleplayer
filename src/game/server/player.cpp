@@ -5229,6 +5229,18 @@ void CBasePlayer::ImpulseCommands()
 		}
 		break;
 
+		// impulse 101 - Activar o desactivar la super linterna.
+		case 101:
+		{
+			ConVarRef r_powerfulflashlight("r_powerfulflashlight");
+
+			if(r_powerfulflashlight.GetBool())
+				r_powerfulflashlight.SetValue(0);
+			else
+				r_powerfulflashlight.SetValue(1);
+		}
+		break;
+
 		// impulse 200 - Mostrar o ocultar el arma activa.
 		case 200:
 		{

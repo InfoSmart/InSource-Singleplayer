@@ -6,8 +6,6 @@
 #pragma once
 #endif
 
-#include "monstermaker.h"
-
 class CNPCZombieMaker : public CBaseEntity
 {
 public:
@@ -23,9 +21,10 @@ public:
 
 	bool CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult);
 	void ChildPostSpawn(CAI_BaseNPC *pChild);
-	CAI_BaseNPC *MakeNPC(bool super = false);
+
+	CAI_BaseNPC *MakeNPC(bool Horde = false, bool disclosePlayer = false);
 	CAI_BaseNPC *MakeGrunt();
-	bool CanMakeGrunt() { return m_SpawnGrunt; }
+	bool CanMakeGrunt() { return SpawnGrunt; }
 
 	void DeathNotice(CBaseEntity *pVictim);
 	const char *SelectRandomZombie();
@@ -40,22 +39,26 @@ public:
 
 	DECLARE_DATADESC();
 
+public:
+	float LastSpawn;
+
 private:
-	COutputEvent m_OnSpawnNPC;
-	COutputEvent m_OnNPCDead;
+	COutputEvent OnSpawnNPC;
+	COutputEvent OnNPCDead;
 
-	bool m_Enabled;
+	bool Enabled;
 
-	bool m_SpawnClassicZombie;
-	bool m_SpawnFastZombie;
-	bool m_SpawnPoisonZombie;
-	bool m_SpawnZombine;
-	bool m_SpawnGrunt;
+	bool SpawnClassicZombie;
+	bool SpawnFastZombie;
+	bool SpawnPoisonZombie;
+	bool SpawnZombine;
+	bool SpawnGrunt;
 
-	int m_Childs;
-	int m_ChildsAlive;
-	int m_ChildsKilled;
-	float m_Radius;
+	int Childs;
+	int ChildsAlive;
+	int ChildsKilled;
+
+	float SpawnRadius;
 };
 
 #endif

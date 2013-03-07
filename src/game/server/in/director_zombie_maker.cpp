@@ -2,21 +2,23 @@
 //
 // npc_zombie_marker
 //
-// Entidad encarga de crear y hacer aparecer zombis de toda clase.
+// Entidad encarga de crear zombis alrededor de si mismo.
+// Usado por el Director para la creación de zombis.
 //
 //=====================================================================================//
 
 #include "cbase.h"
 
 #include "ai_basenpc.h"
-#include "ai_route.h"
-#include "ai_navigator.h"
-#include "ai_pathfinder.h"
-#include "ai_node.h"
-#include "ai_moveprobe.h"
+//#include "ai_route.h"
+//#include "ai_navigator.h"
+//#include "ai_pathfinder.h"
+//#include "ai_node.h"
+//#include "ai_moveprobe.h"
 #include "ai_behavior_passenger.h"
 
-#include "nav_mesh.h"
+//#include "nav_mesh.h"
+#include "director.h"
 
 #include "monstermaker.h"
 #include "director_zombie_maker.h"
@@ -27,26 +29,26 @@
 // Guardado y definición de datos
 //=========================================================
 
-LINK_ENTITY_TO_CLASS(director_zombie_maker, CNPCZombieMaker);
+LINK_ENTITY_TO_CLASS( director_zombie_maker, CNPCZombieMaker );
 
-BEGIN_DATADESC(CNPCZombieMaker)
+BEGIN_DATADESC( CNPCZombieMaker )
 
-	DEFINE_KEYFIELD(m_SpawnClassicZombie,	FIELD_BOOLEAN, "SpawnClassicZombie"),
-	DEFINE_KEYFIELD(m_SpawnFastZombie,		FIELD_BOOLEAN, "SpawnFastZombie"),
-	DEFINE_KEYFIELD(m_SpawnPoisonZombie,	FIELD_BOOLEAN, "SpawnPoisonZombie"),
-	DEFINE_KEYFIELD(m_SpawnZombine,			FIELD_BOOLEAN, "SpawnZombine"),
-	DEFINE_KEYFIELD(m_SpawnGrunt,			FIELD_BOOLEAN, "SpawnGrunt"),
-	DEFINE_KEYFIELD(m_Radius,				FIELD_FLOAT, "Radius"),
+	DEFINE_KEYFIELD( SpawnClassicZombie,	FIELD_BOOLEAN,	"SpawnClassicZombie" ),
+	DEFINE_KEYFIELD( SpawnFastZombie,		FIELD_BOOLEAN,	"SpawnFastZombie" ),
+	DEFINE_KEYFIELD( SpawnPoisonZombie,		FIELD_BOOLEAN,	"SpawnPoisonZombie" ),
+	DEFINE_KEYFIELD( SpawnZombine,			FIELD_BOOLEAN,	"SpawnZombine" ),
+	DEFINE_KEYFIELD( SpawnGrunt,			FIELD_BOOLEAN,	"SpawnGrunt" ),
+	DEFINE_KEYFIELD( SpawnRadius,			FIELD_FLOAT,	"Radius" ),
 
 	/* INPUTS */
-	DEFINE_INPUTFUNC(FIELD_VOID, "Spawn",	InputSpawn),
-	DEFINE_INPUTFUNC(FIELD_VOID, "Enable",	InputEnable),
-	DEFINE_INPUTFUNC(FIELD_VOID, "Disable",	InputDisable),
-	DEFINE_INPUTFUNC(FIELD_VOID, "Toggle",	InputToggle),
+	DEFINE_INPUTFUNC( FIELD_VOID, "Spawn",	InputSpawn ),
+	DEFINE_INPUTFUNC( FIELD_VOID, "Enable",	InputEnable ),
+	DEFINE_INPUTFUNC( FIELD_VOID, "Disable",	InputDisable ),
+	DEFINE_INPUTFUNC( FIELD_VOID, "Toggle",	InputToggle ),
 
 	/* OUTPUTS */
-	DEFINE_OUTPUT(m_OnNPCDead,		"OnNPCDead"),
-	DEFINE_OUTPUT(m_OnSpawnNPC,		"OnSpawnNPC"),
+	DEFINE_OUTPUT( OnNPCDead,		"OnNPCDead" ),
+	DEFINE_OUTPUT( OnSpawnNPC,		"OnSpawnNPC" ),
 
 END_DATADESC();
 
@@ -55,10 +57,12 @@ END_DATADESC();
 //=========================================================
 CNPCZombieMaker::CNPCZombieMaker()
 {
-	m_Childs		= 0;
-	m_ChildsAlive	= 0;
-	m_ChildsKilled	= 0;
-	m_Enabled		= true;
+	Childs			= 0;
+	ChildsAlive		= 0;
+	ChildsKilled	= 0;
+	LastSpawn		= 0;
+
+	Enabled			= true;
 }
 
 //=========================================================
@@ -79,19 +83,19 @@ void CNPCZombieMaker::Precache()
 {
 	BaseClass::Precache();
 
-	if (m_SpawnClassicZombie)
+	if ( SpawnClassicZombie )
 		UTIL_PrecacheOther("npc_zombie");
 
-	if (m_SpawnZombine)
+	if ( SpawnZombine)
 		UTIL_PrecacheOther("npc_zombine");
 
-	if (m_SpawnFastZombie)
+	if ( SpawnFastZombie )
 		UTIL_PrecacheOther("npc_fastzombie");
 
-	if (m_SpawnPoisonZombie)
+	if ( SpawnPoisonZombie )
 		UTIL_PrecacheOther("npc_poisonzombie");
 
-	if (m_SpawnGrunt)
+	if ( SpawnGrunt )
 		UTIL_PrecacheOther("npc_grunt");
 }
 
@@ -100,7 +104,7 @@ void CNPCZombieMaker::Precache()
 //=========================================================
 void CNPCZombieMaker::Enable()
 {
-	m_Enabled = true;
+	Enabled = true;
 }
 
 //=========================================================
@@ -108,7 +112,7 @@ void CNPCZombieMaker::Enable()
 //=========================================================
 void CNPCZombieMaker::Disable()
 {
-	m_Enabled = false;
+	Enabled = false;
 }
 
 //=========================================================
@@ -118,7 +122,7 @@ void CNPCZombieMaker::Disable()
 bool CNPCZombieMaker::CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult)
 {
 	// Desactivado
-	if(!m_Enabled)
+	if ( !Enabled )
 	{
 		UTIL_RemoveImmediate(pNPC);
 		return false;
@@ -130,13 +134,13 @@ bool CNPCZombieMaker::CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult)
 	ConVarRef indirector_force_spawn_outview("indirector_force_spawn_outview");
 	
 	// Verificamos si es posible crear el NPC en el radio especificado.
-	if (!CAI_BaseNPC::FindSpotForNPCInRadius(&origin, GetAbsOrigin(), pNPC, m_Radius, indirector_force_spawn_outview.GetBool()))
+	if ( !CAI_BaseNPC::FindSpotForNPCInRadius(&origin, GetAbsOrigin(), pNPC, SpawnRadius, indirector_force_spawn_outview.GetBool()) )
 	{
-		if (!CAI_BaseNPC::FindSpotForNPCInRadius(&origin, GetAbsOrigin(), pNPC, m_Radius, false))
+		if ( !CAI_BaseNPC::FindSpotForNPCInRadius(&origin, GetAbsOrigin(), pNPC, SpawnRadius, false) )
 		{
-			Warning("[DIRECTOR ZOMBIE MAKER] No se encontro un lugar valido para crear un zombie. \r\n");
-			UTIL_RemoveImmediate(pNPC);
+			DevWarning("[DIRECTOR ZOMBIE MAKER] No se encontro un lugar valido para crear un zombie. \r\n");
 
+			UTIL_RemoveImmediate(pNPC);
 			return false;
 		}
 	}
@@ -146,14 +150,32 @@ bool CNPCZombieMaker::CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult)
 
 	// Si esta activado la opción de forzar la creación fuera de la visibilidad del usuario.
 	// Hay que asegurarnos de que el usuario no esta viendo el lugar de creación...
-	if (indirector_force_spawn_outview.GetBool())
+	if ( indirector_force_spawn_outview.GetBool() )
 	{
-		if (pPlayer->FInViewCone(origin) || pPlayer->FVisible(origin))
-		{
-			Warning("[DIRECTOR ZOMBIE MAKER] El lugar de creacion estaba en el campo de visión. \r\n");
-			UTIL_RemoveImmediate(pNPC);
+		CInDirector *pDirector = GetDirector();
 
+		if( !pDirector )
 			return false;
+
+		if ( pDirector->GetStatus() == 4 )
+		{
+			if ( pPlayer->FVisible(origin) )
+			{
+				DevWarning("[DIRECTOR ZOMBIE MAKER] El lugar de creacion estaba en el campo de vision. \r\n");
+				UTIL_RemoveImmediate(pNPC);
+
+				return false;
+			}
+		}
+		else
+		{
+			if ( pPlayer->FInViewCone(origin) || pPlayer->FVisible(origin) )
+			{
+				Warning("[DIRECTOR ZOMBIE MAKER] El lugar de creacion estaba en el campo de vision. \r\n");
+				UTIL_RemoveImmediate(pNPC);
+
+				return false;
+			}
 		}
 	}
 
@@ -167,10 +189,10 @@ void CNPCZombieMaker::ChildPostSpawn(CAI_BaseNPC *pNPC)
 {
 	bool bStuck = true;
 
-	while (bStuck)
+	while ( bStuck )
 	{
 		trace_t tr;
-		UTIL_TraceHull(pNPC->GetAbsOrigin(), pNPC->GetAbsOrigin(), pNPC->WorldAlignMins(), pNPC->WorldAlignMaxs(), MASK_NPCSOLID, pNPC, COLLISION_GROUP_NONE, &tr);
+		UTIL_TraceHull( pNPC->GetAbsOrigin(), pNPC->GetAbsOrigin(), pNPC->WorldAlignMins(), pNPC->WorldAlignMaxs(), MASK_NPCSOLID, pNPC, COLLISION_GROUP_NONE, &tr );
 
 		if (tr.fraction != 1.0 && tr.m_pEnt)
 		{
@@ -199,18 +221,18 @@ void CNPCZombieMaker::ChildPostSpawn(CAI_BaseNPC *pNPC)
 }
 
 //=========================================================
-// Crea un NPC.
+// Crea un Zombi.
 //=========================================================
-CAI_BaseNPC *CNPCZombieMaker::MakeNPC(bool super)
+CAI_BaseNPC *CNPCZombieMaker::MakeNPC(bool Horde, bool disclosePlayer)
 {
-	if(!m_Enabled)
+	if( !Enabled )
 		return NULL;
 
 	// Seleccionamos una clase de zombi para crear.
 	CAI_BaseNPC *pZombie = (CAI_BaseNPC *)CreateEntityByName(SelectRandomZombie());
 
 	// Emm... ¿puso todas las clases en "no crear"? :genius:
-	if (!pZombie)
+	if ( !pZombie )
 	{
 		Warning("[DIRECTOR ZOMBIE MAKER] Ha ocurrido un problema al intentar crear un zombie. \r\n");
 		return NULL;
@@ -218,7 +240,7 @@ CAI_BaseNPC *CNPCZombieMaker::MakeNPC(bool super)
 	
 
 	/*
-		[INCOMPLETO] Con esto susupone que tendríamos la posibilidad de que InDirector pueda crear zombis en las areas
+		TODO Con esto susupone que tendríamos la posibilidad de que InDirector pueda crear zombis en las areas
 		de navegación computadas por el motor. O en cristiano... crear zombis sin tener que poner tantos "npc_zombie_maker"
 		claro, no funciona.
 
@@ -241,7 +263,8 @@ CAI_BaseNPC *CNPCZombieMaker::MakeNPC(bool super)
 	*/
 
 	Vector origin;
-	if (!CanMakeNPC(pZombie, &origin))
+
+	if ( !CanMakeNPC(pZombie, &origin) )
 		return NULL;
 
 	// Lugar de creación.
@@ -251,9 +274,10 @@ CAI_BaseNPC *CNPCZombieMaker::MakeNPC(bool super)
 	// [¡NO CAMBIAR!] Es utilizado por otras entidades para referirse a los zombis creados por el director.
 	pZombie->SetName(MAKE_STRING("director_zombie"));
 
-	QAngle angles = GetAbsAngles();
-	angles.x = 0.0;
-	angles.z = 0.0;
+	QAngle angles	= GetAbsAngles();
+	angles.x		= 0.0;
+	angles.z		= 0.0;
+
 	pZombie->SetAbsAngles(angles);
 
 	// Nombre del esquadron.
@@ -268,24 +292,31 @@ CAI_BaseNPC *CNPCZombieMaker::MakeNPC(bool super)
 	pZombie->SetOwnerEntity(this);
 	DispatchActivate(pZombie);
 
-	// Preparaciones después de la creación.
-	//ChildPostSpawn(pZombie);
-
 	// Es un zombi para la horda ¡woot!
-	if (super)
+	if ( Horde )
 	{
 		// Más salud.
-		pZombie->SetMaxHealth(pZombie->GetMaxHealth() + 30);
+		pZombie->SetMaxHealth(pZombie->GetMaxHealth() + 20);
 		pZombie->SetHealth(pZombie->GetMaxHealth());
 
 		// Más rápido.
 		pZombie->SetAddAccel(40);
 	}
 
-	m_Childs++;
-	m_ChildsAlive++;
+	// Debe conocer la ubicación del jugador (Su enemigo)
+	if ( disclosePlayer )
+	{
+		CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
 
-	m_OnSpawnNPC.FireOutput(pZombie, this);
+		pZombie->SetEnemy(pPlayer);
+		pZombie->UpdateEnemyMemory(pPlayer, pPlayer->GetAbsOrigin());
+	}
+
+	Childs++;
+	ChildsAlive++;
+	LastSpawn = gpGlobals->curtime;
+
+	OnSpawnNPC.FireOutput(pZombie, this);
 	return pZombie;
 }
 
@@ -294,20 +325,21 @@ CAI_BaseNPC *CNPCZombieMaker::MakeNPC(bool super)
 //=========================================================
 CAI_BaseNPC *CNPCZombieMaker::MakeGrunt()
 {
-	if(!m_Enabled)
+	if( !Enabled )
 		return NULL;
 
 	CAI_BaseNPC *pGrunt = (CAI_BaseNPC *)CreateEntityByName("npc_grunt");
 
 	// Ocurrio algún problema.
-	if (!pGrunt)
+	if ( !pGrunt )
 	{
 		Warning("[DIRECTOR ZOMBIE MAKER] Ha ocurrido un problema al intentar crear un grunt. \r\n");
 		return NULL;
 	}
 
 	Vector origin;
-	if (!CanMakeNPC(pGrunt, &origin))
+
+	if ( !CanMakeNPC(pGrunt, &origin) )
 		return NULL;
 
 	// Lugar de creación.
@@ -317,9 +349,10 @@ CAI_BaseNPC *CNPCZombieMaker::MakeGrunt()
 	// [¡NO CAMBIAR!] Es utilizado por otras entidades para referirse a los zombis creados por el director.
 	pGrunt->SetName(MAKE_STRING("director_grunt"));
 
-	QAngle angles = GetAbsAngles();
-	angles.x = 0.0;
-	angles.z = 0.0;
+	QAngle angles	= GetAbsAngles();
+	angles.x		= 0.0;
+	angles.z		= 0.0;
+
 	pGrunt->SetAbsAngles(angles);
 
 	// Tiene que caer al suelo.
@@ -329,6 +362,12 @@ CAI_BaseNPC *CNPCZombieMaker::MakeGrunt()
 	DispatchSpawn(pGrunt);
 	pGrunt->SetOwnerEntity(this);
 	DispatchActivate(pGrunt);
+
+	// Debe conocer la ubicación del jugador (Su enemigo)
+	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+
+	pGrunt->SetEnemy(pPlayer);
+	pGrunt->UpdateEnemyMemory(pPlayer, pPlayer->GetAbsOrigin());
 
 	// Preparaciones después de la creación.
 	ChildPostSpawn(pGrunt);
@@ -341,10 +380,10 @@ CAI_BaseNPC *CNPCZombieMaker::MakeGrunt()
 //=========================================================
 void CNPCZombieMaker::DeathNotice(CBaseEntity *pVictim)
 {
-	m_ChildsAlive--;
-	m_ChildsKilled++;
+	ChildsAlive--;
+	ChildsKilled++;
 
-	m_OnNPCDead.FireOutput(pVictim, this);
+	OnNPCDead.FireOutput(pVictim, this);
 }
 
 //=========================================================
@@ -354,17 +393,17 @@ const char *CNPCZombieMaker::SelectRandomZombie()
 {
 	int pRandom = random->RandomInt(1, 7);
 
-	if (pRandom == 1)
-		return (m_SpawnClassicZombie) ? "npc_zombie" : SelectRandomZombie();
+	if ( pRandom == 1 )
+		return (SpawnClassicZombie) ? "npc_zombie" : SelectRandomZombie();
 
-	if (pRandom == 2)
-		return (m_SpawnZombine) ? "npc_zombine" : SelectRandomZombie();
+	if ( pRandom == 2 )
+		return (SpawnZombine) ? "npc_zombine" : SelectRandomZombie();
 
-	if (pRandom == 3)
-		return (m_SpawnFastZombie) ? "npc_fastzombie" : SelectRandomZombie();
+	if ( pRandom == 3 )
+		return (SpawnFastZombie) ? "npc_fastzombie" : SelectRandomZombie();
 
-	if (pRandom == 4)
-		return (m_SpawnPoisonZombie) ? "npc_poisonzombie" : SelectRandomZombie();
+	if ( pRandom == 4 )
+		return (SpawnPoisonZombie) ? "npc_poisonzombie" : SelectRandomZombie();
 
 	return SelectRandomZombie();
 }
@@ -378,7 +417,7 @@ int CNPCZombieMaker::DrawDebugTextOverlays()
 		char message[512];
 		Q_snprintf(message, sizeof(message), 
 			"Zombis creados: %i", 
-		m_Childs);
+		Childs);
 		EntityText(text_offset++, message, 0);
 	}
 
@@ -408,7 +447,7 @@ void CNPCZombieMaker::InputDisable(inputdata_t &inputdata)
 
 void CNPCZombieMaker::InputToggle(inputdata_t &inputdata)
 {
-	if(m_Enabled)
+	if( Enabled )
 		Disable();
 	else
 		Enable();

@@ -1785,6 +1785,12 @@
     <ClCompile Include="in\director_zombie_maker.cpp">
       <Filter>Source Files\InSource</Filter>
     </ClCompile>
+    <ClCompile Include="episodic\weapon_hopwire.cpp">
+      <Filter>Source Files\HL2 DLL\unused</Filter>
+    </ClCompile>
+    <ClCompile Include="episodic\grenade_hopwire.cpp">
+      <Filter>Source Files\HL2 DLL\unused</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\achievement_saverestore.h">
@@ -3535,6 +3541,9 @@
     </ClInclude>
     <ClInclude Include="in\director_zombie_maker.h">
       <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="episodic\grenade_hopwire.h">
+      <Filter>Source Files\HL2 DLL\unused</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

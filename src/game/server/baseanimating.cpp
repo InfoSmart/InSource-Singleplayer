@@ -3335,9 +3335,7 @@ void CBaseAnimating::Ignite( float flFlameLifetime, bool bNPCOnly, float flSize,
 
 	// Right now this prevents stuff we don't want to catch on fire from catching on fire.
 	if( bNPCOnly && bIsNPC == false )
-	{
 		return;
-	}
 
 	if( bIsNPC == true && bCalledByLevelDesigner == false )
 	{
@@ -3347,21 +3345,20 @@ void CBaseAnimating::Ignite( float flFlameLifetime, bool bNPCOnly, float flSize,
 			 return;
 	}
 
-	CEntityFlame *pFlame = CEntityFlame::Create( this );
-	if (pFlame)
-	{
-		pFlame->SetLifetime( flFlameLifetime );
-		AddFlag( FL_ONFIRE );
+	CEntityFlame *pFlame = CEntityFlame::Create(this);
 
-		SetEffectEntity( pFlame );
+	if ( pFlame )
+	{
+		pFlame->SetLifetime(flFlameLifetime);
+		AddFlag(FL_ONFIRE);
+
+		SetEffectEntity(pFlame);
 
 		if ( flSize > 0.0f )
-		{
-			pFlame->SetSize( flSize );
-		}
+			pFlame->SetSize(flSize);
 	}
 
-	m_OnIgnite.FireOutput( this, this );
+	m_OnIgnite.FireOutput(this, this);
 }
 
 void CBaseAnimating::IgniteLifetime( float flFlameLifetime )

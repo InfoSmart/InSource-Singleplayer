@@ -21,44 +21,56 @@
 #include "soundent.h"
 #include "engine/ienginesound.h"
 
-#include "tier0/memdbgon.h"
+#include "tier0/memdbgon.h";
 
 /*
 	NOTAS
 
-	Grunt: Soldado robotico con 3,000 de salud, se le considera el NPC más poderoso y enemigo del jugador
+	Grunt: Soldado robotico con 3,000 puntos de salud, se le considera el NPC más poderoso y enemigo del jugador
 	Solo debe aparecer de 1 a 3 ocaciones en mapas.
 
-	npc_zombie_maker: Entidad (se coloca en el mapa) encargada de definir una zona para crear zombis,
+	info_zombie_maker: Entidad (se coloca en el mapa) encargada de establecer una zona para crear zombis,
 	es utilizado por el Director.
+*/
+
+/*
+	* RELAJADO
+	* El Director crea una cantidad minima de zombis con una salud baja con el fin de decorar
+	* el escenario.
+
+	* EXALTADO
+	* Permite la creación de más zombis que en el modo "Relajado" con el fin de dar un escenario
+	* más apocalíptico y aumentar la dificultad del juego en periodos de tiempo al azar.
+
+	* HORDA
+	* Conforme se va avanzando en el juego el Director va "recolectando" una cantidad de zombis
+	* a soltar cuando se active este modo. Los zombis creados tienen una salud más alta y conocen la
+	* ubicación del jugador, trataran de atacarlo.
+
+	* GRUNT
+	* Los Grunt son NPC poderosos y fuertes, cuando uno aparece en el mapa el Director empieza a reproducir
+	* una música de fondo indicando la presencia del mismo y se detiene la creación de zombis hasta que el mismo muera.
+	* Igualmente mientras nos encontremos en este modo el Director va "recolectando" zombis para el modo "Horda" que será
+	* activado cuando el Grunt muera.
+
+	* CLIMAX
+	* Este modo es activado manualmente desde el mapa (o la consola) para representar los últimos minutos de un capitulo.
+	* En este modo la creación de zombis aumenta considerablemente y se crean al menos 3 Grunts (Todos persiguiendo
+	* al jugador), al igual que se reproduce una música de fondo.
 */
 
 //=========================================================
 // Definición de variables de configuración.
 //=========================================================
 
-ConVar indirector_enabled				("indirector_enabled", "1", FCVAR_REPLICATED, "Activa o desactiva el Director.");
-ConVar indirector_max_zombies			("indirector_max_zombies", "40", FCVAR_REPLICATED, "Cantidad de zombis que el Director puede crear.");
-ConVar indirector_maker_promity			("indirector_maker_promity", "1900", FCVAR_REPLICATED, "Distancia en la que se debe encontrar un director_zombie_maker del jugador para que el director pueda usarlo.");
-ConVar indirector_min_zombies_grunt		("indirector_min_zombies_grunt", "150", FCVAR_REPLICATED, "Cantidad de zombis minima a crear antes de dar con la posibilidad de crear un Grunt");
-ConVar indirector_max_zombies_queue		("indirector_max_zombies_queue", "6", FCVAR_REPLICATED, "Cantidad limite de zombis que el Director puede dejar en cola.");
-//ConVar indirector_respawn_interval		("indirector_respawn_interval", "2", FCVAR_REPLICATED, "Cantidad de minutos que se debe esperar después de haber creado a todos los zombis.");
-ConVar indirector_min_zombie_distance	("indirector_min_zombie_distance", "350", FCVAR_REPLICATED, "Distancia minima en la que se debe encontrar un zombi del jugador para considerlo un peligro (musica de horda)");
-ConVar indirector_horde_queue			("indirector_horde_queue", "0", FCVAR_REPLICATED, "Fuerza a crear esta cantidad de zombis durante una horda.");
-ConVar indirector_force_spawn_outview	("indirector_force_spawn_outview", "1", FCVAR_REPLICATED, "Fuerza a crear esta los zombis fuera del campo de visión del jugador.");
-
-//=========================================================
-// Estados de InDirector
-//=========================================================
-
-enum
-{
-	RELAXED = 0,	// Relajado: Vamos con calma.
-	EXALTED,		// Exaltado: Algunos zombis por aquí y una música aterradora.
-	HORDE,			// Horda: ¡Ataquen mis valientes!
-	GRUNT,			// Grunt: Estado especial indicando la aparición de un Grunt.
-	CLIMAX			// Climax: ¡¡Se nos va!! ¡Ataquen sin compasión carajo!
-};
+ConVar indirector_enabled					("indirector_enabled",				"1",	FCVAR_REPLICATED, "Activa o desactiva el Director.");
+ConVar indirector_max_alive_zombies			("indirector_max_alive_zombies",	"40",	FCVAR_REPLICATED, "Cantidad de zombis que el Director puede crear.");
+ConVar indirector_min_maker_distance		("indirector_min_maker_distance",	"2500", FCVAR_REPLICATED, "Distancia en la que se debe encontrar un director_zombie_maker del jugador para que el director pueda usarlo.");
+ConVar indirector_min_zombies_grunt			("indirector_min_zombies_grunt",	"150",	FCVAR_REPLICATED, "Cantidad de zombis minima a crear antes de dar con la posibilidad de crear un Grunt");
+ConVar indirector_max_zombies_queue			("indirector_max_zombies_queue",	"6",	FCVAR_REPLICATED, "Cantidad limite de zombis que el Director puede dejar en cola.");
+ConVar indirector_min_zombie_distance		("indirector_min_zombie_distance",	"350",	FCVAR_REPLICATED, "Distancia minima en la que se debe encontrar un zombi del jugador para considerlo un peligro (musica de horda)");
+ConVar indirector_force_horde_queue			("indirector_force_horde_queue",	"0",	FCVAR_REPLICATED, "Fuerza a crear esta cantidad de zombis durante una horda.");
+ConVar indirector_force_spawn_outview		("indirector_force_spawn_outview",	"1",	FCVAR_REPLICATED, "Fuerza a crear los zombis fuera del campo de visión del jugador.");
 
 //=========================================================
 // Guardado y definición de datos
@@ -68,6 +80,14 @@ LINK_ENTITY_TO_CLASS(info_director, CInDirector);
 
 BEGIN_DATADESC(CInDirector)
 
+	DEFINE_SOUNDPATCH(pSound),
+	DEFINE_SOUNDPATCH(Sound_GruntMusic),
+	DEFINE_SOUNDPATCH(Sound_HordeMusic),
+	DEFINE_SOUNDPATCH(Sound_Horde_A_Music),
+	DEFINE_SOUNDPATCH(Sound_Horde_B_Music),
+
+	DEFINE_KEYFIELD(Disabled,		FIELD_BOOLEAN,		"StartDisabled"),
+
 	DEFINE_INPUTFUNC(FIELD_VOID, "ForceRelax",		InputForceRelax),
 	DEFINE_INPUTFUNC(FIELD_VOID, "ForceExalted",	InputForceExalted),
 	DEFINE_INPUTFUNC(FIELD_VOID, "ForceHorde",		InputForceHorde),
@@ -75,8 +95,12 @@ BEGIN_DATADESC(CInDirector)
 	DEFINE_INPUTFUNC(FIELD_VOID, "ForceClimax",		InputForceClimax),
 
 	DEFINE_INPUTFUNC(FIELD_VOID, "SetDisabledFor",		InputSetDisabledFor),
-	DEFINE_INPUTFUNC(FIELD_VOID, "SetMakerProximity",	InputSetMakerProximity),
+	DEFINE_INPUTFUNC(FIELD_VOID, "SetMakerProximity",	InputSetMakerDistance),
 	DEFINE_INPUTFUNC(FIELD_VOID, "SetHordeQueue",		InputSetHordeQueue),
+
+	DEFINE_INPUTFUNC(FIELD_VOID, "Enable",	InputEnable),
+	DEFINE_INPUTFUNC(FIELD_VOID, "Disable",	InputDisable),
+	DEFINE_INPUTFUNC(FIELD_VOID, "Toggle",	InputToggle),
 
 END_DATADESC();
 
@@ -87,34 +111,33 @@ CInDirector::CInDirector()
 {
 	// Iniciamos relajados.
 	Relaxed();
-
 	DevMsg("%s Iniciado \r\n", MS());
-	
+
 	// Reiniciamos variables.
 
-	m_left4Horde		= random->RandomInt(100, 300);
-	t_blockedSpawn		= 0;
-	t_disabledDirector	= 0;
+	Left4Horde			= random->RandomInt(100, 300);
+	SpawnBlocked		= 0;
+	DirectorDisabled	= 0;
 
-	m_gruntsAlive			= 0;
-	m_gruntsMusic			= false;
-	s_gruntMusic			= NULL;
-	m_gruntSpawnPending		= false;
+	GruntsAlive				= 0;
+	GruntsMusic				= false;
+	Sound_GruntMusic		= NULL;
+	GruntSpawnPending		= false;
 
-	m_playingHordeMusic			= false;
-	s_HordeMusic				= NULL;
-	m_playingHordeAMusic		= false;
-	s_HordeMusic				= NULL;
-	m_playingHordeBMusic		= false;
-	s_HordeBMusic				= NULL;
+	PlayingHordeMusic			= false;
+	Sound_HordeMusic			= NULL;
+	PlayingHorde_A_Music		= false;
+	Sound_Horde_A_Music			= NULL;
+	PlayingHorde_B_Music		= false;
+	Sound_Horde_B_Music			= NULL;
 
-	t_lastSpawnZombis		= 0;
-	m_zombiesHordeQueue		= 0;
+	LastSpawnZombies		= 0;
+	HordeQueue				= 0;
 
-	m_zombiesAlive			= 0;
-	m_zombieSpawnQueue		= indirector_max_zombies_queue.GetInt();
-	m_zombiesSpawned		= 0;
-	m_zombiesExaltedSpawned = 0;
+	ZombiesAlive			= 0;
+	SpawnQueue				= indirector_max_zombies_queue.GetInt();
+	ZombiesSpawned			= 0;
+	ZombiesExaltedSpawned	= 0;
 
 	// Pensamos ¡ahora!
 	SetNextThink(gpGlobals->curtime);
@@ -128,28 +151,49 @@ CInDirector::~CInDirector()
 }
 
 //=========================================================
-// Aparecer
+// Creación
 //=========================================================
 void CInDirector::Spawn()
 {
 	BaseClass::Spawn();
 
+	// Somos invisibles.
 	SetSolid(SOLID_NONE);
+
+	// Guardar en caché objetos necesarios.
 	Precache();
 
-	Vector vecForward;
-	AngleVectors(EyeAngles(), &vecForward);
+	// Creamos el scripted schedule
+	SpawnScriptedSchedule();
+}
 
-	Vector vecOrigin = GetAbsOrigin() + vecForward;
-	QAngle vecAngles(0, GetAbsAngles().y - 90, 0);
+//=========================================================
+// Creación de la secuencia encargada de darle un objetivo
+// a los Zombis.
+//=========================================================
+void CInDirector::SpawnScriptedSchedule()
+{
+	CAI_ScriptedSchedule *pScripted = (CAI_ScriptedSchedule *)gEntList.FindEntityByName(NULL, "director_horde_follow");
 
-	CAI_ScriptedSchedule *m_Scripted = (CAI_ScriptedSchedule *)CBaseEntity::Create("aiscripted_schedule", vecOrigin, vecAngles, NULL);
-	m_Scripted->SetName(MAKE_STRING("director_horde_follow"));
-	m_Scripted->SetTargetName(MAKE_STRING("director_zombie"));
-	m_Scripted->SetNPCState(NPC_STATE_COMBAT);
-	m_Scripted->SetSchedule(SCHED_SCRIPT_ENEMY_IS_GOAL_AND_RUN_TO_GOAL);
-	m_Scripted->SetInterruptability(DAMAGEORDEATH_INTERRUPTABILITY);
-	m_Scripted->SetGoalEnt(MAKE_STRING("!player"));
+	// No se ha creado la entidad aún.
+	if( !pScripted )
+	{
+		// Establecemos la ubicación donde se creara la entidad.
+		Vector vecForward;
+		AngleVectors(EyeAngles(), &vecForward);
+
+		Vector vecOrigin = GetAbsOrigin() + vecForward;
+		QAngle vecAngles(0, GetAbsAngles().y - 90, 0);
+
+		// Creamos y configuramos.
+		CAI_ScriptedSchedule *m_Scripted = (CAI_ScriptedSchedule *)CBaseEntity::Create("aiscripted_schedule", vecOrigin, vecAngles, NULL);
+		m_Scripted->SetName(MAKE_STRING("director_horde_follow"));
+		m_Scripted->SetTargetName(MAKE_STRING("director_zombie"));
+		m_Scripted->SetNPCState(NPC_STATE_COMBAT);
+		m_Scripted->SetSchedule(SCHED_SCRIPT_ENEMY_IS_GOAL_AND_RUN_TO_GOAL);
+		m_Scripted->SetInterruptability(DAMAGEORDEATH_INTERRUPTABILITY);
+		m_Scripted->SetGoalEnt(MAKE_STRING("!player"));
+	}
 }
 
 //=========================================================
@@ -182,7 +226,7 @@ void CInDirector::Precache()
 
 	PrecacheScriptSound("Director.Horde.Drums5");
 	PrecacheScriptSound("Director.Horde.Drums5_A");
-		
+
 	PrecacheScriptSound("Director.Horde.Drums6");
 	PrecacheScriptSound("Director.Horde.Drums6_A");
 
@@ -194,84 +238,79 @@ void CInDirector::Precache()
 //=========================================================
 void CInDirector::SetStatus(int status)
 {
-	DevMsg("%s %s -> %s \r\n", MS(), GetStatusName(m_status), GetStatusName(status));
-	m_status = status;
+	DevMsg("%s %s -> %s \r\n", MS(), GetStatusName(Status), GetStatusName(status));
+	Status = status;
 }
 
 //=========================================================
-// Devuelve el estado actual de InDirector
-//=========================================================
-int CInDirector::Status()
-{
-	return m_status;
-}
-
-//=========================================================
-// Ajusta el modo como "Relajado"
+// Inicia el modo "Relajado"
 //=========================================================
 void CInDirector::Relaxed()
 {
 	SetStatus(RELAXED);
 
-	m_left4Relax			= random->RandomInt(50, 150);
-	m_zombiesExaltedSpawned = 0;
+	Left4Exalted			= random->RandomInt(50, 150);
+	ZombiesExaltedSpawned	= 0;
 }
 
 //=========================================================
-// Ajusta el modo como "Horda"
+// Inicia el modo "Horda"
 //=========================================================
 void CInDirector::Horde(bool super)
 {
-	if (Status() == HORDE)
+	if ( Status == HORDE )
 		return;
 
 	// Sonido: ¡¡Vamos por ti!!
-	if (super)
+	if ( super )
 		EmitSound("Director.Horde.Alert");
 	else
 		EmitSound("Director.Horde.Coming");
 
 	SetStatus(HORDE);
 
-	if (m_zombiesHordeQueue < 20)
-		m_zombiesHordeQueue = m_zombiesHordeQueue + 5;
+	if ( HordeQueue < 20 )
+		HordeQueue = HordeQueue + 5;
 
-	if (indirector_horde_queue.GetInt() != 0)
-		m_zombiesHordeQueue = indirector_horde_queue.GetInt();
+	if ( indirector_force_horde_queue.GetInt() != 0 )
+		HordeQueue = indirector_force_horde_queue.GetInt();
 
-	if (super)
-		m_zombiesHordeQueue = m_zombiesHordeQueue + 20;
+	if ( super )
+		HordeQueue = HordeQueue + 20;
 
-	m_left4Horde	= random->RandomInt(100, 300);
-	t_blockedSpawn	= gpGlobals->curtime + 5;
+	Left4Horde		= random->RandomInt(100, 300);
+	SpawnBlocked	= gpGlobals->curtime + 5;
 }
 
 //=========================================================
-// Ajusta el modo como "Climax"
+// Inicia el modo "Climax"
 // Algo grande esta a punto de suceder...
 //=========================================================
-void CInDirector::Climax()
+void CInDirector::Climax(bool mini)
 {
-	if (Status() == CLIMAX)
+	if ( Status == CLIMAX )
 		return;
 
 	CIN_Player *pPlayer	= ToInPlayer(UTIL_GetLocalPlayer());
 
-	pPlayer->EmitMusic("Director.Climax");
+	if( mini )
+		pPlayer->EmitMusic("Director.MiniClimax");
+	else
+		pPlayer->EmitMusic("Director.Climax");
+
 	SetStatus(CLIMAX);
 }
-
 
 //=========================================================
 // Devuelve la etiqueta de InDirector junto a su estado.
 // Útil para debugear en la consola. DevMsg y Warning
+// TODO: Algo mejor que esto...
 //=========================================================
 const char *CInDirector::MS()
 {
 	char message[100];
 
 	Q_snprintf(message, sizeof(message), "[InDirector] [%s]", GetStatusName());
-
 	return message;
 }
 
@@ -280,7 +319,7 @@ const char *CInDirector::MS()
 //=========================================================
 const char *CInDirector::GetStatusName(int status)
 {
-	switch(status)
+	switch( status )
 	{
 		case RELAXED:
 			return "RELAJADO";
@@ -311,7 +350,7 @@ const char *CInDirector::GetStatusName(int status)
 //=========================================================
 const char *CInDirector::GetStatusName()
 {
-	return GetStatusName(Status());
+	return GetStatusName(Status);
 }
 
 //=========================================================
@@ -323,68 +362,96 @@ void CInDirector::Think()
 	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
 
 	// El Director esta desactivado.
-	if (!indirector_enabled.GetBool() || t_disabledDirector >= gpGlobals->curtime)
+	if ( !indirector_enabled.GetBool() || DirectorDisabled >= gpGlobals->curtime || Disabled )
 	{
-		t_disabledDirector = 0;
+		DirectorDisabled = 0;
 
 		SetNextThink(gpGlobals->curtime + 1);
 		return;
 	}
 
 	// Estamos "Exaltados"
-	if (Status() == EXALTED)
+	if ( Status == EXALTED )
 	{
-		// Exaltado solo sirve para crear más zombis que en relajado.
-		// Dependiendo del nivel de salud del jugador.
-
-		if (pPlayer->GetHealth() > 60 && m_zombiesExaltedSpawned > 35)
+		// Si la salud del jugador es mayor a 60%
+		// y se han creado 35 zombis, pasar al modo Relajado.
+		if ( pPlayer->GetHealth() > 60 && ZombiesExaltedSpawned > 35 )
 			Relaxed();
-		else if (pPlayer->GetHealth() > 10 && m_zombiesExaltedSpawned > 20)
+
+		// Si la salud del jugador es mayor a 10%
+		// y se han creado 15 zombis, pasar al modo Relajado.
+		else if ( pPlayer->GetHealth() > 10 && ZombiesExaltedSpawned > 15 )
+			Relaxed();
+
+		// Abigaíl esta en muy mal estado (salud menor a 10%)
+		// recordemos los buenos tiempos y dejémosle vivir más tiempo...
+		else
 			Relaxed();
 	}
 
 	// Estamos "Relajados"
-	if (Status() == RELAXED)
+	if ( Status == RELAXED )
 	{
-		m_left4Relax--;
+		// Un segundo menos para el modo Exaltado.
+		Left4Exalted--;
 
-		if (m_left4Relax <= 0)
+		if ( Left4Exalted <= 0 )
 			SetStatus(EXALTED);
 	}
 
 	// Estamos en una "Horda"
-	if (Status() == HORDE)
+	if ( Status == HORDE )
 	{
 		// La horda ha terminado.
-		if (m_zombiesHordeQueue <= 0)
+		if ( HordeQueue <= 0 )
 			Relaxed();
 	}
 
-	// Mientras no estemos en una "Horda" ni en "Climax"
-	if (Status() != HORDE && Status() != CLIMAX)
+	// Mientras no estemos en una "Horda" ni en el "Climax"
+	// O en si, mientras estemos en "Relajado", "Exaltado" o "Grunt"
+	if ( Status != HORDE && Status != CLIMAX )
 	{
 		// Dependiendo de la situación, agregamos un zombi a la cola de la próxima horda.
 		MayQueueHordeZombies();
 
 		// Mientras el usuario este con un "Grunt" el Director va "recolectando" zombis para la horda que se activará cuando este muera.
 		// Por lo tanto mientras estemos en Grunt no debemos activar una horda.
-		if (Status() != GRUNT)
+		if ( Status != GRUNT )
 		{
-			m_left4Horde--;
+			// Un segundo menos para el modo Horda.
+			Left4Horde--;
 
-			if (m_left4Horde <= 0)
+			if ( Left4Horde <= 0 )
 				Horde();
 		}
 	}
 
 	// Checamos el estado de los zombis.
-	CheckZombieMaker();
+	CheckZombies();
 
 	// Checamos el estado de los Grunts.
 	CheckGrunts();
-	
+
 	// Volvemos a pensar dentro de 1 segundo
 	SetNextThink(gpGlobals->curtime + 1);
+}
+
+//=========================================================
+// Activa el Director
+//=========================================================
+void CInDirector::Enable()
+{
+	indirector_enabled.SetValue(1);
+	Disabled = false;
+}
+
+//=========================================================
+// Desactiva el Director
+//=========================================================
+void CInDirector::Disable()
+{
+	indirector_enabled.SetValue(0);
+	Disabled = true;
 }
 
 //=========================================================
@@ -396,7 +463,6 @@ void CInDirector::Think()
 //=========================================================
 // INPUT: Forzar estado "Relajado"
 //=========================================================
-
 void CInDirector::InputForceRelax(inputdata_t &inputdata)
 {
 	Relaxed();
@@ -405,7 +471,6 @@ void CInDirector::InputForceRelax(inputdata_t &inputdata)
 //=========================================================
 // INPUT: Forzar estado "Exaltado"
 //=========================================================
-
 void CInDirector::InputForceExalted(inputdata_t &inputdata)
 {
 	SetStatus(EXALTED);
@@ -414,7 +479,6 @@ void CInDirector::InputForceExalted(inputdata_t &inputdata)
 //=========================================================
 // INPUT: Forzar estado "Horda"
 //=========================================================
-
 void CInDirector::InputForceHorde(inputdata_t &inputdata)
 {
 	Horde();
@@ -423,34 +487,69 @@ void CInDirector::InputForceHorde(inputdata_t &inputdata)
 //=========================================================
 // INPUT: Forzar estado "Grunt"
 //=========================================================
-
 void CInDirector::InputForceGrunt(inputdata_t &inputdata)
 {
-	m_gruntSpawnPending = true;
+	GruntSpawnPending = true;
 }
 
 //=========================================================
 // INPUT: Forzar climax
 //=========================================================
-
 void CInDirector::InputForceClimax(inputdata_t &inputdata)
 {
 	Climax();
 }
 
+//=========================================================
+// INPUT: Establece una cantidad en segundos en el que
+// el Director estara desactivado.
+//=========================================================
 void CInDirector::InputSetDisabledFor(inputdata_t &inputdata)
 {
-	t_disabledDirector = gpGlobals->curtime + inputdata.value.Int();
+	DirectorDisabled = gpGlobals->curtime + inputdata.value.Int();
 }
 
-void CInDirector::InputSetMakerProximity(inputdata_t &inputdata)
+//=========================================================
+// INPUT: Establece la distancia minima de un creador de zombis.
+//=========================================================
+void CInDirector::InputSetMakerDistance(inputdata_t &inputdata)
 {
-	indirector_maker_promity.SetValue(inputdata.value.Int());
+	indirector_min_maker_distance.SetValue(inputdata.value.Int());
 }
 
+//=========================================================
+// INPUT: Establece la cantidad de zombis en la cola de la Horda.
+//=========================================================
 void CInDirector::InputSetHordeQueue(inputdata_t &inputdata)
 {
-	indirector_horde_queue.SetValue(inputdata.value.Int());
+	indirector_force_horde_queue.SetValue(inputdata.value.Int());
+}
+
+//=========================================================
+// INPUT: Activa el Director.
+//=========================================================
+void CInDirector::InputEnable(inputdata_t &inputdata)
+{
+	Enable();
+}
+
+//=========================================================
+// INPUT: Desactiva el Director.
+//=========================================================
+void CInDirector::InputDisable(inputdata_t &inputdata)
+{
+	Disable();
+}
+
+//=========================================================
+// INPUT: Activa o Desactiva el Director.
+//=========================================================
+void CInDirector::InputToggle(inputdata_t &inputdata)
+{
+	if( indirector_enabled.GetBool() )
+		Disable();
+	else
+		Enable();
 }
 
 //=========================================================
@@ -467,45 +566,45 @@ bool CInDirector::MayQueueZombies()
 	CBasePlayer *pPlayer	= UTIL_GetLocalPlayer();
 
 	// ¿El jugador no ha sido creado?
-	if (!pPlayer)
+	if ( !pPlayer )
 		return false;
 
 	// Mientres el spawn este bloqueado :NO:
-	if (gpGlobals->curtime < t_blockedSpawn)
+	if ( gpGlobals->curtime < SpawnBlocked )
 		return false;
 
 	// Estamos en Climax, SI O SI
-	if (Status() == CLIMAX)
+	if ( Status == CLIMAX )
 	{
 		if (random->RandomInt(0, 50) > 10)
 			return true;
 	}
 
 	// Cuando estemos en modo "Exaltado" debe haber almenos un tercio del limite de zombis.
-	if (Status() == EXALTED && m_zombiesAlive < ceil(indirector_max_zombies.GetFloat() / 3))
+	if ( Status == EXALTED && ZombiesAlive < ceil(indirector_max_alive_zombies.GetFloat() / 3) )
 		return true;
 
 	// Estamos en modo Grunt ¡no más zombis!
-	if (Status() == GRUNT)
+	if ( Status == GRUNT )
 		return false;
 
-	// Estamos en modo relajado, no debe haber más de 10 zombis vivos.
-	if (Status() == RELAXED && m_zombiesAlive >= 10)
+	// Estamos en modo relajado, no debe haber más de 5 zombis vivos.
+	if ( Status == RELAXED && ZombiesAlive >= 5 )
 		return false;
 
-	// 
-	if (t_lastSpawnZombis > (gpGlobals->curtime - 20))
+	//
+	if ( LastSpawnZombies > (gpGlobals->curtime - 20) )
 		return false;
 
 	// Más probabilidades si se tiene mucha salud.
-	if (pPlayer->GetHealth() > 30)
+	if ( pPlayer->GetHealth() > 40 )
 	{
-		if (random->RandomInt(pPlayer->GetHealth(), 100) < 60)
+		if ( random->RandomInt(pPlayer->GetHealth(), 100) < 60 )
 			return false;
 	}
 	else
 	{
-		if (random->RandomInt(1, 30) > 15)
+		if ( random->RandomInt(1, 30) > 15 )
 			return false;
 	}
 
@@ -521,19 +620,19 @@ bool CInDirector::MayQueueHordeZombies()
 	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
 
 	// ¿El jugador no ha sido creado?
-	if (!pPlayer)
+	if ( !pPlayer )
 		return false;
 
-	if (random->RandomInt(1, 30) > 5)
+	if ( random->RandomInt(1, 30) > 5 )
 		return false;
 
-	if (pPlayer->GetHealth() < 50)
+	if ( pPlayer->GetHealth() < 50 )
 	{
-		if (random->RandomInt(1, 10) > 3)
+		if ( random->RandomInt(1, 10) > 3 )
 			return false;
 	}
 
-	m_zombiesHordeQueue++;
+	HordeQueue++;
 	return true;
 }
 
@@ -545,28 +644,28 @@ bool CInDirector::MayQueueGrunt()
 	CBasePlayer *pPlayer	= UTIL_GetLocalPlayer();
 
 	// ¿El jugador no ha sido creado?
-	if (!pPlayer)
+	if ( !pPlayer )
 		return false;
 
 	// Hay pendiente la creación de un Grunt.
-	if (m_gruntSpawnPending)
+	if ( GruntSpawnPending )
 		return true;
 
-	// ¡¡MUERE!!
-	if (Status() == CLIMAX)
+	// Climax, ¡¡MUERE!!
+	if ( Status == CLIMAX )
 		return true;
 
 	// La salud del jugador debe ser más de 50% y
 	// antes debemos crear una cantidad determinada de zombis.
-	if (pPlayer->GetHealth() < 50 || m_zombiesSpawned < indirector_min_zombies_grunt.GetInt())
+	if ( pPlayer->GetHealth() < 50 || ZombiesSpawned < indirector_min_zombies_grunt.GetInt() )
 		return false;
 
 	// Deben haber menos de 10 zombis vivos.
-	if (m_zombiesAlive > 10)
+	if ( ZombiesAlive > 10 )
 		return false;
 
 	// Menos oportunidades de aparecer ;)
-	if (random->RandomInt(1, 10) > 8)
+	if ( random->RandomInt(1, 10) > 8 )
 		return false;
 
 	return true;
@@ -583,138 +682,142 @@ bool CInDirector::MayQueueGrunt()
 //=========================================================
 int CInDirector::CountZombies()
 {
-	m_zombiesAlive			= 0;
-	m_zombiesTargetPlayer	= 0;
+	ZombiesAlive		= 0;
+	ZombiesTargetPlayer	= 0;
 
 	CAI_BaseNPC *pNPC		= NULL;
 	CBasePlayer *pPlayer	= UTIL_GetLocalPlayer();
-	float minDistance		= indirector_min_zombie_distance.GetFloat();
+	float minDistance		= indirector_min_maker_distance.GetFloat();
 
-	m_zombiesClassicAlive	= 0;
-	m_zombinesAlive			= 0;
-	m_zombiesFastAlive		= 0;
-	m_zombiesPoisonAlive	= 0;
-	
+	ZombiesClassicAlive	= 0;
+	ZombinesAlive		= 0;
+	ZombiesFastAlive	= 0;
+	ZombiesPoisonAlive	= 0;
+
 	do
 	{
 		// Buscamos todos los zombis en el mapa.
 		pNPC = (CAI_BaseNPC *)gEntList.FindEntityByName(pNPC, "director_zombie");
 
-		if (pNPC)
+		if ( pNPC && pNPC->IsAlive() )
 		{
-			// Al parecer este zombi tiene en la mira al jugador.
-			if (pNPC->GetEnemy() == pPlayer)
+			// Calculamos la distancia del zombi al jugador.
+			Vector distToEnemy	= pNPC->GetAbsOrigin() - pPlayer->GetAbsOrigin();
+			float dist			= VectorNormalize(distToEnemy);
+
+			// Si esta muy lejos
+			// no nos sirve de nada... matenlo.
+			if ( dist > (minDistance * 2) )
 			{
-				// Calculamos la distancia del zombi al jugador.
-				Vector distToEnemy	= pNPC->GetAbsOrigin() - pPlayer->GetAbsOrigin();
-				float dist			= VectorNormalize(distToEnemy);
+				CTakeDamageInfo damage;
 
-				// Si esta muy lejos o la última vez que vio a un enemigo (jugador) fue hace más de 3 minutos
-				// no nos sirve de nada... matenlo.
-				if (dist >= (minDistance * 2) || pNPC->GetLastEnemyTime() < (gpGlobals->curtime + (3 * 60)))
-					pNPC->AddFlag(EFL_KILLME);
+				damage.SetDamage(pNPC->GetHealth());
+				damage.SetDamageType(DMG_GENERIC);
+				damage.SetAttacker(this);
+				damage.SetInflictor(this);
 
-				// Esta lo suficientemente cerca como para consideralo un peligro.
-				if (dist < minDistance)
-					m_zombiesTargetPlayer++;
+				pNPC->TakeDamage(damage);
 			}
 
+			// Esta lo suficientemente cerca como para consideralo un peligro.
+			if ( dist < indirector_min_zombie_distance.GetFloat() )
+				ZombiesTargetPlayer++;
+
 			// + Zombi vivo.
-			m_zombiesAlive++;
+			ZombiesAlive++;
 
 			// Obtenemos el nombre clase de este zombi y lo contamos en su variable.
 			const char *className = pNPC->GetClassname();
 
-			if (className == "npc_zombie")
-				m_zombiesClassicAlive++;
+			if ( className == "npc_zombie" )
+				ZombiesClassicAlive++;
 
-			if (className == "npc_zombine")
-				m_zombinesAlive++;
+			if ( className == "npc_zombine" )
+				ZombinesAlive++;
 
-			if (className == "npc_fastzombie")
-				m_zombiesFastAlive++;
+			if ( className == "npc_fastzombie" )
+				ZombiesFastAlive++;
 
-			if (className == "npc_poisonzombie")
-				m_zombiesPoisonAlive++;
+			if ( className == "npc_poisonzombie" )
+				ZombiesPoisonAlive++;
 		}
 
 	} while(pNPC);
 
-	return m_zombiesAlive;
+	return ZombiesAlive;
 }
 
 //=========================================================
-// Checa los Zombis vivos y 
+// Checa los Zombis vivos
 //=========================================================
-void CInDirector::CheckZombieMaker()
+void CInDirector::CheckZombies()
 {
-	// Contar los zombis vivos.
+	// Contamos los zombis vivos.
 	CountZombies();
 
 	// El director esta obligado a no pasar esta cantidad de zombis vivos.
-	float maxZombies = indirector_max_zombies.GetFloat();
+	float MaxZombies = indirector_max_alive_zombies.GetFloat();
 
 	// En estado Relajado hay que disminuir el limite de zombis vivos.
-	if (Status() == RELAXED)
-		maxZombies = ceil(maxZombies / 3);
+	if ( Status == RELAXED )
+		MaxZombies = ceil(MaxZombies / 3);
 
 	// En estado CLIMAX no hay compasión.
-	if (Status() == CLIMAX)
-		maxZombies = maxZombies + 30;	
-	
+	if ( Status == CLIMAX )
+		MaxZombies = MaxZombies + 30;
+
 	// No estamos en "Grunt" o en el "Climax"
-	if (Status() != GRUNT && Status() != CLIMAX)
+	if ( Status != GRUNT && Status != CLIMAX )
 	{
 		// Dependiendo de la cantidad de zombis atacando al jugador reproducimos una música de fondo.
-		// [FIXME] Tiene problemas al intentar quitarlo.
 
-		if (m_zombiesTargetPlayer >= 6 || Status() == HORDE)
+		if ( ZombiesTargetPlayer >= 6 || Status == HORDE )
 		{
 			bool a = false;
 			bool b = false;
 
-			if (m_zombiesTargetPlayer >= 8)
+			if ( ZombiesTargetPlayer >= 13 )
 				a = true;
 
-			if (m_zombiesTargetPlayer >= 10)
+			if ( ZombiesTargetPlayer >= 18 )
 				b = true;
 
 			EmitHordeMusic(a, b);
 		}
-		else if (m_zombiesTargetPlayer < 6 && m_playingHordeMusic)
+		else if ( ZombiesTargetPlayer < 6 && PlayingHordeMusic )
 			FadeoutHordeMusic();
 	}
 
-	if (Status() == HORDE)
+	if ( Status == HORDE )
 	{
-		if (m_zombiesHordeQueue > 0)
-			m_zombieSpawnQueue = m_zombiesHordeQueue;
+		if ( HordeQueue > 0 )
+			SpawnQueue = HordeQueue;
 	}
 	else
 	{
-		// Los zombis vivos son menos que el limite y 
+		// La cantidad de zombis vivos es menor al limite y
 		// además ya no hay ningún zombi por crear en la cola y
 		// es posible y recomendado crear zombis.
-		if (m_zombiesAlive < maxZombies && m_zombieSpawnQueue <= 0 && MayQueueZombies())
+		if ( ZombiesAlive < MaxZombies && SpawnQueue <= 0 && MayQueueZombies() )
 		{
 			// Zombis que faltan por crear.
-			int zombiesDifference	= maxZombies - m_zombiesAlive;
-			int maxZombiesQueue		= indirector_max_zombies_queue.GetInt();
+			int Left4Creating	= MaxZombies - ZombiesAlive;
+			int MaxZombiesQueue	= indirector_max_zombies_queue.GetInt();
 
 			// En CLIMAX agregamos 10 al limite de zombis por crear.
-			if (Status() == CLIMAX)
-				maxZombiesQueue = maxZombiesQueue + 10;
+			if (Status == CLIMAX)
+				MaxZombiesQueue = MaxZombiesQueue + 10;
 
 			// Evitamos sobrecargas al director.
-			if (zombiesDifference > maxZombiesQueue)
-				m_zombieSpawnQueue = maxZombiesQueue;
+			if (Left4Creating > MaxZombiesQueue)
+				SpawnQueue = MaxZombiesQueue;
 			else
-				m_zombieSpawnQueue = zombiesDifference;
+				SpawnQueue = Left4Creating;
 		}
 	}
 
 	// No hay más zombis por crear.
-	if (m_zombieSpawnQueue <= 0)
+	if ( SpawnQueue <= 0 )
 		return;
 
 	SpawnZombies();
@@ -726,80 +829,70 @@ void CInDirector::CheckZombieMaker()
 void CInDirector::SpawnZombies()
 {
 	CNPCZombieMaker *pMaker			= NULL;
-	CAI_ScriptedSchedule *pScripted = NULL;
 	CBasePlayer *pPlayer			= UTIL_GetLocalPlayer();
 
-	bool spawnerFound				= false;
-	bool horde						= (Status() == HORDE || Status() == CLIMAX) ? true : false;
+	bool SpawnerFound				= false;
+	bool Horde						= ( Status == HORDE || Status == CLIMAX ) ? true : false;
 
-	if (!pPlayer)
+	if ( !pPlayer )
 		return;
-
-	// Si estamos en modo "Horda" o "Climax" usaremos esta entidad para hacer que los zombis
-	// vayan/sigan directamente al jugador.
-	if (Status() == HORDE || Status() == CLIMAX)
-		pScripted = (CAI_ScriptedSchedule *)gEntList.FindEntityByName(pScripted, "director_horde_follow");
 
 	do
 	{
-		// Obtenemos la lista de las entidades "npc_zombie_maker" que podremos utilizar para
+		// Si la cola de creación de zombis es menor o igual a 0
+		// hemos terminado.
+		if ( SpawnQueue <= 0 )
+			break;
+
+		// Obtenemos la lista de las entidades "director_zombie_maker" que podremos utilizar para
 		// crear los zombis, estas deben estar cerca del jugador.
 		// TODO: En IA Director de L4D no es necesario una entidad, el director los ubica automaticamente en el suelo
 		// ¿podremos crear algo así?
 
-		pMaker = (CNPCZombieMaker *)gEntList.FindEntityByClassnameWithin(pMaker, "director_zombie_maker", pPlayer->GetAbsOrigin(), indirector_maker_promity.GetFloat());
+		pMaker = (CNPCZombieMaker *)gEntList.FindEntityByClassnameWithin(pMaker, "director_zombie_maker", pPlayer->GetAbsOrigin(), indirector_min_maker_distance.GetFloat());
 
-		if (pMaker)
+		if ( pMaker )
 		{
-			// ¡hemos encontrado un lugar de creación!
-			spawnerFound = true;
-
-			// Si la cola de creación de zombis es mayor a 0 y
-			// el numero generado al azar da 1 (Una forma de dar más realismo y utilizar más de 1 spawn)
-			if (m_zombieSpawnQueue > 0 && random->RandomInt(1, 2) == 1)
+			// Si el estado actual no es Climax
+			if ( Status != CLIMAX )
 			{
-				DevMsg("%s Creando zombi - Quedan: %i \r\n", MS(), m_zombieSpawnQueue);
-				CAI_BaseNPC *pNPC = pMaker->MakeNPC(horde);
-
-				if (pNPC)
-				{
-					// Un zombi menos que crear.
-					m_zombieSpawnQueue--;
-
-					if (Status() == HORDE)
-					{
-						m_zombiesHordeQueue--;
-
-						// Perseguir al jugador.
-						if (pScripted)
-							pScripted->StartSchedule(pNPC);
-					}
-					else if (Status() == CLIMAX)
-					{
-						// Perseguir al jugador.
-						if (pScripted)
-							pScripted->StartSchedule(pNPC);
-					}
-					else
-					{
-						m_zombiesSpawned++;
-
-						if (m_zombieSpawnQueue <= 0)
-							t_lastSpawnZombis = gpGlobals->curtime;
-					}
-
-					if (Status() == EXALTED)
-						m_zombiesExaltedSpawned++;
-				}
-				else
-					Warning("%s Ha ocurrido un problema al crear un Zombi. \r\n", MS());
+				// Este creador de zombis ha creado uno hace menos de 3 segundos...
+				// ir al siguiente.
+				if ( pMaker->LastSpawn >= (gpGlobals->curtime - 3) )
+					continue;
 			}
+
+			// ¡hemos encontrado un lugar de creación!
+			SpawnerFound = true;
+
+			DevMsg("%s Creando zombi - Quedan: %i \r\n", MS(), SpawnQueue);
+			CAI_BaseNPC *pNPC = pMaker->MakeNPC(Horde, Horde);
+
+			// ¡No se ha podido crear el zombi!
+			if ( !pNPC )
+				continue;
+
+			// Un zombi menos que crear.
+			SpawnQueue--;
+
+			if (Status == HORDE)
+				HordeQueue--;
+			else if ( Status != CLIMAX )
+			{
+				ZombiesSpawned++;
+
+				if ( SpawnQueue <= 0 )
+					LastSpawnZombies = gpGlobals->curtime;
+			}
+
+			if ( Status == EXALTED )
+				ZombiesExaltedSpawned++;
 		}
 
 	} while(pMaker);
 
 	// No hemos encontrado un spawn
-	if (!spawnerFound)
+	if ( !SpawnerFound )
 		DevMsg("%s Hay zombis por crear pero no se encontro un director_zombie_maker cercano. \r\n", MS());
 }
 
@@ -814,19 +907,19 @@ void CInDirector::SpawnZombies()
 //=========================================================
 int CInDirector::CountGrunts()
 {
-	m_gruntsAlive		= 0;
+	GruntsAlive			= 0;
 	CNPC_Grunt *pGrunt	= NULL;
 
 	do
 	{
 		pGrunt = (CNPC_Grunt *)gEntList.FindEntityByClassname(pGrunt, "npc_grunt");
 
-		if (pGrunt)
-			m_gruntsAlive++;
+		if ( pGrunt )
+			GruntsAlive++;
 
 	} while(pGrunt);
 
-	return m_gruntsAlive;
+	return GruntsAlive;
 }
 
 //=========================================================
@@ -838,28 +931,27 @@ void CInDirector::CheckGrunts()
 	CountGrunts();
 
 	// Debajo del if se hace lo necesario para reproducir la música de fondo del Grunt.
-	// Debido a que el modo "Climax" tiene su propia música no es necesario ni bonito reproducir la música del Grunt.
-	if (Status() != CLIMAX)
+	// Debido a que el modo "Climax" tiene su propia música no es necesario ni bonito reproducir la música del Grunt al mismo tiempo.
+	if ( Status != CLIMAX )
 	{
-		// Si hay más de un Grunt iniciar la música de los Grunt ¡cuidado abigaíl!
-		if (m_gruntsAlive > 0)
+		// Si hay más de un Grunt iniciar la música de los Grunt ¡cuidado Abigaíl!
+		if ( GruntsAlive > 0 )
 		{
-			DevMsg("%s Se han detectado Grunts en el juego.\r\n", MS());
-
-			if (Status() != GRUNT)
+			if ( Status != GRUNT )
 				SetStatus(GRUNT);
 
-			if (!m_gruntsMusic)
+			if ( !GruntsMusic )
 			{
 				DevMsg("%s Reproduciendo musica de fondo Grunt.\r\n", MS());
 				CIN_Player *pPlayer	= ToInPlayer(UTIL_GetLocalPlayer());
 
-				s_gruntMusic	= pPlayer->EmitMusic("NPC_Grunt.BackgroundMusic");
-				m_gruntsMusic	= true;
+				Sound_GruntMusic	= pPlayer->EmitMusic("NPC_Grunt.BackgroundMusic");
+				GruntsMusic			= true;
 			}
 		}
-		// Todos los Grunts fueron eliminados. Ganas esta vez abigaíl.
-		else if (m_gruntsAlive <= 0 && m_gruntsMusic)
+
+		// Todos los Grunts fueron eliminados. Ganaste esta vez abigaíl.
+		else if ( GruntsAlive <= 0 && GruntsMusic )
 		{
 			DevMsg("[InDirector] El/Los Grunt han sido eliminados, deteniendo musica...\r\n");
 
@@ -870,7 +962,7 @@ void CInDirector::CheckGrunts()
 		}
 	}
 
-	if (MayQueueGrunt() && m_gruntsAlive < 3)
+	if ( MayQueueGrunt() && GruntsAlive < 3 )
 		SpawnGrunt();
 }
 
@@ -882,54 +974,49 @@ void CInDirector::SpawnGrunt()
 	CNPCZombieMaker *pMaker			= NULL;
 	CAI_ScriptedSchedule *pScripted = NULL;
 	CBasePlayer *pPlayer			= UTIL_GetLocalPlayer();
-	bool spawnerFound				= false;
+	bool SpawnerFound				= false;
 
-	if (!pPlayer)
+	if ( !pPlayer )
 		return;
 
 	pScripted = (CAI_ScriptedSchedule *)gEntList.FindEntityByName(pScripted, "director_horde_follow");
 
 	do
 	{
-		// Obtenemos la lista de las entidades "npc_zombie_maker" que podremos utilizar para
-		// crear los zombis, estas deben estar cerca del jugador.
-		pMaker = (CNPCZombieMaker *)gEntList.FindEntityByClassnameWithin(pMaker, "director_zombie_maker", pPlayer->GetAbsOrigin(), indirector_maker_promity.GetFloat());
+		// Obtenemos la lista de las entidades "director_zombie_maker" que podremos utilizar para
+		// crear el Grunt, estas deben estar cerca del jugador.
+		pMaker = (CNPCZombieMaker *)gEntList.FindEntityByClassnameWithin(pMaker, "director_zombie_maker", pPlayer->GetAbsOrigin(), indirector_min_maker_distance.GetFloat());
 
-		if (pMaker)
+		if ( pMaker )
 		{
 			// ¡hemos encontrado un lugar de creación!
-			spawnerFound = true;
+			SpawnerFound = true;
 
 			// Si este spawn esta permitido para crear un Grunt
-			if (pMaker->CanMakeGrunt())
+			if ( pMaker->CanMakeGrunt() )
 			{
 				DevMsg("%s Creando grunt!! \r\n", MS());
 				CAI_BaseNPC *pNPC = pMaker->MakeGrunt();
-					
-				// Perseguir al jugador
-				if (pScripted)
-					pScripted->StartSchedule(pNPC);
 
 				// Estamos en modo CLIMAX, no es necesario pasar a modo GRUNT.
-				if (Status() != CLIMAX)
+				if ( Status != CLIMAX )
 					SetStatus(GRUNT);
 
 				// Reiniciamos el contador.
-				m_zombiesSpawned	= 0;
-				m_gruntSpawnPending = false;
+				ZombiesSpawned		= 0;
+				GruntSpawnPending	= false;
 
 				break;
-				return;
 			}
 		}
 
 	} while(pMaker);
 
 	// No hemos encontrado un spawn
-	if (!spawnerFound)
+	if ( !SpawnerFound )
 	{
 		DevMsg("%s Hay un Grunt por crear pero no se encontro un director_zombie_maker cercano o que admita la creacion de Grunt \r\n", MS());
-		m_gruntSpawnPending = true;
+		GruntSpawnPending = true;
 	}
 }
 
@@ -946,36 +1033,36 @@ void CInDirector::EmitHordeMusic(bool A, bool B)
 {
 	CIN_Player *pPlayer	= ToInPlayer(UTIL_GetLocalPlayer());
 
-	if (!m_playingHordeMusic)
+	if ( !PlayingHordeMusic )
 	{
-		s_HordeMusic		= pPlayer->EmitMusic("Director.Horde.Main");
-		m_playingHordeMusic	= true;
+		Sound_HordeMusic	= pPlayer->EmitMusic("Director.Horde.Main");
+		PlayingHordeMusic	= true;
 	}
 
 	// A
-	if (A && !m_playingHordeAMusic)
+	if ( A && !PlayingHorde_A_Music )
 	{
-		s_HordeAMusic		 = pPlayer->EmitMusic("Director.Horde.Main_A");
-		m_playingHordeAMusic = true;
+		Sound_Horde_A_Music		= pPlayer->EmitMusic("Director.Horde.Main_A");
+		PlayingHorde_A_Music	= true;
 	}
 
-	if (!A && m_playingHordeAMusic)
+	if ( !A && PlayingHorde_A_Music )
 	{
-		pPlayer->FadeoutMusic(s_HordeAMusic, 1.0f);
-		m_playingHordeAMusic = false;
+		pPlayer->FadeoutMusic(Sound_Horde_A_Music, 1.3f);
+		PlayingHorde_A_Music = false;
 	}
 
 	// B
-	if (B && !m_playingHordeBMusic)
+	if ( B && !PlayingHorde_B_Music )
 	{
-		s_HordeBMusic			= pPlayer->EmitMusic("Director.Horde.Main_B");
-		m_playingHordeBMusic	= true;
+		Sound_Horde_B_Music		= pPlayer->EmitMusic("Director.Horde.Main_B");
+		PlayingHorde_B_Music	= true;
 	}
 
-	if (!B && m_playingHordeBMusic)
+	if ( !B && PlayingHorde_B_Music )
 	{
-		pPlayer->FadeoutMusic(s_HordeBMusic, 1.0f);
-		m_playingHordeBMusic = false;
+		pPlayer->FadeoutMusic(Sound_Horde_B_Music, 1.3f);
+		PlayingHorde_B_Music = false;
 	}
 }
 
@@ -987,13 +1074,13 @@ void CInDirector::FadeoutHordeMusic()
 	DevMsg("%s Bajando musica de la horda... \r\n", MS());
 	CIN_Player *pPlayer	= ToInPlayer(UTIL_GetLocalPlayer());
 
-	pPlayer->FadeoutMusic(s_HordeMusic);
-	pPlayer->FadeoutMusic(s_HordeAMusic);
-	pPlayer->FadeoutMusic(s_HordeBMusic);
+	pPlayer->FadeoutMusic(Sound_HordeMusic);
+	pPlayer->FadeoutMusic(Sound_Horde_A_Music);
+	pPlayer->FadeoutMusic(Sound_Horde_B_Music);
 
-	m_playingHordeMusic			= false;
-	m_playingHordeAMusic		= false;
-	m_playingHordeBMusic		= false;
+	PlayingHordeMusic			= false;
+	PlayingHorde_A_Music		= false;
+	PlayingHorde_B_Music		= false;
 }
 
 //=========================================================
@@ -1004,8 +1091,8 @@ void CInDirector::FadeoutGruntMusic()
 	DevMsg("%s Bajando musica del Grunt... \r\n", MS());
 	CIN_Player *pPlayer	= ToInPlayer(UTIL_GetLocalPlayer());
 
-	pPlayer->FadeoutMusic(s_gruntMusic, 2.0f);
-	m_gruntsMusic = false;
+	pPlayer->FadeoutMusic(Sound_GruntMusic, 2.0f);
+	GruntsMusic = false;
 }
 
 //=========================================================
@@ -1018,53 +1105,53 @@ int CInDirector::DrawDebugTextOverlays()
 {
 	int text_offset = BaseClass::DrawDebugTextOverlays();
 
-	if (m_debugOverlays & OVERLAY_TEXT_BIT) 
+	if (m_debugOverlays & OVERLAY_TEXT_BIT)
 	{
 		char message[512];
 
-		float maxZombies = indirector_max_zombies.GetFloat();
+		float MaxZombies = indirector_max_alive_zombies.GetFloat();
 
-		if (Status() == RELAXED)
-			maxZombies = ceil(maxZombies / 3);
+		if (Status == RELAXED)
+			MaxZombies = ceil(MaxZombies / 3);
 
-		Q_snprintf(message, sizeof(message), 
-			"Estado: %s", 
+		Q_snprintf(message, sizeof(message),
+			"Estado: %s",
 		GetStatusName());
 		EntityText(text_offset++, message, 0);
 
-		Q_snprintf(message, sizeof(message), 
-			"Zombis creados: %i", 
-		m_zombiesSpawned);
+		Q_snprintf(message, sizeof(message),
+			"Zombis creados: %i",
+		ZombiesSpawned);
 		EntityText(text_offset++, message, 0);
 
-		Q_snprintf(message, sizeof(message), 
-			"Zombis vivos: %i (de un maximo de %f)", 
-		m_zombiesAlive, maxZombies);
+		Q_snprintf(message, sizeof(message),
+			"Zombis vivos: %i (de un maximo de %f)",
+		ZombiesAlive, MaxZombies);
 		EntityText(text_offset++, message, 0);
 
-		Q_snprintf(message, sizeof(message), 
-			"Zombis cerca del jugador: %i", 
-		m_zombiesTargetPlayer);
+		Q_snprintf(message, sizeof(message),
+			"Zombis cerca del jugador: %i",
+		ZombiesTargetPlayer);
 		EntityText(text_offset++, message, 0);
 
-		Q_snprintf(message, sizeof(message), 
-			"Zombis creados en modo Exaltado: %i", 
-		m_zombiesExaltedSpawned);
+		Q_snprintf(message, sizeof(message),
+			"Zombis creados en modo Exaltado: %i",
+		ZombiesExaltedSpawned);
 		EntityText(text_offset++, message, 0);
 
-		Q_snprintf(message, sizeof(message), 
-			"Zombis en la cola de creacion: %i", 
-		m_zombieSpawnQueue);
+		Q_snprintf(message, sizeof(message),
+			"Zombis en la cola de creacion: %i",
+		SpawnQueue);
 		EntityText(text_offset++, message, 0);
 
-		Q_snprintf(message, sizeof(message), 
-			"Cantidad de la Horda: %i (en %i segundos)", 
-		m_zombiesHordeQueue, m_left4Horde);
+		Q_snprintf(message, sizeof(message),
+			"Cantidad de la Horda: %i (en %i segundos)",
+		HordeQueue, Left4Horde);
 		EntityText(text_offset++, message, 0);
 
-		Q_snprintf(message, sizeof(message), 
-			"Segundos para salir de [RELAX]: %i", 
-		m_left4Relax);
+		Q_snprintf(message, sizeof(message),
+			"Segundos para salir de [RELAX]: %i",
+		Left4Horde);
 		EntityText(text_offset++, message, 0);
 	}
 
@@ -1076,7 +1163,7 @@ void CC_ForceSpawnGrunt()
 	CInDirector *pDirector = NULL;
 	pDirector = (CInDirector *)gEntList.FindEntityByClassname(pDirector, "in_director");
 
-	if (!pDirector)
+	if ( !pDirector )
 		return;
 
 	pDirector->SpawnGrunt();
@@ -1087,7 +1174,7 @@ void CC_ForceHorde()
 	CInDirector *pDirector = NULL;
 	pDirector = (CInDirector *)gEntList.FindEntityByClassname(pDirector, "in_director");
 
-	if (!pDirector)
+	if ( !pDirector )
 		return;
 
 	pDirector->Horde(true);
@@ -1098,7 +1185,7 @@ void CC_ForceClimax()
 	CInDirector *pDirector = NULL;
 	pDirector = (CInDirector *)gEntList.FindEntityByClassname(pDirector, "in_director");
 
-	if (!pDirector)
+	if ( !pDirector )
 		return;
 
 	pDirector->Climax();

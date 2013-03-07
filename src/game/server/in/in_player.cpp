@@ -23,7 +23,7 @@ extern ISoundEmitterSystemBase *soundemitterbase;
 // Definición de variables de configuración.
 //=========================================================
 
-ConVar in_player_model		("in_player_model", "models/abigail.mdl", FCVAR_REPLICATED, "Define el modelo del jugador");
+ConVar in_player_model		("in_player_model", "models/olivia_citizen.mdl", FCVAR_REPLICATED, "Define el modelo del jugador");
 ConVar in_beginner_weapon	("in_beginner_weapon", "0", 0, "Al estar activado se hacen los efectos de ser principante manejando un arma.");
 
 // Linterna
@@ -48,25 +48,24 @@ ConVar in_timescale_effect("in_timescale_effect", "1", FCVAR_REPLICATED | FCVAR_
 // Guardado y definición de datos
 //=========================================================
 
-LINK_ENTITY_TO_CLASS(player, CIN_Player);
+LINK_ENTITY_TO_CLASS( player, CIN_Player );
 
-PRECACHE_REGISTER(player);
+PRECACHE_REGISTER( player );
 
 BEGIN_DATADESC(CIN_Player)
-	DEFINE_FIELD(m_fRegenRemander,	FIELD_INTEGER),
-	DEFINE_FIELD(t_bodyHurt,		FIELD_INTEGER),
-	DEFINE_FIELD(m_fTasksTimer,		FIELD_INTEGER),
+	DEFINE_FIELD( RegenRemander,	FIELD_INTEGER ),
+	DEFINE_FIELD( BodyHurt,			FIELD_INTEGER ),
+	DEFINE_FIELD( TasksTimer,		FIELD_INTEGER ),
 END_DATADESC()
-
 
 //=========================================================
 // Constructor
 //=========================================================
 CIN_Player::CIN_Player()
 {
-	m_fRegenRemander	= 0; // Regeneración de salud
-	t_bodyHurt			= 0; // Efecto de muerte.
-	m_fTasksTimer		= 0; // Tareas.
+	RegenRemander	= 0; // Regeneración de salud
+	BodyHurt		= 0; // Efecto de muerte.
+	TasksTimer		= 0; // Tareas.
 }
 
 //=========================================================
@@ -96,23 +95,22 @@ void CIN_Player::Precache()
 //=========================================================
 void CIN_Player::Spawn()
 {
-	// Ajustamos el modelo del jugador.
+	// Establecemos el modelo del jugador.
 	SetModel(in_player_model.GetString());
 
 	ConVarRef host_timescale("host_timescale");
 	ConVarRef indirector_enabled("indirector_enabled");
 
 	// Resetear el tiempo.
-	if(host_timescale.GetInt() != 1)
+	if( host_timescale.GetInt() != 1 )
 		engine->ClientCommand(edict(), "host_timescale 1");
-
-	// Iniciar el Director
-	//if(indirector_enabled.GetBool())
-	//	StartDirector();
 
 	BaseClass::Spawn();
 }
 
+//=========================================================
+// Bucle de ejecución de tareas. "Pre"
+//=========================================================
 void CIN_Player::PreThink()
 {
 	HandleSpeedChanges();
@@ -125,35 +123,36 @@ void CIN_Player::PreThink()
 void CIN_Player::PostThink()
 {
 	// El juego no ha acabado.
-	if (!g_fGameOver && !IsPlayerLockedInPlace())
+	if ( !g_fGameOver && !IsPlayerLockedInPlace() )
 	{
 		// Si seguimos vivos.
-		if (IsAlive())
+		if ( IsAlive() )
 		{
 			ConVarRef mat_yuv("mat_yuv");
 			ConVarRef host_timescale("host_timescale");
 			
 			// Regeneración de salud
-			if(m_iHealth < GetMaxHealth() && in_regeneration.GetBool())
+			// TODO: Esto es un código de ejemplo para "empezar con Source Engine", debemos hacer algo mejor y más sencillo.
+			if( m_iHealth < GetMaxHealth() && in_regeneration.GetBool() )
 			{
-				if(gpGlobals->curtime > (LastDamageTime() + in_regeneration_wait_time.GetFloat()))
+				if ( gpGlobals->curtime > (LastDamageTime() + in_regeneration_wait_time.GetFloat()) )
 				{
-					m_fRegenRemander += in_regeneration_rate.GetFloat() * gpGlobals->frametime;
+					RegenRemander += in_regeneration_rate.GetFloat() * gpGlobals->frametime;
 
-					if(m_fRegenRemander >= 1)
+					if ( RegenRemander >= 1 )
 					{
-						TakeHealth(m_fRegenRemander, DMG_GENERIC);
-						m_fRegenRemander = 0;
+						TakeHealth(RegenRemander, DMG_GENERIC);
+						RegenRemander = 0;
 					}
 				}
 			}
 
 			// Efectos - Cansancio y muerte.
-			if(in_tired_effect.GetBool())
+			if ( in_tired_effect.GetBool() )
 			{
 				// Desactivar escala de grises y parar el sonido de corazon latiendo.
 				// Si, me estoy reponiendo.
-				if(m_iHealth > 10 && mat_yuv.GetInt() == 1)
+				if ( m_iHealth > 10 && mat_yuv.GetInt() == 1 )
 				{
 					mat_yuv.SetValue(0);
 					StopSound("Player.Music.Dying");
@@ -161,12 +160,12 @@ void CIN_Player::PostThink()
 
 				// Parar el sonido de "pobre de ti"
 				// Si, me estoy reponiendo.
-				if(m_iHealth > 5)
+				if ( m_iHealth > 5 )
 					StopSound("Player.Music.Puddle");
 
 				// Tornamos la pantalla oscura.
 				// Oh, me duele tanto que no veo bien.
-				if(m_iHealth <= 30)
+				if ( m_iHealth <= 30 )
 				{
 					int DeathFade = (230 - (6 * m_iHealth));
 					color32 black = {0, 0, 0, DeathFade};
@@ -176,36 +175,36 @@ void CIN_Player::PostThink()
 
 				// Hacemos que la camara tiemble.
 				// Encerio, me duele tanto que no puedo agarrar bien mi arma.
-				if(m_iHealth < 10)
+				if ( m_iHealth < 10 )
 					UTIL_ScreenShake(GetAbsOrigin(), 1.0, 1.0, 1.0, 750, SHAKE_START, true);
 
 				// Efectos - Dolor del cuerpo.
-				if(m_iHealth < 60 && gpGlobals->curtime > t_bodyHurt)
+				if ( m_iHealth < 60 && gpGlobals->curtime > BodyHurt )
 				{
 					int AngHealth = (100 - m_iHealth) / 8;
 					ViewPunch(QAngle(random->RandomInt(2.0, AngHealth), random->RandomInt(2.0, AngHealth), random->RandomInt(2.0, AngHealth)));
 
 					// Proximo efecto dentro de 10 a 20 segundos.
-					t_bodyHurt = gpGlobals->curtime + (random->RandomInt(10, 20));
+					BodyHurt = gpGlobals->curtime + (random->RandomInt(10, 20));
 				}
 			}
 
 			// Efectos - Camara lenta.
-			if(in_timescale_effect.GetBool())
+			if ( in_timescale_effect.GetBool() )
 			{
 				// Salud menor a 10%
 				// Escala de tiempo: 0.6
-				if(m_iHealth < 10 && host_timescale.GetFloat() != 0.6)
+				if ( m_iHealth < 10 && host_timescale.GetFloat() != 0.6 )
 					engine->ClientCommand(edict(), "host_timescale 0.6");
 
 				// Salud menor a 15%
 				// Escala de tiempo: 0.8
-				else if(m_iHealth < 15 && host_timescale.GetFloat() != 0.8)
+				else if ( m_iHealth < 15 && host_timescale.GetFloat() != 0.8 )
 					engine->ClientCommand(edict(), "host_timescale 0.8");
 
 				// Salud mayor a 15%
 				// Escala de tiempo: 1 (Real)
-				else if(m_iHealth > 15 && host_timescale.GetFloat() != 1)
+				else if ( m_iHealth > 15 && host_timescale.GetFloat() != 1 )
 					host_timescale.SetValue(1);
 			}
 		}
@@ -222,11 +221,11 @@ void CIN_Player::PlayerDeathThink()
 	SetNextThink(gpGlobals->curtime + 0.1f);
 
 	// Efectos - Camara lenta.
-	if(in_timescale_effect.GetBool())
+	if ( in_timescale_effect.GetBool() )
 	{
 		ConVarRef host_timescale("host_timescale");
 
-		if(host_timescale.GetFloat() != 0.5)
+		if( host_timescale.GetFloat() != 0.5 )
 			engine->ClientCommand(edict(), "host_timescale 0.5");
 	}
 
@@ -237,23 +236,23 @@ void CIN_Player::PlayerDeathThink()
 // Crear y empieza el InDirector.
 //=========================================================
 void CIN_Player::StartDirector()
-{	
-	Vector vecForward;
-	AngleVectors(EyeAngles(), &vecForward);
+{
+	ConVarRef indirector_enabled("indirector_enabled");
+	CInDirector *pDirector = (CInDirector *)gEntList.FindEntityByClassname(NULL, "info_director");
 
-	Vector vecOrigin = GetAbsOrigin() + vecForward;
-	QAngle vecAngles(0, GetAbsAngles().y - 90, 0);
+	// Si el Director esta activado
+	// y no se ha creado la entidad info_director
+	if ( indirector_enabled.GetBool() && !pDirector )
+	{
+		Vector vecForward;
+		AngleVectors(EyeAngles(), &vecForward);
 
-	CInDirector *m_Director = (CInDirector *)CBaseEntity::Create("info_director", vecOrigin, vecAngles, NULL);
-	m_Director->SetName(MAKE_STRING("director"));
+		Vector vecOrigin = GetAbsOrigin() + vecForward;
+		QAngle vecAngles(0, GetAbsAngles().y - 90, 0);
 
-	CAI_ScriptedSchedule *m_Scripted = (CAI_ScriptedSchedule *)CBaseEntity::Create("aiscripted_schedule", vecOrigin, vecAngles, NULL);
-	m_Scripted->SetName(MAKE_STRING("director_horde_follow"));
-	m_Scripted->SetTargetName(MAKE_STRING("director_zombie"));
-	m_Scripted->SetNPCState(NPC_STATE_COMBAT);
-	m_Scripted->SetSchedule(SCHED_SCRIPT_ENEMY_IS_GOAL_AND_RUN_TO_GOAL);
-	m_Scripted->SetInterruptability(DAMAGEORDEATH_INTERRUPTABILITY);
-	m_Scripted->SetGoalEnt(MAKE_STRING("!player"));
+		CInDirector *mDirector = (CInDirector *)CBaseEntity::Create("info_director", vecOrigin, vecAngles, NULL);
+		mDirector->SetName(MAKE_STRING("director"));
+	}
 }
 
 //=========================================================
@@ -567,12 +566,12 @@ CSoundPatch *CIN_Player::EmitMusic(const char *pName)
 {
 	CSoundParameters params;
 
-	if(!soundemitterbase->GetParametersForSound(pName, params, GENDER_NONE))
+	if ( !soundemitterbase->GetParametersForSound(pName, params, GENDER_NONE) )
 		return NULL;
 
 	CPASAttenuationFilter filter(this);
-	CSoundPatch *pMusic = (CSoundEnvelopeController::GetController()).SoundCreate(filter, GetSoundSourceIndex(), params.channel, params.soundname, params.soundlevel);
-	(CSoundEnvelopeController::GetController()).Play(pMusic, params.volume, params.pitch);
+	CSoundPatch *pMusic = ENVELOPE_CONTROLLER.SoundCreate(filter, GetSoundSourceIndex(), params.channel, params.soundname, params.soundlevel);
+	ENVELOPE_CONTROLLER.Play(pMusic, params.volume, params.pitch);
 
 	return pMusic;
 }
@@ -582,7 +581,7 @@ CSoundPatch *CIN_Player::EmitMusic(const char *pName)
 //=========================================================
 void CIN_Player::StopMusic(CSoundPatch *pMusic)
 {
-	if(!pMusic)
+	if ( !pMusic )
 		return;
 
 	VolumeMusic(pMusic, 0);
@@ -593,13 +592,13 @@ void CIN_Player::StopMusic(CSoundPatch *pMusic)
 //=========================================================
 void CIN_Player::VolumeMusic(CSoundPatch *pMusic, float newVolume)
 {
-	if(!pMusic)
+	if ( !pMusic )
 		return;
 
-	if(newVolume > 0)
-		(CSoundEnvelopeController::GetController()).SoundChangeVolume(pMusic, newVolume, 0);
+	if ( newVolume > 0 )
+		ENVELOPE_CONTROLLER.SoundChangeVolume(pMusic, newVolume, 0);
 	else
-		(CSoundEnvelopeController::GetController()).Shutdown(pMusic);
+		ENVELOPE_CONTROLLER.SoundDestroy(pMusic);
 }
 
 //=========================================================
@@ -608,8 +607,8 @@ void CIN_Player::VolumeMusic(CSoundPatch *pMusic, float newVolume)
 //=========================================================
 void CIN_Player::FadeoutMusic(CSoundPatch *pMusic, float range)
 {
-	if(!pMusic)
+	if ( !pMusic )
 		return;
 
-	(CSoundEnvelopeController::GetController()).SoundFadeOut(pMusic, range, true);
+	ENVELOPE_CONTROLLER.SoundFadeOut(pMusic, range, true);
 }

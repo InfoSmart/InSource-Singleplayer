@@ -2038,7 +2038,6 @@ void CHL2_Player::FlashlightTurnOn()
 			return;
 	}
 
-
 	AddEffects(EF_DIMLIGHT);
 	EmitSound("HL2Player.FlashLightOn");
 
@@ -3935,12 +3934,12 @@ void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
         playerAnim = PLAYER_IDLE;
     }
 
-    Activity idealActivity = ACT_HL2MP_RUN;
+    Activity idealActivity = ACT_RUN;
 
     if (playerAnim == PLAYER_JUMP)
     {
         if (HasWeapons())
-            idealActivity = ACT_HL2MP_JUMP;
+            idealActivity = ACT_JUMP;
         else
             idealActivity = ACT_JUMP;
     }
@@ -3962,15 +3961,15 @@ void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
             idealActivity = GetActivity();
         }
         else
-            idealActivity = ACT_HL2MP_GESTURE_RANGE_ATTACK;
+           idealActivity = ACT_GESTURE_RANGE_ATTACK1;
     }
 
     else if (playerAnim == PLAYER_RELOAD)
-        idealActivity = ACT_HL2MP_GESTURE_RELOAD;
+        idealActivity = ACT_GESTURE_RELOAD;
 
     else if (playerAnim == PLAYER_IDLE || playerAnim == PLAYER_WALK)
     {
-        if (!(GetFlags() & FL_ONGROUND) && (GetActivity() == ACT_HL2MP_JUMP || GetActivity( ) == ACT_JUMP))    // Still jumping
+        if (!(GetFlags() & FL_ONGROUND) && (GetActivity() == ACT_JUMP || GetActivity( ) == ACT_JUMP))    // Still jumping
             idealActivity = GetActivity();
         
 		else if (GetWaterLevel() > 1)
@@ -3978,14 +3977,14 @@ void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
             if (speed == 0)
             {
                 if (HasWeapons())
-                    idealActivity = ACT_HL2MP_IDLE;
+                    idealActivity = ACT_IDLE;
                 else
                     idealActivity = ACT_IDLE;
             }
             else
             {
                 if (HasWeapons())
-                    idealActivity = ACT_HL2MP_RUN;
+                    idealActivity = ACT_RUN;
                 else
                     idealActivity = ACT_RUN;
             }
@@ -3998,15 +3997,12 @@ void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
                 if (speed > 0)
                 {
                     if (HasWeapons())
-                        idealActivity = ACT_HL2MP_WALK_CROUCH;
+                        idealActivity = ACT_WALK_CROUCH;
                     else
                         idealActivity = ACT_WALK_CROUCH;
                 }
                 else
                 {
-                    if (HasWeapons())
-                        idealActivity = ACT_HL2MP_IDLE_CROUCH;
-                    else
                         idealActivity = ACT_COVER_LOW;
                 }
             }
@@ -4017,7 +4013,7 @@ void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
                 {
                     {
                         if (HasWeapons())
-                            idealActivity = ACT_HL2MP_RUN;
+                            idealActivity = ACT_RUN;
                         else
                         {
                             if (speed > hl2_walkspeed.GetFloat() + 20.0f)
@@ -4030,7 +4026,7 @@ void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
                 else
                 {
                     if (HasWeapons())
-						idealActivity = ACT_HL2MP_IDLE;
+						idealActivity = ACT_IDLE;
                     else
 						idealActivity = ACT_IDLE;
                 }
@@ -4041,7 +4037,7 @@ void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
     if (IsInAVehicle())
         idealActivity = ACT_COVER_LOW;
    
-    if (idealActivity == ACT_HL2MP_GESTURE_RANGE_ATTACK)
+    if (idealActivity == ACT_GESTURE_RANGE_ATTACK1)
     {
         RestartGesture(Weapon_TranslateActivity(idealActivity));
 
@@ -4051,7 +4047,7 @@ void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
         return;
     }
 
-    else if (idealActivity == ACT_HL2MP_GESTURE_RELOAD)
+    else if (idealActivity == ACT_GESTURE_RELOAD)
     {
         RestartGesture(Weapon_TranslateActivity(idealActivity));
         return;

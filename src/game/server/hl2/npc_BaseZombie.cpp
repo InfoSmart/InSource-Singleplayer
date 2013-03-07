@@ -5,13 +5,13 @@
 // The zombie has two main states: Full and Torso.
 //
 // In Full state, the zombie is whole and walks upright as he did in Half-Life.
-// He will try to claw the player and swat physics items at him. 
+// He will try to claw the player and swat physics items at him.
 //
 // In Torso state, the zombie has been blasted or cut in half, and the Torso will
 // drag itself along the ground with its arms. It will try to claw the player.
 //
 // In either state, a severely injured Zombie will release its headcrab, which
-// will immediately go after the player. The Zombie will then die (ragdoll). 
+// will immediately go after the player. The Zombie will then die (ragdoll).
 //
 //=============================================================================//
 
@@ -47,51 +47,53 @@
 #include "weapon_physcannon.h"
 #include "ammodef.h"
 #include "vehicle_base.h"
- 
+
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-//----------------------------------------------------
+//=========================================================
 // Definición de variables de configuración.
-//----------------------------------------------------
+//=========================================================
 
 extern ConVar sk_npc_head;
 
-ConVar	sk_zombie_dmg_one_slash("sk_zombie_dmg_one_slash", "0", 0, "Daño producido por el rasguño de una garra");
-ConVar	sk_zombie_dmg_both_slash("sk_zombie_dmg_both_slash", "0", 0, "Daño producido por el rasguño de las dos garras.");
+ConVar	sk_zombie_dmg_one_slash		("sk_zombie_dmg_one_slash",		"0",	0,	"Daño producido por el rasguño de una garra");
+ConVar	sk_zombie_dmg_both_slash	("sk_zombie_dmg_both_slash",	"0",	0,	"Daño producido por el rasguño de las dos garras.");
 
-ConVar	zombie_basemin("zombie_basemin", "100");
-ConVar	zombie_basemax("zombie_basemax", "100");
+ConVar	zombie_basemin	("zombie_basemin", "100");
+ConVar	zombie_basemax	("zombie_basemax", "100");
 
-ConVar	zombie_changemin("zombie_changemin", "0");
-ConVar	zombie_changemax("zombie_changemax", "0");
+ConVar	zombie_changemin	("zombie_changemin", "0");
+ConVar	zombie_changemax	("zombie_changemax", "0");
 
-ConVar	zombie_stepfreq("zombie_stepfreq", "4", 0, "Frecuencia de sonido de los pasos");
-ConVar	zombie_moanfreq("zombie_moanfreq", "1", 0, "Frecuencia de sonido del gemido");
+ConVar	zombie_stepfreq	("zombie_stepfreq", "4", 0, "Frecuencia de sonido de los pasos");
+ConVar	zombie_moanfreq	("zombie_moanfreq", "1", 0, "Frecuencia de sonido del gemido");
 
 ConVar	zombie_decaymin("zombie_decaymin", "0.1");
 ConVar	zombie_decaymax("zombie_decaymax", "0.4");
 
-ConVar	zombie_ambushdist("zombie_ambushdist", "16000");
+ConVar	zombie_ambushdist		("zombie_ambushdist",		"16000");
+ConVar	zombie_fool				("zombie_fool",				"1",	0, "¿Los zombis son tontos? Desactivarlo evitara que los zombis hagan acciones sin pensarlo.");
+ConVar	zombie_release_headcrab	("zombie_release_headcrab", "1",	0, "¿Liberar los headcrabs cuando sea posible? Desactivarlo evitara que los headcrabs sean liberados.");
 
-//----------------------------------------------------
-// InSource - Definición de variables de configuración.
-//---------------------------------------------------
-
-ConVar	in_zombie_fool("in_zombie_fool", "1", 0, "¿Los zombis son tontos? Desactivarlo evitara que los zombis hagan acciones sin pensarlo.");
-
-//----------------------------------------------------
+//=========================================================
 // Información de daño
-//----------------------------------------------------
+//=========================================================
 
-#define ZOMBIE_BULLET_DAMAGE_SCALE 0.5f
+#define ZOMBIE_BULLET_DAMAGE_SCALE				0.5f
+#define ZOMBIE_BUCKSHOT_TRIPLE_DAMAGE_DIST		96.0f // Triple damage from buckshot at 8 feet (headshot only)
 
-//----------------------------------------------------
-// Información de entorno
-//----------------------------------------------------
+//=========================================================
+// Configuración y acciones especiales.
+//=========================================================
+
+#define ZOMBIE_CAPABILITIES bits_CAP_MOVE_GROUND | bits_CAP_INNATE_MELEE_ATTACK1
+
+// Sangre los zombis
+#define ZOMBIE_BLOOD BLOOD_COLOR_RED
 
 // Distancia de algún objeto para poder aventarlo.
-#define ZOMBIE_FARTHEST_PHYSICS_OBJECT	40.0*12.0
+#define ZOMBIE_FARTHEST_PHYSICS_OBJECT	40.0 * 12.0
 #define ZOMBIE_PHYSICS_SEARCH_DEPTH		100
 
 // Distancia del usuario al objeto para poder aventarlo.
@@ -116,7 +118,7 @@ ConVar	in_zombie_fool("in_zombie_fool", "1", 0, "¿Los zombis son tontos? Desacti
 // Zombie will end up somewhere between PHYSOBJ_MOVE_TO_DIST & PHYSOBJ_SWATDIST
 #define ZOMBIE_PHYSOBJ_MOVE_TO_DIST		48
 
-// How long between physics swat attacks (in seconds). 
+// How long between physics swat attacks (in seconds).
 #define ZOMBIE_SWAT_DELAY				5
 
 // After taking damage, ignore further damage for n seconds. This keeps the zombie
@@ -124,19 +126,25 @@ ConVar	in_zombie_fool("in_zombie_fool", "1", 0, "¿Los zombis son tontos? Desacti
 #define ZOMBIE_FLINCH_DELAY				3
 
 // Duración de las llamas en un zombi.
-#define ZOMBIE_BURN_TIME			10 
+#define ZOMBIE_BURN_TIME			5
 #define ZOMBIE_BURN_TIME_NOISE		2
 
-//----------------------------------------------------
+#define ZOMBIE_SCORCH_RATE		8
+#define ZOMBIE_MIN_RENDERCOLOR	50
+
+#define ZOMBIE_CRAB_INHERITED_SPAWNFLAGS	SF_NPC_GAG | SF_NPC_LONG_RANGE |SF_NPC_FADE_CORPSE | SF_NPC_ALWAYSTHINK
+#define CRAB_HULL_EXPAND					1.1f
+
+//=========================================================
 // Información general
-//----------------------------------------------------
+//=========================================================
 
 int g_interactionZombieMeleeWarning;
-static int s_iAngryZombies = 0;
+static int AngryZombies = 0;
 
-//----------------------------------------------------
+//=========================================================
 // Sonidos y su volumen.
-//----------------------------------------------------
+//=========================================================
 
 envelopePoint_t envDefaultZombieMoanVolumeFast[] =
 {
@@ -161,34 +169,28 @@ envelopePoint_t envDefaultZombieMoanVolume[] =
 	},
 };
 
-//----------------------------------------------------
-// Actividades privadas.
-//----------------------------------------------------
-
-int CNPC_BaseZombie::ACT_ZOM_SWATLEFTMID;
-int CNPC_BaseZombie::ACT_ZOM_SWATRIGHTMID;
-int CNPC_BaseZombie::ACT_ZOM_SWATLEFTLOW;
-int CNPC_BaseZombie::ACT_ZOM_SWATRIGHTLOW;
-int CNPC_BaseZombie::ACT_ZOM_RELEASECRAB;
-int CNPC_BaseZombie::ACT_ZOM_FALL;
-
-//----------------------------------------------------
+//=========================================================
 // CAngryZombieCounter
-//----------------------------------------------------
+//=========================================================
+
 class CAngryZombieCounter : public CAutoGameSystem
 {
 public:
 	CAngryZombieCounter(char const *name) : CAutoGameSystem( name )
 	{
 	}
-	
+
 	virtual void LevelInitPreEntity()
 	{
-		s_iAngryZombies = 0;
+		AngryZombies = 0;
 	}
 };
 
 CAngryZombieCounter	AngryZombieCounter("CAngryZombieCounter");
+
+//=========================================================
+// Eventos de animaciones
+//=========================================================
 
 int AE_ZOMBIE_ATTACK_RIGHT;
 int AE_ZOMBIE_ATTACK_LEFT;
@@ -205,53 +207,66 @@ int AE_ZOMBIE_POUND;
 int AE_ZOMBIE_ALERTSOUND;
 int AE_ZOMBIE_POPHEADCRAB;
 
-//----------------------------------------------------
-// Definición de datos.
-//----------------------------------------------------
+//=========================================================
+// Animaciones
+//=========================================================
 
-BEGIN_DATADESC(CNPC_BaseZombie)
+int CNPC_BaseZombie::ACT_ZOM_SWATLEFTMID;
+int CNPC_BaseZombie::ACT_ZOM_SWATRIGHTMID;
+int CNPC_BaseZombie::ACT_ZOM_SWATLEFTLOW;
+int CNPC_BaseZombie::ACT_ZOM_SWATRIGHTLOW;
+int CNPC_BaseZombie::ACT_ZOM_RELEASECRAB;
+int CNPC_BaseZombie::ACT_ZOM_FALL;
 
-	DEFINE_SOUNDPATCH( m_pMoanSound ),
-	DEFINE_FIELD( m_fIsTorso, FIELD_BOOLEAN ),
-	DEFINE_FIELD( m_fIsHeadless, FIELD_BOOLEAN ),
-	DEFINE_FIELD( m_flNextFlinch, FIELD_TIME ),
-	DEFINE_FIELD( m_bHeadShot, FIELD_BOOLEAN ),
-	DEFINE_FIELD( m_flBurnDamage, FIELD_FLOAT ),
-	DEFINE_FIELD( m_flBurnDamageResetTime, FIELD_TIME ),
-	DEFINE_FIELD( m_hPhysicsEnt, FIELD_EHANDLE ),
-	DEFINE_FIELD( m_flNextMoanSound, FIELD_TIME ),
-	DEFINE_FIELD( m_flNextSwat, FIELD_TIME ),
-	DEFINE_FIELD( m_flNextSwatScan, FIELD_TIME ),
-	DEFINE_FIELD( m_crabHealth, FIELD_FLOAT ),
-	DEFINE_FIELD( m_flMoanPitch, FIELD_FLOAT ),
-	DEFINE_FIELD( m_iMoanSound, FIELD_INTEGER ),
-	DEFINE_FIELD( m_hObstructor, FIELD_EHANDLE ),
-	DEFINE_FIELD( m_bIsSlumped, FIELD_BOOLEAN ),
+//=========================================================
+// Guardado y definición de datos
+//=========================================================
+
+BEGIN_DATADESC( CNPC_BaseZombie )
+
+	DEFINE_SOUNDPATCH( sMoanSound ),
+
+	DEFINE_FIELD(IsTorso,				FIELD_BOOLEAN),
+	DEFINE_FIELD(IsHeadless,			FIELD_BOOLEAN),
+	DEFINE_FIELD(NextFlinch,			FIELD_TIME),
+	DEFINE_FIELD(HeadShot,				FIELD_BOOLEAN),
+	DEFINE_FIELD(BurnDamage,			FIELD_FLOAT),
+	DEFINE_FIELD(BurnDamageResetTime,	FIELD_TIME),
+	DEFINE_FIELD(PhysicsEnt,			FIELD_EHANDLE),
+	DEFINE_FIELD(NextMoanSound,			FIELD_TIME),
+	DEFINE_FIELD(NextSwat,				FIELD_TIME),
+	DEFINE_FIELD(NextSwatScan,			FIELD_TIME),
+	DEFINE_FIELD(CrabHealth,			FIELD_FLOAT),
+	DEFINE_FIELD(MoanPitch,				FIELD_FLOAT),
+	DEFINE_FIELD(pMoanSound,				FIELD_INTEGER),
+	DEFINE_FIELD(Obstructor,			FIELD_EHANDLE),
+	DEFINE_FIELD(bIsSlumped,				FIELD_BOOLEAN),
 
 END_DATADESC()
 
-int CNPC_BaseZombie::g_numZombies = 0;
+int CNPC_BaseZombie::NumZombies = 0;
 
-
-//----------------------------------------------------
-// CNPC_BaseZombie
-//----------------------------------------------------
+//=========================================================
+// Constructor
+//=========================================================
 CNPC_BaseZombie::CNPC_BaseZombie()
 {
-	m_iMoanSound = g_numZombies;
-	g_numZombies++;
+	pMoanSound = NumZombies;
+	NumZombies++;
 }
 
+//=========================================================
+// Destructor
+//=========================================================
 CNPC_BaseZombie::~CNPC_BaseZombie()
 {
-	g_numZombies--;
+	NumZombies--;
 }
 
-//----------------------------------------------------
-// FindNearestPhysicsObject()
+//=========================================================
 // Encontrar el objeto más cercano ideal a lanzar
 // Debe estar tanto cerca del zombi como del enemigo.
-//----------------------------------------------------
+//=========================================================
 bool CNPC_BaseZombie::FindNearestPhysicsObject(int iMaxMass)
 {
 	CBaseEntity		*pList[ZOMBIE_PHYSICS_SEARCH_DEPTH];
@@ -260,26 +275,25 @@ bool CNPC_BaseZombie::FindNearestPhysicsObject(int iMaxMass)
 	Vector			vecDirToEnemy;
 	Vector			vecDirToObject;
 
-	float			flDist;	
-	int				i;	
+	float			flDist;
+	int				i;
 
 	// No podemos lanzar cosas o no hay un enemigo.
-	if (!CanSwatPhysicsObjects() || !GetEnemy())
+	if ( !CanSwatPhysicsObjects() || !GetEnemy() )
 	{
-		m_hPhysicsEnt = NULL;
+		PhysicsEnt = NULL;
 		return false;
 	}
 
-	// Calcular la distancia al enemigoc.
-	vecDirToEnemy = GetEnemy()->GetAbsOrigin() - GetAbsOrigin();
-	float dist = VectorNormalize(vecDirToEnemy);
+	// Calcular la distancia al enemigo.
+	vecDirToEnemy	= GetEnemy()->GetAbsOrigin() - GetAbsOrigin();
+	float dist		= VectorNormalize(vecDirToEnemy);
 	vecDirToEnemy.z = 0;
-
 
 	// InSource
 	// Si el enemigo esta muy lejos del objeto y el zombi no es "tonto", no lanzar.
-	if(dist > ZOMBIE_PLAYER_MAX_SWAT_DIST && !in_zombie_fool.GetBool())
-		return false;	
+	if ( dist > ZOMBIE_PLAYER_MAX_SWAT_DIST && !zombie_fool.GetBool() )
+		return false;
 
 	float flNearestDist = min(dist, ZOMBIE_FARTHEST_PHYSICS_OBJECT * 0.5);
 	Vector vecDelta(flNearestDist, flNearestDist, GetHullHeight() * 2.0);
@@ -295,11 +309,11 @@ bool CNPC_BaseZombie::FindNearestPhysicsObject(int iMaxMass)
 		{
 			CBaseEntity *pEntity = gEntList.GetBaseEntity(pHandleEntity->GetRefEHandle());
 
-			if (pEntity && 
-				 pEntity->VPhysicsGetObject() && 
-				 pEntity->VPhysicsGetObject()->GetMass() <= m_iMaxMass && 
-				 pEntity->VPhysicsGetObject()->IsAsleep() && 
-				 pEntity->VPhysicsGetObject()->IsMoveable())
+			if ( pEntity &&
+				 pEntity->VPhysicsGetObject() &&
+				 pEntity->VPhysicsGetObject()->GetMass() <= m_iMaxMass &&
+				 pEntity->VPhysicsGetObject()->IsAsleep() &&
+				 pEntity->VPhysicsGetObject()->IsMoveable() )
 			{
 				return CFlaggedEntitiesEnum::EnumElement(pHandleEntity );
 			}
@@ -318,16 +332,16 @@ bool CNPC_BaseZombie::FindNearestPhysicsObject(int iMaxMass)
 	Vector vecZombieKnees;
 	CollisionProp()->NormalizedToWorldSpace(Vector(0.5f, 0.5f, 0.25f), &vecZombieKnees);
 
-	for(i = 0 ; i < count ; i++)
+	for( i = 0 ; i < count ; i++ )
 	{
 		pPhysObj = pList[i]->VPhysicsGetObject();
 
-		Assert(!(!pPhysObj || pPhysObj->GetMass() > iMaxMass || !pPhysObj->IsAsleep()));
+		Assert( !(!pPhysObj || pPhysObj->GetMass() > iMaxMass || !pPhysObj->IsAsleep()) );
 
 		Vector center	= pList[i]->WorldSpaceCenter();
 		flDist			= UTIL_DistApprox2D(GetAbsOrigin(), center);
 
-		if(flDist >= flNearestDist)
+		if( flDist >= flNearestDist )
 			continue;
 
 		// Este objeto esta muy cerca... pero ¿esta entre el zombi y el enemigo?
@@ -335,39 +349,39 @@ bool CNPC_BaseZombie::FindNearestPhysicsObject(int iMaxMass)
 		VectorNormalize(vecDirToObject);
 		vecDirToObject.z = 0;
 
-		if(DotProduct(vecDirToEnemy, vecDirToObject) < 0.8)
+		if( DotProduct(vecDirToEnemy, vecDirToObject) < 0.8 )
 			continue;
 
-		if(flDist >= UTIL_DistApprox2D(center, GetEnemy()->GetAbsOrigin()))
+		if( flDist >= UTIL_DistApprox2D(center, GetEnemy()->GetAbsOrigin()) )
 			continue;
 
 		// No lanzar objetos que esten más arriba de mis rodillas.
-		if ((center.z + pList[i]->BoundingRadius()) < vecZombieKnees.z)
+		if ( (center.z + pList[i]->BoundingRadius()) < vecZombieKnees.z )
 			continue;
 
 		// No lanzar objetos que esten sobre mi cabeza.
-		if(center.z > EyePosition().z)
+		if( center.z > EyePosition().z )
 			continue;
 
 		vcollide_t *pCollide = modelinfo->GetVCollide(pList[i]->GetModelIndex());
-		
+
 		Vector objMins, objMaxs;
 		physcollision->CollideGetAABB(&objMins, &objMaxs, pCollide->solids[0], pList[i]->GetAbsOrigin(), pList[i]->GetAbsAngles());
 
-		if (objMaxs.z < vecZombieKnees.z)
+		if ( objMaxs.z < vecZombieKnees.z )
 			continue;
 
-		if (!FVisible(pList[i]))
+		if ( !FVisible(pList[i]) )
 			continue;
 
-		if(!GetEnemy()->FVisible(pList[i]))
+		if( !GetEnemy()->FVisible(pList[i]) )
 			continue;
 
 		// No lanzar cadaveres de ningún tipo...
-		if (FClassnameIs(pList[i], "physics_prop_ragdoll" ))
+		if ( FClassnameIs(pList[i], "physics_prop_ragdoll" ) )
 			continue;
-			
-		if (FClassnameIs(pList[i], "prop_ragdoll"))
+
+		if ( FClassnameIs(pList[i], "prop_ragdoll") )
 			continue;
 
 		// El objeto es pefecto para lanzar, cumple lo necesario.
@@ -375,40 +389,37 @@ bool CNPC_BaseZombie::FindNearestPhysicsObject(int iMaxMass)
 		flNearestDist	= flDist;
 	}
 
-	m_hPhysicsEnt = pNearest;
+	PhysicsEnt = pNearest;
 
-	if(m_hPhysicsEnt == NULL)
+	if(  PhysicsEnt == NULL )
 		return false;
-	
+
 	return true;
 }
 
-//----------------------------------------------------
-// Classify()
+//=========================================================
 // Devolver el nombre de esta clase para la lista de
 // relaciones (amistad)
-//----------------------------------------------------
+//=========================================================
 Class_T	CNPC_BaseZombie::Classify()
 {
 	// ¿Esta dormido?
-	if (IsSlumped())
+	if ( IsSlumped() )
 		return CLASS_NONE;
 
-	return( CLASS_ZOMBIE ); 
+	return CLASS_ZOMBIE;
 }
 
-//----------------------------------------------------
-// IRelationType()
-//
-//----------------------------------------------------
+//=========================================================
+//=========================================================
 Disposition_t CNPC_BaseZombie::IRelationType(CBaseEntity *pTarget)
 {
-	// Estar dormido no afecta la relación del zombi con los demás.
-	if (IsSlumped())
+	// Estar dormido no debe afectar la relación con los demás. Es un ZOMBI
+	if ( IsSlumped() )
 	{
-		m_bIsSlumped			= false;
+		bIsSlumped				= false;
 		Disposition_t result	= BaseClass::IRelationType(pTarget);
-		m_bIsSlumped			= true;
+		bIsSlumped				= true;
 
 		return result;
 	}
@@ -416,20 +427,19 @@ Disposition_t CNPC_BaseZombie::IRelationType(CBaseEntity *pTarget)
 	return BaseClass::IRelationType(pTarget);
 }
 
-//----------------------------------------------------
-// MaxYawSpeed()
+//=========================================================
 // Devuelve la velocidad máxima del yaw dependiendo de la
 // actividad actual.
-//----------------------------------------------------
+//=========================================================
 float CNPC_BaseZombie::MaxYawSpeed()
 {
 	// Soy un torso.
-	if( m_fIsTorso )
+	if( IsTorso )
 		return 60;
-	
-	else if (IsMoving() && HasPoseParameter(GetSequence(), m_poseMove_Yaw))
+
+	else if ( IsMoving() && HasPoseParameter(GetSequence(), m_poseMove_Yaw) )
 		return 15;
-	
+
 	else
 	{
 		switch(GetActivity())
@@ -468,13 +478,12 @@ float CNPC_BaseZombie::MaxYawSpeed()
 }
 
 
-//----------------------------------------------------
-// OverrideMoveFacing()
+//=========================================================
 // Anular la dirección del movimiento.
-//----------------------------------------------------
+//=========================================================
 bool CNPC_BaseZombie::OverrideMoveFacing(const AILocalMoveGoal_t &move, float flInterval)
 {
-	if (!HasPoseParameter(GetSequence(), m_poseMove_Yaw))
+	if ( !HasPoseParameter(GetSequence(), m_poseMove_Yaw) )
 		return BaseClass::OverrideMoveFacing( move, flInterval );
 
 	// Requerimos la dirección del movimiento.
@@ -482,20 +491,18 @@ bool CNPC_BaseZombie::OverrideMoveFacing(const AILocalMoveGoal_t &move, float fl
 	float idealYaw	= UTIL_AngleMod(flMoveYaw);
 
 	// Hay un enemigo
-	if (GetEnemy())
+	if ( GetEnemy() )
 	{
 		float flEDist = UTIL_DistApprox2D(WorldSpaceCenter(), GetEnemy()->WorldSpaceCenter());
 
-		if (flEDist < 256.0)
+		if ( flEDist < 256.0 )
 		{
 			float flEYaw = UTIL_VecToYaw(GetEnemy()->WorldSpaceCenter() - WorldSpaceCenter());
 
-			if (flEDist < 128.0)
+			if ( flEDist < 128.0 )
 				idealYaw = flEYaw;
 			else
 				idealYaw = flMoveYaw + UTIL_AngleDiff(flEYaw, flMoveYaw) * (2 - flEDist / 128.0);
-
-			//DevMsg("Zombie was %.0f now %.0f\n", flMoveYaw, idealYaw);
 		}
 	}
 
@@ -506,55 +513,51 @@ bool CNPC_BaseZombie::OverrideMoveFacing(const AILocalMoveGoal_t &move, float fl
 	float flDiff			= UTIL_AngleDiff(flMoveYaw, GetLocalAngles().y + fSequenceMoveYaw);
 
 	SetPoseParameter(m_poseMove_Yaw, GetPoseParameter(m_poseMove_Yaw) + flDiff);
-
 	return true;
 }
 
-//----------------------------------------------------
-// MeleeAttack1Conditions()
-// Condiciones para atacar.
-//----------------------------------------------------
+//=========================================================
+// Verifica si es conveniente hacer un ataque cuerpo a cuerpo.
+// En este caso: Rasguño
+//=========================================================
 int CNPC_BaseZombie::MeleeAttack1Conditions(float flDot, float flDist)
 {
 	float range = GetClawAttackRange();
 
-	if (flDist > range)
+	if ( flDist > range )
 	{
 		// Hay un enemigo
-		if (GetEnemy() != NULL)
+		if ( GetEnemy() != NULL )
 		{
-			#if defined(HL2_DLL) && !defined(HL2MP)
-				
-				// El enemigo es el jugador ¡yey!
-				if(GetEnemy()->IsPlayer())
+			// El enemigo es el jugador ¡yey!
+			if( GetEnemy()->IsPlayer() )
+			{
+				CBasePlayer *pPlayer = ToBasePlayer(GetEnemy());
+				Assert(pPlayer != NULL);
+
+				// ¿El jugador esta cargando algo?
+				CBaseEntity *pObject = GetPlayerHeldEntity(pPlayer);
+
+				// Al parecer no...
+				// Pero... ¿el jugador esta cargando algo con la pistola de gravedad?
+				if( !pObject )
+					pObject = PhysCannonGetHeldEntity(pPlayer->GetActiveWeapon());
+
+				// Al parecer si
+				if( pObject )
 				{
-					CBasePlayer *pPlayer = ToBasePlayer(GetEnemy());
-					Assert(pPlayer != NULL);
+					float flDist = pObject->WorldSpaceCenter().DistTo(WorldSpaceCenter());
 
-					// ¿El jugador esta cargando algo?
-					CBaseEntity *pObject = GetPlayerHeldEntity(pPlayer);
-
-					// Al parecer no...
-					if(!pObject)
-						pObject = PhysCannonGetHeldEntity(pPlayer->GetActiveWeapon());
-
-					// Al parecer si
-					if( pObject )
-					{
-						float flDist = pObject->WorldSpaceCenter().DistTo(WorldSpaceCenter());
-
-						if(flDist <= GetClawAttackRange())
-							return COND_CAN_MELEE_ATTACK1;
-					}
+					if( flDist <= GetClawAttackRange() )
+						return COND_CAN_MELEE_ATTACK1;
 				}
-
-			#endif
+			}
 		}
 
 		return COND_TOO_FAR_TO_ATTACK;
 	}
 
-	if (flDot < 0.7)
+	if ( flDot < 0.7 )
 		return COND_NOT_FACING_ATTACK;
 
 	Vector vecMins	= GetHullMins();
@@ -569,9 +572,9 @@ int CNPC_BaseZombie::MeleeAttack1Conditions(float flDot, float flDist)
 	CTraceFilterNav traceFilter(this, false, this, COLLISION_GROUP_NONE);
 	AI_TraceHull(WorldSpaceCenter(), WorldSpaceCenter() + forward * GetClawAttackRange(), vecMins, vecMaxs, MASK_NPCSOLID, &traceFilter, &tr);
 
-	if(tr.fraction == 1.0 || !tr.m_pEnt)
+	if ( tr.fraction == 1.0 || !tr.m_pEnt )
 	{
-		// If our trace was unobstructed but we were shooting 
+		// If our trace was unobstructed but we were shooting
 		if ( GetEnemy() && GetEnemy()->Classify() == CLASS_BULLSEYE )
 			return COND_CAN_MELEE_ATTACK1;
 
@@ -579,12 +582,12 @@ int CNPC_BaseZombie::MeleeAttack1Conditions(float flDot, float flDist)
 		return COND_TOO_FAR_TO_ATTACK;
 	}
 
-	if( tr.m_pEnt == GetEnemy() || 
-		tr.m_pEnt->IsNPC() || 
-		( tr.m_pEnt->m_takedamage == DAMAGE_YES && (dynamic_cast<CBreakableProp*>(tr.m_pEnt) ) ) )
+	if ( tr.m_pEnt == GetEnemy() ||
+		tr.m_pEnt->IsNPC() ||
+		( tr.m_pEnt->m_takedamage == DAMAGE_YES && (dynamic_cast<CBreakableProp*>(tr.m_pEnt)) ) )
 	{
 		// -Let the zombie swipe at his enemy if he's going to hit them.
-		// -Also let him swipe at NPC's that happen to be between the zombie and the enemy. 
+		// -Also let him swipe at NPC's that happen to be between the zombie and the enemy.
 		//  This makes mobs of zombies seem more rowdy since it doesn't leave guys in the back row standing around.
 		// -Also let him swipe at things that takedamage, under the assumptions that they can be broken.
 		return COND_CAN_MELEE_ATTACK1;
@@ -595,10 +598,8 @@ int CNPC_BaseZombie::MeleeAttack1Conditions(float flDot, float flDist)
 
 	if ( GetEnemy() && GetEnemy()->MyCombatCharacterPointer() && tr.m_pEnt == static_cast<CBaseCombatCharacter *>(GetEnemy())->GetVehicleEntity() )
 	{
-		if ( lenTraceSq < Square( GetClawAttackRange() * 0.75f ) )
-		{
+		if ( lenTraceSq < Square(GetClawAttackRange() * 0.75f) )
 			return COND_CAN_MELEE_ATTACK1;
-		}
 	}
 
 	if( tr.m_pEnt->IsBSPModel() )
@@ -608,312 +609,272 @@ int CNPC_BaseZombie::MeleeAttack1Conditions(float flDot, float flDist)
 		Vector vecToEnemy = GetEnemy()->WorldSpaceCenter() - WorldSpaceCenter();
 
 		if( lenTraceSq < vecToEnemy.Length2DSqr() )
-		{
 			return COND_ZOMBIE_LOCAL_MELEE_OBSTRUCTION;
-		}
 	}
-
-#ifdef HL2_EPISODIC
 
 	if ( !tr.m_pEnt->IsWorld() && GetEnemy() && GetEnemy()->GetGroundEntity() == tr.m_pEnt )
-	{
-		//Try to swat whatever the player is standing on instead of acting like a dill.
 		return COND_CAN_MELEE_ATTACK1;
-	}
 
 	// Bullseyes are given some grace on if they can be hit
 	if ( GetEnemy() && GetEnemy()->Classify() == CLASS_BULLSEYE )
 		return COND_CAN_MELEE_ATTACK1;
 
-#endif // HL2_EPISODIC
-
 	// Move around some more
 	return COND_TOO_FAR_TO_ATTACK;
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-#define ZOMBIE_BUCKSHOT_TRIPLE_DAMAGE_DIST	96.0f // Triple damage from buckshot at 8 feet (headshot only)
-float CNPC_BaseZombie::GetHitgroupDamageMultiplier( int iHitGroup, const CTakeDamageInfo &info )
+//=========================================================
+// Aumenta el daño producido en ciertas partes del cuerpo.
+//=========================================================
+float CNPC_BaseZombie::GetHitgroupDamageMultiplier(int iHitGroup, const CTakeDamageInfo &info)
 {
 	switch( iHitGroup )
 	{
-	case HITGROUP_HEAD:
+		// Daño en la cabeza
+		case HITGROUP_HEAD:
 		{
-			if( info.GetDamageType() & DMG_BUCKSHOT )
+			// El daño fue provocado por una bala.
+			if ( info.GetDamageType() & DMG_BUCKSHOT )
 			{
 				float flDist = FLT_MAX;
 
 				if( info.GetAttacker() )
-				{
 					flDist = ( GetAbsOrigin() - info.GetAttacker()->GetAbsOrigin() ).Length();
-				}
 
 				if( flDist <= ZOMBIE_BUCKSHOT_TRIPLE_DAMAGE_DIST )
-				{
 					return 3.0f;
-				}
 			}
 			else
-			{
 				return 2.0f;
-			}
 		}
 	}
 
-	return BaseClass::GetHitgroupDamageMultiplier( iHitGroup, info );
+	return BaseClass::GetHitgroupDamageMultiplier(iHitGroup, info);
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CNPC_BaseZombie::TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, trace_t *ptr )
+//=========================================================
+//=========================================================
+void CNPC_BaseZombie::TraceAttack(const CTakeDamageInfo &info, const Vector &vecDir, trace_t *ptr)
 {
 	CTakeDamageInfo infoCopy = info;
 
 	// Keep track of headshots so we can determine whether to pop off our headcrab.
-	if (ptr->hitgroup == HITGROUP_HEAD)
-	{
-		m_bHeadShot = true;
-	}
+	if ( ptr->hitgroup == HITGROUP_HEAD )
+		HeadShot = true;
 
 	if( infoCopy.GetDamageType() & DMG_BUCKSHOT )
 	{
 		// Zombie gets across-the-board damage reduction for buckshot. This compensates for the recent changes which
 		// make the shotgun much more powerful, and returns the zombies to a level that has been playtested extensively.(sjb)
-		// This normalizes the buckshot damage to what it used to be on normal (5 dmg per pellet. Now it's 8 dmg per pellet). 
+		// This normalizes the buckshot damage to what it used to be on normal (5 dmg per pellet. Now it's 8 dmg per pellet).
 		infoCopy.ScaleDamage( 0.625 );
 	}
 
-	BaseClass::TraceAttack( infoCopy, vecDir, ptr );
+	BaseClass::TraceAttack(infoCopy, vecDir, ptr);
 }
 
 
-//-----------------------------------------------------------------------------
-// Purpose: A zombie has taken damage. Determine whether he should split in half
-// Input  : 
-// Output : bool, true if yes.
-//-----------------------------------------------------------------------------
+//=========================================================
+// Verifica si con el daño producido es conveniente
+// convertirse en un torso.
+//=========================================================
 bool CNPC_BaseZombie::ShouldBecomeTorso( const CTakeDamageInfo &info, float flDamageThreshold )
 {
+	// El tipo de daño informa que no se producirán cadaveres. (¿Desintegración?)
 	if ( info.GetDamageType() & DMG_REMOVENORAGDOLL )
 		return false;
 
-	if ( m_fIsTorso )
-	{
-		// Already split.
+	// Al parecer ya somos un Torso.
+	if ( IsTorso )
 		return false;
-	}
 
 	// Not if we're in a dss
 	if ( IsRunningDynamicInteraction() )
 		return false;
 
-	// Break in half IF:
-	// 
 	// Take half or more of max health in DMG_BLAST
 	if( (info.GetDamageType() & DMG_BLAST) && flDamageThreshold >= 0.5 )
-	{
 		return true;
-	}
 
-	if ( hl2_episodic.GetBool() )
-	{
-		// Always split after a cannon hit
-		if ( info.GetAmmoType() == GetAmmoDef()->Index("CombineHeavyCannon") )
-			return true;
-	}
+	// Siempre partirse con el cañon de los Combine.
+	if ( info.GetAmmoType() == GetAmmoDef()->Index("CombineHeavyCannon") )
+		return true;
 
-#if 0
-	if( info.GetDamageType() & DMG_BUCKSHOT )
-	{
-		if( m_iHealth <= 0 || flDamageThreshold >= 0.5 )
-		{
-			return true;
-		}
-	}
-#endif 
-	
 	return false;
 }
 
 
-//-----------------------------------------------------------------------------
-// Purpose: A zombie has taken damage. Determine whether he release his headcrab.
-// Output : YES, IMMEDIATE, or SCHEDULED (see HeadcrabRelease_t)
-//-----------------------------------------------------------------------------
-HeadcrabRelease_t CNPC_BaseZombie::ShouldReleaseHeadcrab( const CTakeDamageInfo &info, float flDamageThreshold )
+//=========================================================
+// Verifica si con el daño producido es conveniente
+// liberar al Headcrab.
+//=========================================================
+HeadcrabRelease_t CNPC_BaseZombie::ShouldReleaseHeadcrab(const CTakeDamageInfo &info, float flDamageThreshold )
 {
-	if ( m_iHealth <= 0 )
+	// ¡No tenemos headcrab!
+	if ( !AttachHeadcrab )
+		return RELEASE_NO;
+
+	// Aún no estamos muertos...
+	if ( m_iHealth > 0 )
+		return RELEASE_NO;
+
+	// El tipo de daño informa que no se producirán cadaveres. (¿Desintegración?)
+	if ( info.GetDamageType() & DMG_REMOVENORAGDOLL )
+		return RELEASE_NO;
+
+	// ¡Malditos snipers y camperos! Liberar el Headcrab muerto.
+	if ( info.GetDamageType() & DMG_SNIPER )
+		return RELEASE_RAGDOLL;
+
+	// El daño producido fue por una bala.
+	if ( info.GetDamageType() & DMG_BULLET )
 	{
-		if ( info.GetDamageType() & DMG_REMOVENORAGDOLL )
-			return RELEASE_NO;
-
-		if ( info.GetDamageType() & DMG_SNIPER )
-			return RELEASE_RAGDOLL;
-
-		// If I was killed by a bullet...
-		if ( info.GetDamageType() & DMG_BULLET )
+		// ¡Headshot! Daño en la cabeza.
+		if( HeadShot )
 		{
-			if( m_bHeadShot ) 
-			{
-				if( flDamageThreshold > 0.25 )
-				{
-					// Enough force to kill the crab.
-					return RELEASE_RAGDOLL;
-				}
-			}
-			else
-			{
-				// Killed by a shot to body or something. Crab is ok!
-				return RELEASE_IMMEDIATE;
-			}
+			// Daño suficiente como para matar al headcrab.
+			if( flDamageThreshold > 0.25 )
+				return RELEASE_RAGDOLL;
 		}
 
-		// If I was killed by an explosion, release the crab.
-		if ( info.GetDamageType() & DMG_BLAST )
-		{
-			return RELEASE_RAGDOLL;
-		}
-
-		if ( m_fIsTorso && IsChopped( info ) )
-		{
-			return RELEASE_RAGDOLL_SLICED_OFF;
-		}
+		// Muerto por daño en el cuerpo, el headcrab se encuentra estable ;)
+		// y es posible liberar los headcrabs.
+		else if ( zombie_release_headcrab.GetBool() )
+			return RELEASE_IMMEDIATE;
 	}
+
+	// Daño producido por una explosión.
+	if ( info.GetDamageType() & DMG_BLAST )
+			return RELEASE_RAGDOLL;
+
+	// Somos un torso o estabamos dormidos...
+	if ( IsTorso && IsChopped(info) )
+			return RELEASE_RAGDOLL_SLICED_OFF;
 
 	return RELEASE_NO;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : pInflictor - 
-//			pAttacker - 
-//			flDamage - 
-//			bitsDamageType - 
-// Output : int
-//-----------------------------------------------------------------------------
-#define ZOMBIE_SCORCH_RATE		8
-#define ZOMBIE_MIN_RENDERCOLOR	50
-int CNPC_BaseZombie::OnTakeDamage_Alive( const CTakeDamageInfo &inputInfo )
+//=========================================================
+// Acciones al recibir daño y aún seguir vivos.
+//=========================================================
+int CNPC_BaseZombie::OnTakeDamage_Alive(const CTakeDamageInfo &inputInfo)
 {
 	CTakeDamageInfo info = inputInfo;
 
+	// ¡Nos estamos quemando!
 	if( inputInfo.GetDamageType() & DMG_BURN )
 	{
-		// If a zombie is on fire it only takes damage from the fire that's attached to it. (DMG_DIRECT)
-		// This is to stop zombies from burning to death 10x faster when they're standing around
-		// 10 fire entities.
+		// Si nos estamos quemando solo debemos recibir daño de la entidad de fuego que lo esta produciendo.
+		// esto evita que el zombi muera 10 veces más rápido por el daño causado por 10 entidades de fuego.
 		if( IsOnFire() && !(inputInfo.GetDamageType() & DMG_DIRECT) )
-		{
 			return 0;
-		}
-		
-		Scorch( ZOMBIE_SCORCH_RATE, ZOMBIE_MIN_RENDERCOLOR );
+
+		// Hacemos que el modelo tome forma de piel quemada.
+		Scorch(ZOMBIE_SCORCH_RATE, ZOMBIE_MIN_RENDERCOLOR);
 	}
 
 	// Take some percentage of damage from bullets (unless hit in the crab). Always take full buckshot & sniper damage
-	if ( !m_bHeadShot && (info.GetDamageType() & DMG_BULLET) && !(info.GetDamageType() & (DMG_BUCKSHOT|DMG_SNIPER)) )
-	{
+	if ( !HeadShot && (info.GetDamageType() & DMG_BULLET) && !(info.GetDamageType() & (DMG_BUCKSHOT|DMG_SNIPER)) )
 		info.ScaleDamage( ZOMBIE_BULLET_DAMAGE_SCALE );
-	}
 
-	if ( ShouldIgnite( info ) )
-	{
-		Ignite( 100.0f );
-	}
+	// ¿Este daño nos produce quemarnos?
+	if ( ShouldIgnite(info) )
+		Ignite(100.0f);
 
-	int tookDamage = BaseClass::OnTakeDamage_Alive( info );
+	int tookDamage = BaseClass::OnTakeDamage_Alive(info);
 
 	// flDamageThreshold is what percentage of the creature's max health
 	// this amount of damage represents. (clips at 1.0)
 	float flDamageThreshold = min( 1, info.GetDamage() / m_iMaxHealth );
-	
-	// Being chopped up by a sharp physics object is a pretty special case
-	// so we handle it with some special code. Mainly for 
-	// Ravenholm's helicopter traps right now (sjb).
-	bool bChopped = IsChopped(info);
-	bool bSquashed = IsSquashed(info);
-	bool bKilledByVehicle = ( ( info.GetDamageType() & DMG_VEHICLE ) != 0 );
 
-	if( !m_fIsTorso && (bChopped || bSquashed) && !bKilledByVehicle && !(info.GetDamageType() & DMG_REMOVENORAGDOLL) )
+	// Being chopped up by a sharp physics object is a pretty special case
+	// so we handle it with some special code. Mainly for
+	// Ravenholm's helicopter traps right now (sjb).
+	bool bChopped			= IsChopped(info);
+	bool bSquashed			= IsSquashed(info);
+	bool bKilledByVehicle	= ( ( info.GetDamageType() & DMG_VEHICLE ) != 0 );
+
+	if( !IsTorso && (bChopped || bSquashed) && !bKilledByVehicle && !(info.GetDamageType() & DMG_REMOVENORAGDOLL) )
 	{
 		if( bChopped )
-		{
-			EmitSound( "E3_Phystown.Slicer" );
-		}
+			EmitSound("E3_Phystown.Slicer");
 
-		DieChopped( info );
+		DieChopped(info);
 	}
 	else
 	{
+		// ¿Es conveniente liberar el headcrab?
+		HeadcrabRelease_t release = ShouldReleaseHeadcrab(info, flDamageThreshold);
 
-		HeadcrabRelease_t release = ShouldReleaseHeadcrab( info, flDamageThreshold );
-		
 		switch( release )
 		{
-		case RELEASE_IMMEDIATE:
-			ReleaseHeadcrab( EyePosition(), vec3_origin, true, true );
+			// Liberar inmediatamente.
+			case RELEASE_IMMEDIATE:
+				ReleaseHeadcrab(EyePosition(), vec3_origin, true, true);
 			break;
 
-		case RELEASE_RAGDOLL:
-			// Go a little easy on headcrab ragdoll force. They're light!
-			ReleaseHeadcrab( EyePosition(), inputInfo.GetDamageForce() * 0.25, true, false, true );
+			// Liberar headcrab muerto.
+			case RELEASE_RAGDOLL:
+				ReleaseHeadcrab(EyePosition(), inputInfo.GetDamageForce() * 0.25, true, false, true);
 			break;
 
-		case RELEASE_RAGDOLL_SLICED_OFF:
+			// Nos han partido a la mitad, liberar headcrab de una forma "especial"
+			case RELEASE_RAGDOLL_SLICED_OFF:
 			{
-				EmitSound( "E3_Phystown.Slicer" );
+				EmitSound("E3_Phystown.Slicer");
+
 				Vector vecForce = inputInfo.GetDamageForce() * 0.1;
-				vecForce += Vector( 0, 0, 2000.0 );
-				ReleaseHeadcrab( EyePosition(), vecForce, true, false, true );
+				vecForce		+= Vector(0, 0, 2000.0);
+
+				ReleaseHeadcrab(EyePosition(), vecForce, true, false, true);
 			}
 			break;
 
-		case RELEASE_VAPORIZE:
-			RemoveHead();
+			// ¡Vaporizado! El headcrab también.
+			case RELEASE_VAPORIZE:
+				RemoveHead();
 			break;
 
-		case RELEASE_SCHEDULED:
-			SetCondition( COND_ZOMBIE_RELEASECRAB );
+			// Liberar en un futuro. (Al parecer no funcional/incompleto)
+			// Iván: Probablemente Valve iba a desarrollar un sistema para liberar el Headcrab vivo (¿y quizá dejar el zombi vivo también?)
+			// y no desarrollo este sistema al 100%
+			// TODO: ¿Tiene alguna utilidad para Apocalypse/InSource?
+			case RELEASE_SCHEDULED:
+				SetCondition(COND_ZOMBIE_RELEASECRAB);
 			break;
 		}
 
-		if( ShouldBecomeTorso( info, flDamageThreshold ) )
+		// ¿Es conveniente partirnos a la mitad?
+		if( ShouldBecomeTorso(info, flDamageThreshold) )
 		{
 			bool bHitByCombineCannon = (inputInfo.GetAmmoType() == GetAmmoDef()->Index("CombineHeavyCannon"));
 
+			// El daño producido no nos ha matado, pero si nos partio...
 			if ( CanBecomeLiveTorso() )
 			{
-				BecomeTorso( vec3_origin, inputInfo.GetDamageForce() * 0.50 );
+				// Convertirnos en un Torso.
+				BecomeTorso(vec3_origin, inputInfo.GetDamageForce() * 0.50);
 
-				if ( ( info.GetDamageType() & DMG_BLAST) && random->RandomInt( 0, 1 ) == 0 )
-				{
-					Ignite( 5.0 + random->RandomFloat( 0.0, 5.0 ) );
-				}
+				// El daño producido fue una explosión, prender en llamas.
+				if ( (info.GetDamageType() & DMG_BLAST) )
+					Ignite(5.0 + random->RandomFloat(0.0, 5.0));
 
 				// For Combine cannon impacts
-				if ( hl2_episodic.GetBool() )
-				{
-					if ( bHitByCombineCannon )
-					{
-						// Catch on fire.
-						Ignite( 5.0f + random->RandomFloat( 0.0f, 5.0f ) );
-					}
-				}
+				if ( bHitByCombineCannon )
+					Ignite(5.0f + random->RandomFloat(0.0f, 5.0f));
 
-				if (flDamageThreshold >= 1.0)
+				if ( flDamageThreshold >= 1.0 )
 				{
 					m_iHealth = 0;
-					BecomeRagdollOnClient( info.GetDamageForce() );
+					BecomeRagdollOnClient(info.GetDamageForce());
 				}
 			}
 			else if ( random->RandomInt(1, 3) == 1 )
-				DieChopped( info );
+				DieChopped(info);
 		}
 	}
 
-	if( tookDamage > 0 && (info.GetDamageType() & (DMG_BURN|DMG_DIRECT)) && m_ActBusyBehavior.IsActive() ) 
+	if( tookDamage > 0 && (info.GetDamageType() & (DMG_BURN|DMG_DIRECT)) && m_ActBusyBehavior.IsActive() )
 	{
 		//!!!HACKHACK- Stuff a light_damage condition if an actbusying zombie takes direct burn damage. This will cause an
 		// ignited zombie to 'wake up' and rise out of its actbusy slump. (sjb)
@@ -921,94 +882,83 @@ int CNPC_BaseZombie::OnTakeDamage_Alive( const CTakeDamageInfo &inputInfo )
 	}
 
 	// IMPORTANT: always clear the headshot flag after applying damage. No early outs!
-	m_bHeadShot = false;
+	HeadShot = false;
 
 	return tookDamage;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: make a sound Alyx can hear when in darkness mode
-// Input  : volume (radius) of the sound.
-// Output :
-//-----------------------------------------------------------------------------
-void CNPC_BaseZombie::MakeAISpookySound( float volume, float duration )
+//=========================================================
+// Crea un sonido que Alyx puede escuchar cuando este totalmente oscuro.
+//=========================================================
+void CNPC_BaseZombie::MakeAISpookySound(float volume, float duration)
 {
 	if ( HL2GameRules()->IsAlyxInDarknessMode() )
-	{
-		CSoundEnt::InsertSound( SOUND_COMBAT, EyePosition(), volume, duration, this, SOUNDENT_CHANNEL_SPOOKY_NOISE );
-	}
+		CSoundEnt::InsertSound(SOUND_COMBAT, EyePosition(), volume, duration, this, SOUNDENT_CHANNEL_SPOOKY_NOISE);
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+// ¿Podemos reproducir sonido de gemido?
+//=========================================================
 bool CNPC_BaseZombie::CanPlayMoanSound()
 {
-	if( HasSpawnFlags( SF_NPC_GAG ) )
+	if ( HasSpawnFlags(SF_NPC_GAG) )
 		return false;
 
 	// Burning zombies play their moan loop at full volume for as long as they're
 	// burning. Don't let a moan envelope play cause it will turn the volume down when done.
-	if( IsOnFire() )
+	if ( IsOnFire() )
 		return false;
 
 	// Members of a small group of zombies can vocalize whenever they want
-	if( s_iAngryZombies <= 4 )
+	if ( AngryZombies <= 4 )
 		return true;
 
-	// This serves to limit the number of zombies that can moan at one time when there are a lot. 
-	if( random->RandomInt( 1, zombie_moanfreq.GetInt() * (s_iAngryZombies/2) ) == 1 )
-	{
+	// This serves to limit the number of zombies that can moan at one time when there are a lot.
+	if ( random->RandomInt( 1, zombie_moanfreq.GetInt() * (AngryZombies/2) ) == 1 )
 		return true;
-	}
 
 	return false;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Open a window and let a little bit of the looping moan sound
-//			come through.
-//-----------------------------------------------------------------------------
+//=========================================================
+// Open a window and let a little bit of the looping moan sound
+// come through.
+//=========================================================
 void CNPC_BaseZombie::MoanSound( envelopePoint_t *pEnvelope, int iEnvelopeSize )
 {
-	if( HasSpawnFlags( SF_NPC_GAG ) )
-	{
-		// Not yet!
+	if ( HasSpawnFlags(SF_NPC_GAG) )
 		return;
-	}
 
-	if( !m_pMoanSound )
+	if ( !sMoanSound )
 	{
 		// Don't set this up until the code calls for it.
-		const char *pszSound = GetMoanSound( m_iMoanSound );
-		m_flMoanPitch = random->RandomInt( zombie_basemin.GetInt(), zombie_basemax.GetInt() );
+		const char *pszSound	= GetMoanSound(pMoanSound);
+		MoanPitch				= random->RandomInt(zombie_basemin.GetInt(), zombie_basemax.GetInt());
 
-		//m_pMoanSound = ENVELOPE_CONTROLLER.SoundCreate( entindex(), CHAN_STATIC, pszSound, ATTN_NORM );
-		CPASAttenuationFilter filter( this );
-		m_pMoanSound = ENVELOPE_CONTROLLER.SoundCreate( filter, entindex(), CHAN_STATIC, pszSound, ATTN_NORM );
-
-		ENVELOPE_CONTROLLER.Play( m_pMoanSound, 1.0, m_flMoanPitch );
+		CPASAttenuationFilter filter(this);
+		sMoanSound = ENVELOPE_CONTROLLER.SoundCreate(filter, entindex(), CHAN_STATIC, pszSound, ATTN_NORM);
+		ENVELOPE_CONTROLLER.Play(sMoanSound, 1.0, MoanPitch);
 	}
 
 	//HACKHACK get these from chia chin's console vars.
-	envDefaultZombieMoanVolumeFast[ 1 ].durationMin = zombie_decaymin.GetFloat();
-	envDefaultZombieMoanVolumeFast[ 1 ].durationMax = zombie_decaymax.GetFloat();
+	envDefaultZombieMoanVolumeFast[1].durationMin = zombie_decaymin.GetFloat();
+	envDefaultZombieMoanVolumeFast[1].durationMax = zombie_decaymax.GetFloat();
 
-	if( random->RandomInt( 1, 2 ) == 1 )
-	{
+	if ( random->RandomInt(1, 2) == 1 )
 		IdleSound();
-	}
 
-	float duration = ENVELOPE_CONTROLLER.SoundPlayEnvelope( m_pMoanSound, SOUNDCTRL_CHANGE_VOLUME, pEnvelope, iEnvelopeSize );
+	float duration = ENVELOPE_CONTROLLER.SoundPlayEnvelope(sMoanSound, SOUNDCTRL_CHANGE_VOLUME, pEnvelope, iEnvelopeSize);
 
-	float flPitch = random->RandomInt( m_flMoanPitch + zombie_changemin.GetInt(), m_flMoanPitch + zombie_changemax.GetInt() );
-	ENVELOPE_CONTROLLER.SoundChangePitch( m_pMoanSound, flPitch, 0.3 );
+	float flPitch = random->RandomInt(MoanPitch + zombie_changemin.GetInt(), MoanPitch + zombie_changemax.GetInt());
+	ENVELOPE_CONTROLLER.SoundChangePitch(sMoanSound, flPitch, 0.3);
 
-	m_flNextMoanSound = gpGlobals->curtime + duration + 9999;
+	NextMoanSound = gpGlobals->curtime + duration + 9999;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Determine whether the zombie is chopped up by some physics item
-//-----------------------------------------------------------------------------
+//=========================================================
+// Determina si el zombi se parte por daño causado
+// por un objeto con físicas.
+//=========================================================
 bool CNPC_BaseZombie::IsChopped( const CTakeDamageInfo &info )
 {
 	float flDamageThreshold = min( 1, info.GetDamage() / m_iMaxHealth );
@@ -1016,12 +966,15 @@ bool CNPC_BaseZombie::IsChopped( const CTakeDamageInfo &info )
 	if ( m_iHealth > 0 || flDamageThreshold <= 0.5 )
 		return false;
 
+	// Daño por rasguño.
 	if ( !( info.GetDamageType() & DMG_SLASH) )
 		return false;
 
+	// Daño por aplastado.
 	if ( !( info.GetDamageType() & DMG_CRUSH) )
 		return false;
 
+	// Daño que no deja cadaver (Desintegración?)
 	if ( info.GetDamageType() & DMG_REMOVENORAGDOLL )
 		return false;
 
@@ -1029,96 +982,82 @@ bool CNPC_BaseZombie::IsChopped( const CTakeDamageInfo &info )
 	return true;
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: Return true if this gibbing zombie should ignite its gibs
-//-----------------------------------------------------------------------------
-bool CNPC_BaseZombie::ShouldIgniteZombieGib( void )
+//=========================================================
+// Verifica si es conveniente arder en llamas los
+// restos de un zombi.
+//=========================================================
+bool CNPC_BaseZombie::ShouldIgniteZombieGib()
 {
-#ifdef HL2_EPISODIC
 	// If we're in darkness mode, don't ignite giblets, because we don't want to
 	// pay the perf cost of multiple dynamic lights per giblet.
 	return ( IsOnFire() && !HL2GameRules()->IsAlyxInDarknessMode() );
-#else
-	return IsOnFire();
-#endif 
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Handle the special case of a zombie killed by a physics chopper.
-//-----------------------------------------------------------------------------
+//=========================================================
+// Morir cortado.
+//=========================================================
 void CNPC_BaseZombie::DieChopped( const CTakeDamageInfo &info )
 {
-	bool bSquashed = IsSquashed(info);
+	bool bSquashed	= IsSquashed(info);
 
-	Vector forceVector( vec3_origin );
+	Vector forceVector(vec3_origin);
+	forceVector		+= CalcDamageForceVector(info);
 
-	forceVector += CalcDamageForceVector( info );
-
-	if( !m_fIsHeadless && !bSquashed )
+	if ( !IsHeadless && !bSquashed && AttachHeadcrab )
 	{
-		if( random->RandomInt( 0, 1 ) == 0 )
-		{
-			// Drop a live crab half of the time.
+		if( random->RandomInt(0, 1) == 0 )
 			ReleaseHeadcrab( EyePosition(), forceVector * 0.005, true, false, false );
-		}
 	}
 
 	float flFadeTime = 0.0;
 
-	if( HasSpawnFlags( SF_NPC_FADE_CORPSE ) )
-	{
+	if ( HasSpawnFlags(SF_NPC_FADE_CORPSE) )
 		flFadeTime = 5.0;
-	}
 
-	SetSolid( SOLID_NONE );
-	AddEffects( EF_NODRAW );
+	SetSolid(SOLID_NONE);
+	AddEffects(EF_NODRAW);
 
 	Vector vecLegsForce;
-	vecLegsForce.x = random->RandomFloat( -400, 400 );
-	vecLegsForce.y = random->RandomFloat( -400, 400 );
-	vecLegsForce.z = random->RandomFloat( 0, 250 );
+	vecLegsForce.x = random->RandomFloat(-400, 400);
+	vecLegsForce.y = random->RandomFloat(-400, 400);
+	vecLegsForce.z = random->RandomFloat(0, 250);
 
-	if( bSquashed && vecLegsForce.z > 0 )
-	{
-		// Force the broken legs down. (Give some additional force, too)
+	// Force the broken legs down. (Give some additional force, too)
+	if ( bSquashed && vecLegsForce.z > 0 )
 		vecLegsForce.z *= -10;
-	}
 
-	CBaseEntity *pLegGib = CreateRagGib( GetLegsModel(), GetAbsOrigin(), GetAbsAngles(), vecLegsForce, flFadeTime, ShouldIgniteZombieGib() );
+	CBaseEntity *pLegGib = CreateRagGib(GetLegsModel(), GetAbsOrigin(), GetAbsAngles(), vecLegsForce, flFadeTime, ShouldIgniteZombieGib());
+
 	if ( pLegGib )
-	{
-		CopyRenderColorTo( pLegGib );
-	}
+		CopyRenderColorTo(pLegGib);
 
-	forceVector *= random->RandomFloat( 0.04, 0.06 );
-	forceVector.z = ( 100 * 12 * 5 ) * random->RandomFloat( 0.8, 1.2 );
+	forceVector		*= random->RandomFloat(0.04, 0.06);
+	forceVector.z	= ( 100 * 12 * 5 ) * random->RandomFloat(0.8, 1.2);
 
+	// Force the broken torso down.
 	if( bSquashed && forceVector.z > 0 )
-	{
-		// Force the broken torso down.
 		forceVector.z *= -1.0;
-	}
 
 	// Why do I have to fix this up?! (sjb)
 	QAngle TorsoAngles;
-	TorsoAngles = GetAbsAngles();
-	TorsoAngles.x -= 90.0f;
-	CBaseEntity *pTorsoGib = CreateRagGib( GetTorsoModel(), GetAbsOrigin() + Vector( 0, 0, 64 ), TorsoAngles, forceVector, flFadeTime, ShouldIgniteZombieGib() );
+	TorsoAngles		= GetAbsAngles();
+	TorsoAngles.x	-= 90.0f;
+
+	CBaseEntity *pTorsoGib = CreateRagGib(GetTorsoModel(), GetAbsOrigin() + Vector(0, 0, 64), TorsoAngles, forceVector, flFadeTime, ShouldIgniteZombieGib());
+
 	if ( pTorsoGib )
 	{
 		CBaseAnimating *pAnimating = dynamic_cast<CBaseAnimating*>(pTorsoGib);
-		if( pAnimating )
-		{
-			pAnimating->SetBodygroup( ZOMBIE_BODYGROUP_HEADCRAB, !m_fIsHeadless );
-		}
 
-		pTorsoGib->SetOwnerEntity( this );
-		CopyRenderColorTo( pTorsoGib );
+		if( pAnimating && AttachHeadcrab )
+			pAnimating->SetBodygroup(ZOMBIE_BODYGROUP_HEADCRAB, !IsHeadless);
+
+		pTorsoGib->SetOwnerEntity(this);
+		CopyRenderColorTo(pTorsoGib);
 
 	}
 
-	if ( UTIL_ShouldShowBlood( BLOOD_COLOR_YELLOW ) )
+	if ( UTIL_ShouldShowBlood(ZOMBIE_BLOOD) )
 	{
 		int i;
 		Vector vecSpot;
@@ -1128,19 +1067,19 @@ void CNPC_BaseZombie::DieChopped( const CTakeDamageInfo &info )
 		{
 			vecSpot = WorldSpaceCenter();
 
-			vecSpot.x += random->RandomFloat( -12, 12 ); 
-			vecSpot.y += random->RandomFloat( -12, 12 ); 
-			vecSpot.z += random->RandomFloat( -4, 16 ); 
+			vecSpot.x += random->RandomFloat( -12, 12 );
+			vecSpot.y += random->RandomFloat( -12, 12 );
+			vecSpot.z += random->RandomFloat( -4, 16 );
 
-			UTIL_BloodDrips( vecSpot, vec3_origin, BLOOD_COLOR_YELLOW, 50 );
+			UTIL_BloodDrips(vecSpot, vec3_origin, ZOMBIE_BLOOD, 50);
 		}
 
 		for ( int i = 0 ; i < 4 ; i++ )
 		{
 			Vector vecSpot = WorldSpaceCenter();
 
-			vecSpot.x += random->RandomFloat( -12, 12 ); 
-			vecSpot.y += random->RandomFloat( -12, 12 ); 
+			vecSpot.x += random->RandomFloat( -12, 12 );
+			vecSpot.y += random->RandomFloat( -12, 12 );
 			vecSpot.z += random->RandomFloat( -4, 16 );
 
 			vecDir.x = random->RandomFloat(-1, 1);
@@ -1153,16 +1092,14 @@ void CNPC_BaseZombie::DieChopped( const CTakeDamageInfo &info )
 	}
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: damage has been done. Should the zombie ignite?
-//-----------------------------------------------------------------------------
-bool CNPC_BaseZombie::ShouldIgnite( const CTakeDamageInfo &info )
+//=========================================================
+// Verifica si es conveniente arder en llamas.
+//=========================================================
+bool CNPC_BaseZombie::ShouldIgnite(const CTakeDamageInfo &info)
 {
+	// ¡Ya nos estamos quemando!
  	if ( IsOnFire() )
-	{
-		// Already burning!
 		return false;
-	}
 
 	if ( info.GetDamageType() & DMG_BURN )
 	{
@@ -1170,91 +1107,86 @@ bool CNPC_BaseZombie::ShouldIgnite( const CTakeDamageInfo &info )
 		// If we take more than ten percent of our health in burn damage within a five
 		// second interval, we should catch on fire.
 		//
-		m_flBurnDamage += info.GetDamage();
-		m_flBurnDamageResetTime = gpGlobals->curtime + 5;
+		BurnDamage				+= info.GetDamage();
+		BurnDamageResetTime		= gpGlobals->curtime + 5;
 
-		if ( m_flBurnDamage >= m_iMaxHealth * 0.1 )
-		{
+		if ( BurnDamage >= m_iMaxHealth * 0.1 )
 			return true;
-		}
 	}
+
+	// ¡Una explosión! Claro que si.
+	if ( info.GetDamageType() & DMG_BLAST )
+		return true;
 
 	return false;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Sufficient fire damage has been done. Zombie ignites!
-//-----------------------------------------------------------------------------
-void CNPC_BaseZombie::Ignite( float flFlameLifetime, bool bNPCOnly, float flSize, bool bCalledByLevelDesigner )
+//=========================================================
+// ¡Arder en llamas!
+//=========================================================
+void CNPC_BaseZombie::Ignite(float flFlameLifetime, bool bNPCOnly, float flSize, bool bCalledByLevelDesigner)
 {
-	BaseClass::Ignite( flFlameLifetime, bNPCOnly, flSize, bCalledByLevelDesigner );
+	BaseClass::Ignite(flFlameLifetime, bNPCOnly, flSize, bCalledByLevelDesigner);
 
-#ifdef HL2_EPISODIC
 	if ( HL2GameRules()->IsAlyxInDarknessMode() == true && GetEffectEntity() != NULL )
-	{
-		GetEffectEntity()->AddEffects( EF_DIMLIGHT );
-	}
-#endif // HL2_EPISODIC
+		GetEffectEntity()->AddEffects(EF_DIMLIGHT);
 
 	// Set the zombie up to burn to death in about ten seconds.
-	SetHealth( min( m_iHealth, FLAME_DIRECT_DAMAGE_PER_SEC * (ZOMBIE_BURN_TIME + random->RandomFloat( -ZOMBIE_BURN_TIME_NOISE, ZOMBIE_BURN_TIME_NOISE)) ) );
+	SetHealth( min(m_iHealth, FLAME_DIRECT_DAMAGE_PER_SEC * (ZOMBIE_BURN_TIME + random->RandomFloat( -ZOMBIE_BURN_TIME_NOISE, ZOMBIE_BURN_TIME_NOISE)) ) );
 
-	// FIXME: use overlays when they come online
-	//AddOverlay( ACT_ZOM_WALK_ON_FIRE, false );
+	/*
+
+		Iván: Esto me parece necesario para TODOS los NPCs.
+		Movido a: ai_basenpc.cpp
+
 	if( !m_ActBusyBehavior.IsActive() )
 	{
-		Activity activity = GetActivity();
-		Activity burningActivity = activity;
+		Activity activity			= GetActivity();
+		Activity burningActivity	= activity;
 
-		if ( activity == ACT_WALK )
+		switch( activity )
 		{
-			burningActivity = ACT_WALK_ON_FIRE;
-		}
-		else if ( activity == ACT_RUN )
-		{
-			burningActivity = ACT_RUN_ON_FIRE;
-		}
-		else if ( activity == ACT_IDLE )
-		{
-			burningActivity = ACT_IDLE_ON_FIRE;
+			case ACT_WALK:
+				burningActivity = ACT_WALK_ON_FIRE;
+			break;
+
+			case ACT_RUN:
+				burningActivity = ACT_RUN_ON_FIRE;
+			break;
+
+			case ACT_IDLE:
+				burningActivity = ACT_IDLE_ON_FIRE;
+			break;
 		}
 
+		// Make sure we have a sequence for this activity (torsos don't have any, for instance)
+		// to prevent the baseNPC & baseAnimating code from throwing red level errors.
 		if( HaveSequenceForActivity(burningActivity) )
-		{
-			// Make sure we have a sequence for this activity (torsos don't have any, for instance) 
-			// to prevent the baseNPC & baseAnimating code from throwing red level errors.
-			SetActivity( burningActivity );
-		}
+			SetActivity(burningActivity);
 	}
+	*/
 }
 
-//---------------------------------------------------------
-//---------------------------------------------------------
-void CNPC_BaseZombie::CopyRenderColorTo( CBaseEntity *pOther )
-{
-	color32 color = GetRenderColor();
-	pOther->SetRenderColor( color.r, color.g, color.b, color.a );
-}
-
-//-----------------------------------------------------------------------------
+//=========================================================
 // Purpose: Look in front and see if the claw hit anything.
 //
-// Input  :	flDist				distance to trace		
+// Input  :	flDist				distance to trace
 //			iDamage				damage to do if attack hits
 //			vecViewPunch		camera punch (if attack hits player)
 //			vecVelocityPunch	velocity punch (if attack hits player)
 //
 // Output : The entity hit by claws. NULL if nothing.
-//-----------------------------------------------------------------------------
-CBaseEntity *CNPC_BaseZombie::ClawAttack( float flDist, int iDamage, QAngle &qaViewPunch, Vector &vecVelocityPunch, int BloodOrigin  )
+//=========================================================
+CBaseEntity *CNPC_BaseZombie::ClawAttack(float flDist, int iDamage, QAngle &qaViewPunch, Vector &vecVelocityPunch, int BloodOrigin )
 {
 	// Added test because claw attack anim sometimes used when for cases other than melee
-	int iDriverInitialHealth = -1;
-	CBaseEntity *pDriver = NULL;
+	int iDriverInitialHealth	= -1;
+	CBaseEntity *pDriver		= NULL;
+
 	if ( GetEnemy() )
 	{
 		trace_t	tr;
-		AI_TraceHull( WorldSpaceCenter(), GetEnemy()->WorldSpaceCenter(), -Vector(8,8,8), Vector(8,8,8), MASK_SOLID_BRUSHONLY, this, COLLISION_GROUP_NONE, &tr );
+		AI_TraceHull(WorldSpaceCenter(), GetEnemy()->WorldSpaceCenter(), -Vector(8,8,8), Vector(8,8,8), MASK_SOLID_BRUSHONLY, this, COLLISION_GROUP_NONE, &tr);
 
 		if ( tr.fraction < 1.0f )
 			return NULL;
@@ -1263,76 +1195,68 @@ CBaseEntity *CNPC_BaseZombie::ClawAttack( float flDist, int iDamage, QAngle &qaV
 		// need to detect this to get correct damage effects
 		CBaseCombatCharacter *pCCEnemy = ( GetEnemy() != NULL ) ? GetEnemy()->MyCombatCharacterPointer() : NULL;
 		CBaseEntity *pVehicleEntity;
+
 		if ( pCCEnemy != NULL && ( pVehicleEntity = pCCEnemy->GetVehicleEntity() ) != NULL )
 		{
 			if ( pVehicleEntity->GetServerVehicle() && dynamic_cast<CPropVehicleDriveable *>(pVehicleEntity) )
 			{
 				pDriver = static_cast<CPropVehicleDriveable *>(pVehicleEntity)->GetDriver();
+
 				if ( pDriver && pDriver->IsPlayer() )
-				{
 					iDriverInitialHealth = pDriver->GetHealth();
-				}
 				else
-				{
 					pDriver = NULL;
-				}
 			}
 		}
 	}
 
-	//
 	// Trace out a cubic section of our hull and see what we hit.
-	//
-	Vector vecMins = GetHullMins();
-	Vector vecMaxs = GetHullMaxs();
-	vecMins.z = vecMins.x;
-	vecMaxs.z = vecMaxs.x;
+	Vector vecMins	= GetHullMins();
+	Vector vecMaxs	= GetHullMaxs();
+	vecMins.z		= vecMins.x;
+	vecMaxs.z		= vecMaxs.x;
 
 	CBaseEntity *pHurt = NULL;
+
+	// Siempre debemos atacar a un Bullseye
 	if ( GetEnemy() && GetEnemy()->Classify() == CLASS_BULLSEYE )
-	{ 
-		// We always hit bullseyes we're targeting
-		pHurt = GetEnemy();
-		CTakeDamageInfo info( this, this, vec3_origin, GetAbsOrigin(), iDamage, DMG_SLASH );
-		pHurt->TakeDamage( info );
-	}
-	else 
 	{
-		// Try to hit them with a trace
-		pHurt = CheckTraceHullAttack( flDist, vecMins, vecMaxs, iDamage, DMG_SLASH );
+		pHurt = GetEnemy();
+		CTakeDamageInfo info(this, this, vec3_origin, GetAbsOrigin(), iDamage, DMG_SLASH);
+		pHurt->TakeDamage(info);
 	}
+
+	// Intentamos realizar un ataque verdadero contra un jugador/NPC
+	else
+		pHurt = CheckTraceHullAttack(flDist, vecMins, vecMaxs, iDamage, DMG_SLASH);
 
 	if ( pDriver && iDriverInitialHealth != pDriver->GetHealth() )
-	{
 		pHurt = pDriver;
-	}
 
-	if ( !pHurt && m_hPhysicsEnt != NULL && IsCurSchedule(SCHED_ZOMBIE_ATTACKITEM) )
+	if ( !pHurt && PhysicsEnt != NULL && IsCurSchedule(SCHED_ZOMBIE_ATTACKITEM) )
 	{
-		pHurt = m_hPhysicsEnt;
+		pHurt = PhysicsEnt;
 
-		Vector vForce = pHurt->WorldSpaceCenter() - WorldSpaceCenter(); 
-		VectorNormalize( vForce );
+		Vector vForce = pHurt->WorldSpaceCenter() - WorldSpaceCenter();
+		VectorNormalize(vForce);
 
 		vForce *= 5 * 24;
 
-		CTakeDamageInfo info( this, this, vForce, GetAbsOrigin(), iDamage, DMG_SLASH );
-		pHurt->TakeDamage( info );
-
-		pHurt = m_hPhysicsEnt;
+		CTakeDamageInfo info(this, this, vForce, GetAbsOrigin(), iDamage, DMG_SLASH);
+		pHurt->TakeDamage(info);
+		pHurt = PhysicsEnt;
 	}
 
+	// Le hemos dado a algo.
 	if ( pHurt )
 	{
 		AttackHitSound();
-
-		CBasePlayer *pPlayer = ToBasePlayer( pHurt );
+		CBasePlayer *pPlayer = ToBasePlayer(pHurt);
 
 		if ( pPlayer != NULL && !(pPlayer->GetFlags() & FL_GODMODE ) )
 		{
-			pPlayer->ViewPunch( qaViewPunch );
-			
-			pPlayer->VelocityPunch( vecVelocityPunch );
+			pPlayer->ViewPunch(qaViewPunch);
+			pPlayer->VelocityPunch(vecVelocityPunch);
 		}
 		else if( !pPlayer && UTIL_ShouldShowBlood(pHurt->BloodColor()) )
 		{
@@ -1341,69 +1265,64 @@ CBaseEntity *CNPC_BaseZombie::ClawAttack( float flDist, int iDamage, QAngle &qaV
 
 			switch( BloodOrigin )
 			{
-			case ZOMBIE_BLOOD_LEFT_HAND:
-				if( GetAttachment( "blood_left", vecBloodPos ) )
-					SpawnBlood( vecBloodPos, g_vecAttackDir, pHurt->BloodColor(), min( iDamage, 30 ) );
+				case ZOMBIE_BLOOD_LEFT_HAND:
+					if( GetAttachment( "blood_left", vecBloodPos ) )
+						SpawnBlood( vecBloodPos, g_vecAttackDir, pHurt->BloodColor(), min( iDamage, 30 ) );
 				break;
 
-			case ZOMBIE_BLOOD_RIGHT_HAND:
-				if( GetAttachment( "blood_right", vecBloodPos ) )
-					SpawnBlood( vecBloodPos, g_vecAttackDir, pHurt->BloodColor(), min( iDamage, 30 ) );
+				case ZOMBIE_BLOOD_RIGHT_HAND:
+					if( GetAttachment( "blood_right", vecBloodPos ) )
+						SpawnBlood( vecBloodPos, g_vecAttackDir, pHurt->BloodColor(), min( iDamage, 30 ) );
 				break;
 
-			case ZOMBIE_BLOOD_BOTH_HANDS:
-				if( GetAttachment( "blood_left", vecBloodPos ) )
-					SpawnBlood( vecBloodPos, g_vecAttackDir, pHurt->BloodColor(), min( iDamage, 30 ) );
+				case ZOMBIE_BLOOD_BOTH_HANDS:
+					if( GetAttachment( "blood_left", vecBloodPos ) )
+						SpawnBlood( vecBloodPos, g_vecAttackDir, pHurt->BloodColor(), min( iDamage, 30 ) );
 
-				if( GetAttachment( "blood_right", vecBloodPos ) )
-					SpawnBlood( vecBloodPos, g_vecAttackDir, pHurt->BloodColor(), min( iDamage, 30 ) );
+					if( GetAttachment( "blood_right", vecBloodPos ) )
+						SpawnBlood( vecBloodPos, g_vecAttackDir, pHurt->BloodColor(), min( iDamage, 30 ) );
 				break;
 
-			case ZOMBIE_BLOOD_BITE:
-				// No blood for these.
+				case ZOMBIE_BLOOD_BITE:
+					// No blood for these.
 				break;
 			}
 		}
 	}
-	else 
-	{
+	else
 		AttackMissSound();
-	}
 
-	if ( pHurt == m_hPhysicsEnt && IsCurSchedule(SCHED_ZOMBIE_ATTACKITEM) )
+	if ( pHurt == PhysicsEnt && IsCurSchedule(SCHED_ZOMBIE_ATTACKITEM) )
 	{
-		m_hPhysicsEnt = NULL;
-		m_flNextSwat = gpGlobals->curtime + random->RandomFloat( 2, 4 );
+		PhysicsEnt	= NULL;
+		NextSwat	= gpGlobals->curtime + random->RandomFloat(2, 4);
 	}
 
 	return pHurt;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: The zombie is frustrated and pounding walls/doors. Make an appropriate noise
-// Input  : 
-//-----------------------------------------------------------------------------
+//=========================================================
+// El Zombi esta golpeando paredes o puertas.
+//=========================================================
 void CNPC_BaseZombie::PoundSound()
 {
 	trace_t		tr;
 	Vector		forward;
 
-	GetVectors( &forward, NULL, NULL );
+	GetVectors(&forward, NULL, NULL);
 
-	AI_TraceLine( EyePosition(), EyePosition() + forward * 128, MASK_SOLID, this, COLLISION_GROUP_NONE, &tr );
+	AI_TraceLine(EyePosition(), EyePosition() + forward * 128, MASK_SOLID, this, COLLISION_GROUP_NONE, &tr);
 
 	if( tr.fraction == 1.0 )
-	{
-		// Didn't hit anything!
 		return;
-	}
 
 	if( tr.fraction < 1.0 && tr.m_pEnt )
 	{
-		const surfacedata_t *psurf = physprops->GetSurfaceData( tr.surface.surfaceProps );
+		const surfacedata_t *psurf = physprops->GetSurfaceData(tr.surface.surfaceProps);
+
 		if( psurf )
 		{
-			EmitSound( physprops->GetString(psurf->sounds.impactHard) );
+			EmitSound(physprops->GetString(psurf->sounds.impactHard));
 			return;
 		}
 	}
@@ -1413,11 +1332,10 @@ void CNPC_BaseZombie::PoundSound()
 	EmitSound( filter, entindex(),"NPC_BaseZombie.PoundDoor" );
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Catches the monster-specific events that occur when tagged animation
-//			frames are played.
-// Input  : pEvent - 
-//-----------------------------------------------------------------------------
+//=========================================================
+// Ejecuta una acción al momento que el modelo hace
+// la animación correspondiente.
+//=========================================================
 void CNPC_BaseZombie::HandleAnimEvent( animevent_t *pEvent )
 {
 	if ( pEvent->event == AE_NPC_ATTACK_BROADCAST )
@@ -1427,93 +1345,106 @@ void CNPC_BaseZombie::HandleAnimEvent( animevent_t *pEvent )
 			if( HasCondition(COND_CAN_MELEE_ATTACK1) )
 			{
 				// This animation is sometimes played by code that doesn't intend to attack the enemy
-				// (For instance, code that makes a zombie take a frustrated swipe at an obstacle). 
-				// Try not to trigger a reaction from our enemy unless we're really attacking. 
+				// (For instance, code that makes a zombie take a frustrated swipe at an obstacle).
+				// Try not to trigger a reaction from our enemy unless we're really attacking.
 				GetEnemy()->MyNPCPointer()->DispatchInteraction( g_interactionZombieMeleeWarning, NULL, this );
 			}
 		}
+
 		return;
 	}
 
+	// Golpeando puertas y paredes.
 	if ( pEvent->event == AE_ZOMBIE_POUND )
 	{
 		PoundSound();
 		return;
 	}
 
+	// Sonido de Alerta. (Un enemigo cerca)
 	if ( pEvent->event == AE_ZOMBIE_ALERTSOUND )
 	{
 		AlertSound();
 		return;
 	}
 
+	// Paso izquierdo.
 	if ( pEvent->event == AE_ZOMBIE_STEP_LEFT )
 	{
-		MakeAIFootstepSound( 180.0f );
-		FootstepSound( false );
-		return;
-	}
-	
-	if ( pEvent->event == AE_ZOMBIE_STEP_RIGHT )
-	{
-		MakeAIFootstepSound( 180.0f );
-		FootstepSound( true );
+		MakeAIFootstepSound(180.0f);
+		FootstepSound(false);
 		return;
 	}
 
+	// Paso derecho.
+	if ( pEvent->event == AE_ZOMBIE_STEP_RIGHT )
+	{
+		MakeAIFootstepSound(180.0f);
+		FootstepSound(true);
+		return;
+	}
+
+	// Nos estamos levantando.
 	if ( pEvent->event == AE_ZOMBIE_GET_UP )
 	{
-		MakeAIFootstepSound( 180.0f, 3.0f );
-		if( !IsOnFire() )
+		MakeAIFootstepSound(180.0f, 3.0f);
+
+		if ( !IsOnFire() )
 		{
-			// If you let this code run while a zombie is burning, it will stop wailing. 
-			m_flNextMoanSound = gpGlobals->curtime;
-			MoanSound( envDefaultZombieMoanVolumeFast, ARRAYSIZE( envDefaultZombieMoanVolumeFast ) );
+			// If you let this code run while a zombie is burning, it will stop wailing.
+			NextMoanSound = gpGlobals->curtime;
+			MoanSound(envDefaultZombieMoanVolumeFast, ARRAYSIZE(envDefaultZombieMoanVolumeFast));
 		}
 		return;
 	}
 
+	// Arrastrando pie izquierdo
 	if ( pEvent->event == AE_ZOMBIE_SCUFF_LEFT )
 	{
-		MakeAIFootstepSound( 180.0f );
-		FootscuffSound( false );
+		MakeAIFootstepSound(180.0f);
+		FootscuffSound(false);
 		return;
 	}
 
+	// Arrastrando pie derecho.
 	if ( pEvent->event == AE_ZOMBIE_SCUFF_RIGHT )
 	{
-		MakeAIFootstepSound( 180.0f );
-		FootscuffSound( true );
+		MakeAIFootstepSound(180.0f);
+		FootscuffSound(true);
 		return;
 	}
 
-	// all swat animations are handled as a single case.
+	// Empezamos el rasguño.
 	if ( pEvent->event == AE_ZOMBIE_STARTSWAT )
 	{
-		MakeAIFootstepSound( 180.0f );
+		MakeAIFootstepSound(180.0f);
 		AttackSound();
 		return;
 	}
 
+	// Grito de ataque.
 	if ( pEvent->event == AE_ZOMBIE_ATTACK_SCREAM )
 	{
 		AttackSound();
 		return;
 	}
 
+	// Aventando un objeto.
 	if ( pEvent->event == AE_ZOMBIE_SWATITEM )
 	{
 		CBaseEntity *pEnemy = GetEnemy();
+
 		if ( pEnemy )
 		{
 			Vector v;
-			CBaseEntity *pPhysicsEntity = m_hPhysicsEnt;
+			CBaseEntity *pPhysicsEntity = PhysicsEnt;
+
 			if( !pPhysicsEntity )
 			{
 				DevMsg( "**Zombie: Missing my physics ent!!" );
 				return;
 			}
-			
+
 			IPhysicsObject *pPhysObj = pPhysicsEntity->VPhysicsGetObject();
 
 			if( !pPhysObj )
@@ -1522,71 +1453,75 @@ void CNPC_BaseZombie::HandleAnimEvent( animevent_t *pEvent )
 				return;
 			}
 
-			EmitSound( "NPC_BaseZombie.Swat" );
-			PhysicsImpactSound( pEnemy, pPhysObj, CHAN_BODY, pPhysObj->GetMaterialIndex(), physprops->GetSurfaceIndex("flesh"), 0.5, 800 );
+			EmitSound("NPC_BaseZombie.Swat");
+			PhysicsImpactSound(pEnemy, pPhysObj, CHAN_BODY, pPhysObj->GetMaterialIndex(), physprops->GetSurfaceIndex("flesh"), 0.5, 800);
 
-			Vector physicsCenter = pPhysicsEntity->WorldSpaceCenter();
-			v = pEnemy->WorldSpaceCenter() - physicsCenter;
+			Vector PhysicsCenter	= pPhysicsEntity->WorldSpaceCenter();
+			v						= pEnemy->WorldSpaceCenter() - PhysicsCenter;
+
 			VectorNormalize(v);
 
 			// Send the object at 800 in/sec toward the enemy.  Add 200 in/sec up velocity to keep it
 			// in the air for a second or so.
-			v = v * 800;
+			v	= v * 800;
 			v.z += 200;
 
 			// add some spin so the object doesn't appear to just fly in a straight line
 			// Also this spin will move the object slightly as it will press on whatever the object
 			// is resting on.
-			AngularImpulse angVelocity( random->RandomFloat(-180, 180), 20, random->RandomFloat(-360, 360) );
-
-			pPhysObj->AddVelocity( &v, &angVelocity );
+			AngularImpulse AngVelocity(random->RandomFloat(-180, 180), 20, random->RandomFloat(-360, 360));
+			pPhysObj->AddVelocity( &v, &AngVelocity );
 
 			// If we don't put the object scan time well into the future, the zombie
 			// will re-select the object he just hit as it is flying away from him.
 			// It will likely always be the nearest object because the zombie moved
 			// close enough to it to hit it.
-			m_hPhysicsEnt = NULL;
-
-			m_flNextSwatScan = gpGlobals->curtime + ZOMBIE_SWAT_DELAY;
+			PhysicsEnt = NULL;
+			NextSwatScan = gpGlobals->curtime + ZOMBIE_SWAT_DELAY;
 
 			return;
 		}
 	}
-	
+
+	// Rasguño con la mano derecha.
 	if ( pEvent->event == AE_ZOMBIE_ATTACK_RIGHT )
 	{
 		Vector right, forward;
-		AngleVectors( GetLocalAngles(), &forward, &right, NULL );
-		
-		right = right * 100;
+		AngleVectors(GetLocalAngles(), &forward, &right, NULL);
+
+		right	= right * 100;
 		forward = forward * 200;
 
-		ClawAttack( GetClawAttackRange(), sk_zombie_dmg_one_slash.GetFloat(), QAngle( -15, -20, -10 ), right + forward, ZOMBIE_BLOOD_RIGHT_HAND );
+		ClawAttack(GetClawAttackRange(), sk_zombie_dmg_one_slash.GetFloat(), QAngle( -15, -20, -10 ), right + forward, ZOMBIE_BLOOD_RIGHT_HAND);
 		return;
 	}
 
+	// Rasguño con la mano izquierda.
 	if ( pEvent->event == AE_ZOMBIE_ATTACK_LEFT )
 	{
 		Vector right, forward;
-		AngleVectors( GetLocalAngles(), &forward, &right, NULL );
+		AngleVectors(GetLocalAngles(), &forward, &right, NULL);
 
-		right = right * -100;
+		right	= right * -100;
 		forward = forward * 200;
 
-		ClawAttack( GetClawAttackRange(), sk_zombie_dmg_one_slash.GetFloat(), QAngle( -15, 20, -10 ), right + forward, ZOMBIE_BLOOD_LEFT_HAND );
+		ClawAttack(GetClawAttackRange(), sk_zombie_dmg_one_slash.GetFloat(), QAngle( -15, 20, -10 ), right + forward, ZOMBIE_BLOOD_LEFT_HAND);
 		return;
 	}
 
+	// Rasguño con las dos manos.
 	if ( pEvent->event == AE_ZOMBIE_ATTACK_BOTH )
 	{
 		Vector forward;
-		QAngle qaPunch( 45, random->RandomInt(-5,5), random->RandomInt(-5,5) );
-		AngleVectors( GetLocalAngles(), &forward );
+		QAngle qaPunch(45, random->RandomInt(-5,5), random->RandomInt(-5,5));
+		AngleVectors(GetLocalAngles(), &forward);
+
 		forward = forward * 200;
-		ClawAttack( GetClawAttackRange(), sk_zombie_dmg_one_slash.GetFloat(), qaPunch, forward, ZOMBIE_BLOOD_BOTH_HANDS );
+		ClawAttack(GetClawAttackRange(), sk_zombie_dmg_one_slash.GetFloat(), qaPunch, forward, ZOMBIE_BLOOD_BOTH_HANDS);
 		return;
 	}
 
+	// ???
 	if ( pEvent->event == AE_ZOMBIE_POPHEADCRAB )
 	{
 		if ( GetInteractionPartner() == NULL )
@@ -1594,7 +1529,7 @@ void CNPC_BaseZombie::HandleAnimEvent( animevent_t *pEvent )
 
 		const char	*pString = pEvent->options;
 		char		token[128];
-		pString = nexttoken( token, pString, ' ' );
+		pString = nexttoken(token, pString, ' ');
 
 		int boneIndex = GetInteractionPartner()->LookupBone( token );
 
@@ -1604,7 +1539,7 @@ void CNPC_BaseZombie::HandleAnimEvent( animevent_t *pEvent )
 			return;
 		}
 
-		pString = nexttoken( token, pString, ' ' );
+		pString = nexttoken(token, pString, ' ');
 
 		if ( !token )
 		{
@@ -1616,364 +1551,322 @@ void CNPC_BaseZombie::HandleAnimEvent( animevent_t *pEvent )
 		QAngle angles;
 		Vector vecHeadCrabPosition;
 
-		int iCrabAttachment = LookupAttachment( "headcrab" );
-		int iSpeed = atoi( token );
+		int iCrabAttachment = LookupAttachment("headcrab");
+		int iSpeed			= atoi(token);
 
-		GetInteractionPartner()->GetBonePosition( boneIndex, vecBonePosition, angles );
-		GetAttachment( iCrabAttachment, vecHeadCrabPosition );
+		if ( iCrabAttachment <= 0 )
+			iCrabAttachment = LookupAttachment("eyes");
+
+		GetInteractionPartner()->GetBonePosition(boneIndex, vecBonePosition, angles);
+		GetAttachment(iCrabAttachment, vecHeadCrabPosition);
 
 		Vector vVelocity = vecHeadCrabPosition - vecBonePosition;
-		VectorNormalize( vVelocity );
+		VectorNormalize(vVelocity);
 
-		CTakeDamageInfo	dmgInfo( this, GetInteractionPartner(), m_iHealth, DMG_DIRECT );
+		CTakeDamageInfo	dmgInfo(this, GetInteractionPartner(), m_iHealth, DMG_DIRECT);
 
-		dmgInfo.SetDamagePosition( vecHeadCrabPosition );
+		dmgInfo.SetDamagePosition(vecHeadCrabPosition);
 
-		ReleaseHeadcrab( EyePosition(), vVelocity * iSpeed, true, false, true );
+		ReleaseHeadcrab(EyePosition(), vVelocity * iSpeed, true, false, true);
 
-		GuessDamageForce( &dmgInfo, vVelocity, vecHeadCrabPosition, 0.5f );
-		TakeDamage( dmgInfo );
+		GuessDamageForce(&dmgInfo, vVelocity, vecHeadCrabPosition, 0.5f);
+		TakeDamage(dmgInfo);
 		return;
 	}
 
-	BaseClass::HandleAnimEvent( pEvent );
+	BaseClass::HandleAnimEvent(pEvent);
 }
 
-//-----------------------------------------------------------------------------
+//=========================================================
 // Purpose: Spawn function for the base zombie.
 //
 // !!!IMPORTANT!!! YOUR DERIVED CLASS'S SPAWN() RESPONSIBILITIES:
 //
 //		Call Precache();
-//		Set status for m_fIsTorso & m_fIsHeadless
+//		Set status for IsTorso & m_fIsHeadless
 //		Set blood color
 //		Set health
 //		Set field of view
 //		Call CapabilitiesClear() & then set relevant capabilities
 //		THEN Call BaseClass::Spawn()
-//-----------------------------------------------------------------------------
-void CNPC_BaseZombie::Spawn( void )
+//=========================================================
+void CNPC_BaseZombie::Spawn()
 {
-	SetSolid( SOLID_BBOX );
-	SetMoveType( MOVETYPE_STEP );
+	SetSolid(SOLID_BBOX);
+	SetMoveType(MOVETYPE_STEP);
 
-#ifdef _XBOX
-	// Always fade the corpse
-	AddSpawnFlags( SF_NPC_FADE_CORPSE );
-#endif // _XBOX
+	#ifdef _XBOX
+		// Always fade the corpse
+		AddSpawnFlags( SF_NPC_FADE_CORPSE );
+	#endif // _XBOX
 
 	m_NPCState			= NPC_STATE_NONE;
 
-	CapabilitiesAdd( bits_CAP_MOVE_GROUND | bits_CAP_INNATE_MELEE_ATTACK1 );
-	CapabilitiesAdd( bits_CAP_SQUAD );
+	CapabilitiesAdd(ZOMBIE_CAPABILITIES);
 
-	m_flNextSwat = gpGlobals->curtime;
-	m_flNextSwatScan = gpGlobals->curtime;
-	m_pMoanSound = NULL;
-
-	m_flNextMoanSound = gpGlobals->curtime + 9999;
+	NextSwat		= gpGlobals->curtime;
+	NextSwatScan	= gpGlobals->curtime;
+	sMoanSound		= NULL;
+	NextMoanSound	= gpGlobals->curtime + 9999;
 
 	SetZombieModel();
-
 	NPCInit();
 
-	m_bIsSlumped = false;
+	bIsSlumped = false;
 
 	// Zombies get to cheat for 6 seconds (sjb)
-	GetEnemies()->SetFreeKnowledgeDuration( 6.0 );
-
+	GetEnemies()->SetFreeKnowledgeDuration(6.0);
 	m_ActBusyBehavior.SetUseRenderBounds(true);
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: Pecaches all resources this NPC needs.
-//-----------------------------------------------------------------------------
-void CNPC_BaseZombie::Precache( void )
+//=========================================================
+// Guardar los objetos necesarios en caché.
+//=========================================================
+void CNPC_BaseZombie::Precache()
 {
-	UTIL_PrecacheOther( GetHeadcrabClassname() );
+	UTIL_PrecacheOther(GetHeadcrabClassname());
 
-	PrecacheScriptSound( "E3_Phystown.Slicer" );
-	PrecacheScriptSound( "NPC_BaseZombie.PoundDoor" );
-	PrecacheScriptSound( "NPC_BaseZombie.Swat" );
+	PrecacheScriptSound("E3_Phystown.Slicer");
+	PrecacheScriptSound("NPC_BaseZombie.PoundDoor" );
+	PrecacheScriptSound("NPC_BaseZombie.Swat" );
 
-	PrecacheModel( GetLegsModel() );
-	PrecacheModel( GetTorsoModel() );
+	PrecacheModel(GetLegsModel());
+	PrecacheModel(GetTorsoModel());
 
-	PrecacheParticleSystem( "blood_impact_zombie_01" );
+	PrecacheParticleSystem("blood_impact_zombie_01");
 
 	BaseClass::Precache();
 }
 
-//---------------------------------------------------------
-//---------------------------------------------------------
-void CNPC_BaseZombie::StartTouch( CBaseEntity *pOther )
+//=========================================================
+// Estamos tocando un objeto.
+//=========================================================
+void CNPC_BaseZombie::StartTouch(CBaseEntity *pOther)
 {
-	BaseClass::StartTouch( pOther );
+	BaseClass::StartTouch(pOther);
 
-	if( IsSlumped() && hl2_episodic.GetBool() )
+	// Si estamos dormidos.
+	if( IsSlumped() )
 	{
+		// Un objeto con físicas no esta tocando. ¡Hora de levantarse!
 		if( FClassnameIs( pOther, "prop_physics" ) )
-		{
-			// Get up!
 			m_ActBusyBehavior.StopBusying();
-		}
 	}
 }
 
-//---------------------------------------------------------
-//---------------------------------------------------------
+//=========================================================
+//=========================================================
 bool CNPC_BaseZombie::CreateBehaviors()
 {
-	AddBehavior( &m_ActBusyBehavior );
-
+	AddBehavior(&m_ActBusyBehavior);
 	return BaseClass::CreateBehaviors();
 }
 
-//---------------------------------------------------------
-//---------------------------------------------------------
-int CNPC_BaseZombie::TranslateSchedule( int scheduleType )
+//=========================================================
+//=========================================================
+int CNPC_BaseZombie::TranslateSchedule(int scheduleType)
 {
 	switch( scheduleType )
 	{
-	case SCHED_CHASE_ENEMY:
-		if ( HasCondition( COND_ZOMBIE_LOCAL_MELEE_OBSTRUCTION ) && !HasCondition(COND_TASK_FAILED) && IsCurSchedule( SCHED_ZOMBIE_CHASE_ENEMY, false ) )
-		{
-			return SCHED_COMBAT_PATROL;
-		}
-		return SCHED_ZOMBIE_CHASE_ENEMY;
+		case SCHED_CHASE_ENEMY:
+			if ( HasCondition( COND_ZOMBIE_LOCAL_MELEE_OBSTRUCTION ) && !HasCondition(COND_TASK_FAILED) && IsCurSchedule(SCHED_ZOMBIE_CHASE_ENEMY, false) )
+				return SCHED_COMBAT_PATROL;
+
+			return SCHED_ZOMBIE_CHASE_ENEMY;
 		break;
 
-	case SCHED_ZOMBIE_SWATITEM:
-		// If the object is far away, move and swat it. If it's close, just swat it.
-		if( DistToPhysicsEnt() > ZOMBIE_PHYSOBJ_SWATDIST )
-		{
-			return SCHED_ZOMBIE_MOVE_SWATITEM;
-		}
-		else
-		{
-			return SCHED_ZOMBIE_SWATITEM;
-		}
+		case SCHED_ZOMBIE_SWATITEM:
+			// If the object is far away, move and swat it. If it's close, just swat it.
+			if( DistToPhysicsEnt() > ZOMBIE_PHYSOBJ_SWATDIST )
+				return SCHED_ZOMBIE_MOVE_SWATITEM;
+			else
+				return SCHED_ZOMBIE_SWATITEM;
 		break;
 
-	case SCHED_STANDOFF:
-		return SCHED_ZOMBIE_WANDER_STANDOFF;
+		case SCHED_STANDOFF:
+			return SCHED_ZOMBIE_WANDER_STANDOFF;
 
-	case SCHED_MELEE_ATTACK1:
-		return SCHED_ZOMBIE_MELEE_ATTACK1;
+		case SCHED_MELEE_ATTACK1:
+			return SCHED_ZOMBIE_MELEE_ATTACK1;
 	}
 
-	return BaseClass::TranslateSchedule( scheduleType );
+	return BaseClass::TranslateSchedule(scheduleType );
 }
 
 
-//-----------------------------------------------------------------------------
-// Purpose: Allows for modification of the interrupt mask for the current schedule.
-//			In the most cases the base implementation should be called first.
-//-----------------------------------------------------------------------------
-void CNPC_BaseZombie::BuildScheduleTestBits( void )
+//=========================================================
+// Allows for modification of the interrupt mask for the current schedule.
+//	In the most cases the base implementation should be called first.
+//=========================================================
+void CNPC_BaseZombie::BuildScheduleTestBits()
 {
 	// Ignore damage if we were recently damaged or we're attacking.
 	if ( GetActivity() == ACT_MELEE_ATTACK1 )
 	{
-		ClearCustomInterruptCondition( COND_LIGHT_DAMAGE );
-		ClearCustomInterruptCondition( COND_HEAVY_DAMAGE );
+		ClearCustomInterruptCondition(COND_LIGHT_DAMAGE);
+		ClearCustomInterruptCondition(COND_HEAVY_DAMAGE);
 	}
-#ifndef HL2_EPISODIC
-	else if ( m_flNextFlinch >= gpGlobals->curtime )
+	else if ( NextFlinch >= gpGlobals->curtime )
 	{
-		ClearCustomInterruptCondition( COND_LIGHT_DAMAGE );
-		ClearCustomInterruptCondition( COND_HEAVY_DAMAGE );
+		ClearCustomInterruptCondition(COND_LIGHT_DAMAGE);
+		ClearCustomInterruptCondition(COND_HEAVY_DAMAGE);
 	}
-#endif // !HL2_EPISODIC
 
 	// Everything should be interrupted if we get killed.
-	SetCustomInterruptCondition( COND_ZOMBIE_RELEASECRAB );
+	SetCustomInterruptCondition(COND_ZOMBIE_RELEASECRAB);
 
 	BaseClass::BuildScheduleTestBits();
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: Called when we change schedules.
-//-----------------------------------------------------------------------------
-void CNPC_BaseZombie::OnScheduleChange( void )
+//=========================================================
+// Called when we change schedules.
+//=========================================================
+void CNPC_BaseZombie::OnScheduleChange()
 {
-	//
 	// If we took damage and changed schedules, ignore further damage for a few seconds.
-	//
+
 	if ( HasCondition( COND_LIGHT_DAMAGE ) || HasCondition( COND_HEAVY_DAMAGE ))
-	{
-		m_flNextFlinch = gpGlobals->curtime + ZOMBIE_FLINCH_DELAY;
-	} 
+		NextFlinch = gpGlobals->curtime + ZOMBIE_FLINCH_DELAY;
 
 	BaseClass::OnScheduleChange();
 }
 
-
-//---------------------------------------------------------
-//---------------------------------------------------------
-int	CNPC_BaseZombie::SelectFailSchedule( int failedSchedule, int failedTask, AI_TaskFailureCode_t taskFailCode )
+//=========================================================
+//=========================================================
+int	CNPC_BaseZombie::SelectFailSchedule(int failedSchedule, int failedTask, AI_TaskFailureCode_t taskFailCode)
 {
-	if( failedSchedule == SCHED_ZOMBIE_WANDER_MEDIUM )
-	{
+	if ( failedSchedule == SCHED_ZOMBIE_WANDER_MEDIUM )
 		return SCHED_ZOMBIE_WANDER_FAIL;
-	}
 
 	// If we can swat physics objects, see if we can swat our obstructor
 	if ( CanSwatPhysicsObjects() )
 	{
-		if ( !m_fIsTorso && IsPathTaskFailure( taskFailCode ) && 
-			 m_hObstructor != NULL && m_hObstructor->VPhysicsGetObject() && 
-			 m_hObstructor->VPhysicsGetObject()->GetMass() < 100 )
+		if ( !IsTorso && IsPathTaskFailure( taskFailCode ) &&
+			 Obstructor != NULL && Obstructor->VPhysicsGetObject() &&
+			  Obstructor->VPhysicsGetObject()->GetMass() < 100 )
 		{
-			m_hPhysicsEnt = m_hObstructor;
-			m_hObstructor = NULL;
+			PhysicsEnt = Obstructor;
+			Obstructor = NULL;
+
 			return SCHED_ZOMBIE_ATTACKITEM;
 		}
 	}
 
-	m_hObstructor = NULL;
+	Obstructor = NULL;
 
-	return BaseClass::SelectFailSchedule( failedSchedule, failedTask, taskFailCode );
+	return BaseClass::SelectFailSchedule(failedSchedule, failedTask, taskFailCode);
 }
 
-
-//---------------------------------------------------------
-//---------------------------------------------------------
-int CNPC_BaseZombie::SelectSchedule ( void )
+//=========================================================
+//=========================================================
+int CNPC_BaseZombie::SelectSchedule()
 {
-	if ( HasCondition( COND_ZOMBIE_RELEASECRAB ) )
-	{
-		// Death waits for no man. Or zombie. Or something.
+	// Death waits for no man. Or zombie. Or something.
+	if ( HasCondition(COND_ZOMBIE_RELEASECRAB) )
 		return SCHED_ZOMBIE_RELEASECRAB;
-	}
 
 	if ( BehaviorSelectSchedule() )
-	{
 		return BaseClass::SelectSchedule();
-	}
 
 	switch ( m_NPCState )
 	{
-	case NPC_STATE_COMBAT:
-		if ( HasCondition( COND_NEW_ENEMY ) && GetEnemy() )
-		{
-			float flDist;
-
-			flDist = ( GetLocalOrigin() - GetEnemy()->GetLocalOrigin() ).Length();
-
-			// If this is a new enemy that's far away, ambush!!
-			if (flDist >= zombie_ambushdist.GetFloat() && MustCloseToAttack() )
+		case NPC_STATE_COMBAT:
+			if ( HasCondition(COND_NEW_ENEMY) && GetEnemy() )
 			{
-				return SCHED_ZOMBIE_MOVE_TO_AMBUSH;
+				float flDist;
+				flDist = (GetLocalOrigin() - GetEnemy()->GetLocalOrigin()).Length();
+
+				// If this is a new enemy that's far away, ambush!!
+				if ( flDist >= zombie_ambushdist.GetFloat() && MustCloseToAttack() )
+					return SCHED_ZOMBIE_MOVE_TO_AMBUSH;
 			}
-		}
 
-		if ( HasCondition( COND_LOST_ENEMY ) || ( HasCondition( COND_ENEMY_UNREACHABLE ) && MustCloseToAttack() ) )
-		{
-			return SCHED_ZOMBIE_WANDER_MEDIUM;
-		}
+			if ( HasCondition(COND_LOST_ENEMY) || (HasCondition(COND_ENEMY_UNREACHABLE) && MustCloseToAttack()) )
+				return SCHED_ZOMBIE_WANDER_MEDIUM;
 
-		if( HasCondition( COND_ZOMBIE_CAN_SWAT_ATTACK ) )
-		{
-			return SCHED_ZOMBIE_SWATITEM;
-		}
+			if( HasCondition(COND_ZOMBIE_CAN_SWAT_ATTACK) )
+				return SCHED_ZOMBIE_SWATITEM;
 		break;
 
-	case NPC_STATE_ALERT:
-		if ( HasCondition( COND_LOST_ENEMY ) || HasCondition( COND_ENEMY_DEAD ) || ( HasCondition( COND_ENEMY_UNREACHABLE ) && MustCloseToAttack() ) )
-		{
-			ClearCondition( COND_LOST_ENEMY );
-			ClearCondition( COND_ENEMY_UNREACHABLE );
+		case NPC_STATE_ALERT:
+			if ( HasCondition(COND_LOST_ENEMY) || HasCondition(COND_ENEMY_DEAD) || (HasCondition(COND_ENEMY_UNREACHABLE) && MustCloseToAttack() ) )
+			{
+				ClearCondition(COND_LOST_ENEMY);
+				ClearCondition(COND_ENEMY_UNREACHABLE);
 
-#ifdef DEBUG_ZOMBIES
-			DevMsg("Wandering\n");
-#endif+
-
-			// Just lost track of our enemy. 
-			// Wander around a bit so we don't look like a dingus.
-			return SCHED_ZOMBIE_WANDER_MEDIUM;
-		}
+				// Just lost track of our enemy.
+				// Wander around a bit so we don't look like a dingus.
+				return SCHED_ZOMBIE_WANDER_MEDIUM;
+			}
 		break;
 	}
 
 	return BaseClass::SelectSchedule();
 }
 
-
-//---------------------------------------------------------
-//---------------------------------------------------------
-bool CNPC_BaseZombie::IsSlumped( void )
+//=========================================================
+//=========================================================
+bool CNPC_BaseZombie::IsSlumped()
 {
-	if( hl2_episodic.GetBool() )
+	if ( hl2_episodic.GetBool() )
 	{
-		if( m_ActBusyBehavior.IsInsideActBusy() && !m_ActBusyBehavior.IsStopBusying() )
-		{
+		if ( m_ActBusyBehavior.IsInsideActBusy() && !m_ActBusyBehavior.IsStopBusying() )
 			return true;
-		}
 	}
 	else
 	{
 		int sequence = GetSequence();
+
 		if ( sequence != -1 )
-		{
 			return ( strncmp( GetSequenceName( sequence ), "slump", 5 ) == 0 );
-		}
 	}
 
 	return false;
 }
 
-
-//---------------------------------------------------------
-//---------------------------------------------------------
-bool CNPC_BaseZombie::IsGettingUp( void )
+//=========================================================
+//=========================================================
+bool CNPC_BaseZombie::IsGettingUp()
 {
-	if( m_ActBusyBehavior.IsActive() && m_ActBusyBehavior.IsStopBusying() )
-	{
+	if ( m_ActBusyBehavior.IsActive() && m_ActBusyBehavior.IsStopBusying() )
 		return true;
-	}
+
 	return false;
 }
 
-
-//---------------------------------------------------------
-//---------------------------------------------------------
-int CNPC_BaseZombie::GetSwatActivity( void )
+//=========================================================
+//=========================================================
+int CNPC_BaseZombie::GetSwatActivity()
 {
 	// Hafta figure out whether to swat with left or right arm.
 	// Also hafta figure out whether to swat high or low. (later)
+
 	float		flDot;
 	Vector		vecRight, vecDirToObj;
 
-	AngleVectors( GetLocalAngles(), NULL, &vecRight, NULL );
-	
-	vecDirToObj = m_hPhysicsEnt->GetLocalOrigin() - GetLocalOrigin();
+	AngleVectors(GetLocalAngles(), NULL, &vecRight, NULL);
+
+	vecDirToObj = PhysicsEnt->GetLocalOrigin() - GetLocalOrigin();
 	VectorNormalize(vecDirToObj);
 
 	// compare in 2D.
-	vecRight.z = 0.0;
-	vecDirToObj.z = 0.0;
+	vecRight.z		= 0.0;
+	vecDirToObj.z	= 0.0;
 
-	flDot = DotProduct( vecRight, vecDirToObj );
+	flDot = DotProduct(vecRight, vecDirToObj);
 
 	Vector vecMyCenter;
 	Vector vecObjCenter;
 
-	vecMyCenter = WorldSpaceCenter();
-	vecObjCenter = m_hPhysicsEnt->WorldSpaceCenter();
-	float flZDiff;
+	vecMyCenter		= WorldSpaceCenter();
+	vecObjCenter	= PhysicsEnt->WorldSpaceCenter();
+	float flZDiff	= vecMyCenter.z - vecObjCenter.z;
 
-	flZDiff = vecMyCenter.z - vecObjCenter.z;
-
-	if( flDot >= 0 )
+	if ( flDot >= 0 )
 	{
 		// Right
 		if( flZDiff < 0 )
-		{
 			return ACT_ZOM_SWATRIGHTMID;
-		}
 
 		return ACT_ZOM_SWATRIGHTLOW;
 	}
@@ -1981,154 +1874,119 @@ int CNPC_BaseZombie::GetSwatActivity( void )
 	{
 		// Left
 		if( flZDiff < 0 )
-		{
 			return ACT_ZOM_SWATLEFTMID;
-		}
 
 		return ACT_ZOM_SWATLEFTLOW;
 	}
 }
 
-
-//---------------------------------------------------------
-//---------------------------------------------------------
-void CNPC_BaseZombie::GatherConditions( void )
+//=========================================================
+//=========================================================
+void CNPC_BaseZombie::GatherConditions()
 {
-	ClearCondition( COND_ZOMBIE_LOCAL_MELEE_OBSTRUCTION );
+	ClearCondition(COND_ZOMBIE_LOCAL_MELEE_OBSTRUCTION);
 
 	BaseClass::GatherConditions();
 
-	if( m_NPCState == NPC_STATE_COMBAT && !m_fIsTorso )
+	if ( m_NPCState == NPC_STATE_COMBAT && !IsTorso )
 	{
 		// This check for !m_pPhysicsEnt prevents a crashing bug, but also
 		// eliminates the zombie picking a better physics object if one happens to fall
-		// between him and the object he's heading for already. 
-		if( gpGlobals->curtime >= m_flNextSwatScan && (m_hPhysicsEnt == NULL) )
+		// between him and the object he's heading for already.
+		if ( gpGlobals->curtime >= NextSwatScan && (PhysicsEnt == NULL) )
 		{
-			FindNearestPhysicsObject( ZOMBIE_MAX_PHYSOBJ_MASS );
-			m_flNextSwatScan = gpGlobals->curtime + 2.0;
+			FindNearestPhysicsObject(ZOMBIE_MAX_PHYSOBJ_MASS);
+			NextSwatScan = gpGlobals->curtime + 2.0;
 		}
 	}
 
-	if( (m_hPhysicsEnt != NULL) && gpGlobals->curtime >= m_flNextSwat && HasCondition( COND_SEE_ENEMY ) && !HasCondition( COND_ZOMBIE_RELEASECRAB ) )
-	{
-		SetCondition( COND_ZOMBIE_CAN_SWAT_ATTACK );
-	}
+	if ( (PhysicsEnt != NULL) && gpGlobals->curtime >= NextSwat && HasCondition(COND_SEE_ENEMY) && !HasCondition(COND_ZOMBIE_RELEASECRAB) )
+		SetCondition(COND_ZOMBIE_CAN_SWAT_ATTACK);
 	else
-	{
-		ClearCondition( COND_ZOMBIE_CAN_SWAT_ATTACK );
-	}
+		ClearCondition(COND_ZOMBIE_CAN_SWAT_ATTACK);
 }
 
-//---------------------------------------------------------
-//---------------------------------------------------------
-void CNPC_BaseZombie::PrescheduleThink( void )
+//=========================================================
+//=========================================================
+void CNPC_BaseZombie::PrescheduleThink()
 {
 	BaseClass::PrescheduleThink();
-	
-#if 0
-	DevMsg(" ** %d Angry Zombies **\n", s_iAngryZombies );
-#endif
 
-#if 0
-	if( m_NPCState == NPC_STATE_COMBAT )
-	{
-		// Zombies should make idle sounds in combat
-		if( random->RandomInt( 0, 30 ) == 0 )
-		{
-			IdleSound();
-		}
-	}	
-#endif 
-
-	//
-	// Cool off if we aren't burned for five seconds or so. 
-	//
-	if ( ( m_flBurnDamageResetTime ) && ( gpGlobals->curtime >= m_flBurnDamageResetTime ) )
-	{
-		m_flBurnDamage = 0;
-	}
+	// Cool off if we aren't burned for five seconds or so.
+	if ( (BurnDamageResetTime) && (gpGlobals->curtime >= BurnDamageResetTime) )
+		BurnDamage = 0;
 }
 
-
-//---------------------------------------------------------
-//---------------------------------------------------------
-void CNPC_BaseZombie::StartTask( const Task_t *pTask )
+//=========================================================
+//=========================================================
+void CNPC_BaseZombie::StartTask(const Task_t *pTask)
 {
 	switch( pTask->iTask )
 	{
-	case TASK_ZOMBIE_DIE:
-		// Go to ragdoll
-		KillMe();
-		TaskComplete();
+		case TASK_ZOMBIE_DIE:
+			// Go to ragdoll
+			KillMe();
+			TaskComplete();
 		break;
 
-	case TASK_ZOMBIE_GET_PATH_TO_PHYSOBJ:
+		case TASK_ZOMBIE_GET_PATH_TO_PHYSOBJ:
 		{
 			Vector vecGoalPos;
 			Vector vecDir;
 
-			vecDir = GetLocalOrigin() - m_hPhysicsEnt->GetLocalOrigin();
+			vecDir		= GetLocalOrigin() - PhysicsEnt->GetLocalOrigin();
 			VectorNormalize(vecDir);
-			vecDir.z = 0;
+			vecDir.z	= 0;
 
-			AI_NavGoal_t goal( m_hPhysicsEnt->WorldSpaceCenter() );
-			goal.pTarget = m_hPhysicsEnt;
-			GetNavigator()->SetGoal( goal );
+			AI_NavGoal_t goal(PhysicsEnt->WorldSpaceCenter());
+			goal.pTarget = PhysicsEnt;
+			GetNavigator()->SetGoal(goal);
 
 			TaskComplete();
 		}
 		break;
 
-	case TASK_ZOMBIE_SWAT_ITEM:
-		{
-			if( m_hPhysicsEnt == NULL )
-			{
-				// Physics Object is gone! Probably was an explosive 
-				// or something else broke it.
+		case TASK_ZOMBIE_SWAT_ITEM:
+			// Physics Object is gone! Probably was an explosive
+			// or something else broke it.
+			if ( PhysicsEnt == NULL )
 				TaskFail("Physics ent NULL");
-			}
+
+			// Physics ent is no longer in range! Probably another zombie swatted it or it moved
+			// for some other reason.
 			else if ( DistToPhysicsEnt() > ZOMBIE_PHYSOBJ_SWATDIST )
-			{
-				// Physics ent is no longer in range! Probably another zombie swatted it or it moved
-				// for some other reason.
-				TaskFail( "Physics swat item has moved" );
-			}
+				TaskFail("Physics swat item has moved");
+
 			else
-			{
-				SetIdealActivity( (Activity)GetSwatActivity() );
-			}
-			break;
-		}
+				SetIdealActivity((Activity)GetSwatActivity());
 		break;
 
-	case TASK_ZOMBIE_DELAY_SWAT:
-		m_flNextSwat = gpGlobals->curtime + pTask->flTaskData;
-		TaskComplete();
+		case TASK_ZOMBIE_DELAY_SWAT:
+			NextSwat = gpGlobals->curtime + pTask->flTaskData;
+			TaskComplete();
 		break;
 
-	case TASK_ZOMBIE_RELEASE_HEADCRAB:
+		case TASK_ZOMBIE_RELEASE_HEADCRAB:
 		{
 			// make the crab look like it's pushing off the body
 			Vector vecForward;
 			Vector vecVelocity;
 
-			AngleVectors( GetAbsAngles(), &vecForward );
-			
-			vecVelocity = vecForward * 30;
-			vecVelocity.z += 100;
+			AngleVectors(GetAbsAngles(), &vecForward);
 
-			ReleaseHeadcrab( EyePosition(), vecVelocity, true, true );
+			vecVelocity		= vecForward * 30;
+			vecVelocity.z	+= 100;
+
+			ReleaseHeadcrab(EyePosition(), vecVelocity, true, true);
 			TaskComplete();
 		}
 		break;
 
-	case TASK_ZOMBIE_WAIT_POST_MELEE:
-		{
-#ifndef HL2_EPISODIC
-			TaskComplete();
-			return;
-#endif
+		case TASK_ZOMBIE_WAIT_POST_MELEE:
+			#ifndef HL2_EPISODIC
+				TaskComplete();
+				return;
+			#endif
 
 			// Don't wait when attacking the player
 			if ( GetEnemy() && GetEnemy()->IsPlayer() )
@@ -2139,116 +1997,102 @@ void CNPC_BaseZombie::StartTask( const Task_t *pTask )
 
 			// Wait a single think
 			SetWait( 0.1 );
-		}
 		break;
 
-	default:
-		BaseClass::StartTask( pTask );
+		default:
+			BaseClass::StartTask(pTask);
+		break;
 	}
 }
 
-
-//---------------------------------------------------------
-//---------------------------------------------------------
-void CNPC_BaseZombie::RunTask( const Task_t *pTask )
+//=========================================================
+//=========================================================
+void CNPC_BaseZombie::RunTask(const Task_t *pTask)
 {
 	switch( pTask->iTask )
 	{
-	case TASK_ZOMBIE_SWAT_ITEM:
-		if( IsActivityFinished() )
-		{
-			TaskComplete();
-		}
+		case TASK_ZOMBIE_SWAT_ITEM:
+			if ( IsActivityFinished() )
+				TaskComplete();
 		break;
 
-	case TASK_ZOMBIE_WAIT_POST_MELEE:
-		{
+		case TASK_ZOMBIE_WAIT_POST_MELEE:
 			if ( IsWaitFinished() )
-			{
 				TaskComplete();
-			}
-		}
 		break;
-	default:
-		BaseClass::RunTask( pTask );
+
+		default:
+			BaseClass::RunTask( pTask );
 		break;
 	}
 }
 
 
-//---------------------------------------------------------
-// Make the necessary changes to a zombie to make him a 
-// torso!
-//---------------------------------------------------------
-void CNPC_BaseZombie::BecomeTorso( const Vector &vecTorsoForce, const Vector &vecLegsForce )
+//=========================================================
+// ¡Convertirnos en un Torso!
+//=========================================================
+void CNPC_BaseZombie::BecomeTorso(const Vector &vecTorsoForce, const Vector &vecLegsForce)
 {
-	if( m_fIsTorso )
-	{
-		DevMsg( "*** Zombie is already a torso!\n" );
+	if ( IsTorso )
 		return;
-	}
 
-	if( IsOnFire() )
+	if ( IsOnFire() )
 	{
 		Extinguish();
-		Ignite( 30 );
+		Ignite(30);
 	}
 
-	if ( !m_fIsHeadless )
+	if ( !IsHeadless )
 	{
-		m_iMaxHealth = ZOMBIE_TORSO_HEALTH_FACTOR * m_iMaxHealth;
-		m_iHealth = m_iMaxHealth;
+		m_iMaxHealth	= ZOMBIE_TORSO_HEALTH_FACTOR * m_iMaxHealth;
+		m_iHealth		= m_iMaxHealth;
 
 		// No more opening doors!
-		CapabilitiesRemove( bits_CAP_DOORS_GROUP );
-		
-		ClearSchedule( "Becoming torso" );
+		CapabilitiesRemove(bits_CAP_DOORS_GROUP);
+
+		ClearSchedule("Becoming torso");
 		GetNavigator()->ClearGoal();
-		m_hPhysicsEnt = NULL;
+		PhysicsEnt = NULL;
 
 		// Put the zombie in a TOSS / fall schedule
 		// Otherwise he fails and sits on the ground for a sec.
-		SetSchedule( SCHED_FALL_TO_GROUND );
+		SetSchedule(SCHED_FALL_TO_GROUND);
 
-		m_fIsTorso = true;
+		IsTorso = true;
 
 		// Put the torso up where the torso was when the zombie
 		// was whole.
-		Vector origin = GetAbsOrigin();
-		origin.z += 40;
-		SetAbsOrigin( origin );
+		Vector origin	= GetAbsOrigin();
+		origin.z		+= 40;
 
-		SetGroundEntity( NULL );
+		SetAbsOrigin(origin);
+		SetGroundEntity(NULL);
+
 		// assume zombie mass ~ 100 kg
-		ApplyAbsVelocityImpulse( vecTorsoForce * (1.0 / 100.0) );
+		ApplyAbsVelocityImpulse(vecTorsoForce * (1.0 / 100.0));
 	}
 
 	float flFadeTime = 0.0;
 
-	if( HasSpawnFlags( SF_NPC_FADE_CORPSE ) )
-	{
+	if( HasSpawnFlags(SF_NPC_FADE_CORPSE) )
 		flFadeTime = 5.0;
-	}
 
-	if ( m_fIsTorso == true )
+	if ( IsTorso )
 	{
 		// -40 on Z to make up for the +40 on Z that we did above. This stops legs spawning above the head.
 		CBaseEntity *pGib = CreateRagGib( GetLegsModel(), GetAbsOrigin() - Vector(0, 0, 40), GetAbsAngles(), vecLegsForce, flFadeTime );
 
 		// don't collide with this thing ever
 		if ( pGib )
-		{
-			pGib->SetOwnerEntity( this );
-		}
+			pGib->SetOwnerEntity(this);
 	}
-
 
 	SetZombieModel();
 }
 
-//---------------------------------------------------------
-//---------------------------------------------------------
-void CNPC_BaseZombie::Event_Killed( const CTakeDamageInfo &info )
+//=========================================================
+//=========================================================
+void CNPC_BaseZombie::Event_Killed(const CTakeDamageInfo &info)
 {
 	if ( info.GetDamageType() & DMG_VEHICLE )
 	{
@@ -2256,162 +2100,142 @@ void CNPC_BaseZombie::Event_Killed( const CTakeDamageInfo &info )
 		VectorNormalize( vecDamageDir );
 
 		// Big blood splat
-		UTIL_BloodSpray( WorldSpaceCenter(), vecDamageDir, BLOOD_COLOR_YELLOW, 8, FX_BLOODSPRAY_CLOUD );
+		UTIL_BloodSpray(WorldSpaceCenter(), vecDamageDir, ZOMBIE_BLOOD, 8, FX_BLOODSPRAY_CLOUD);
 	}
 
-   	BaseClass::Event_Killed( info );
+   	BaseClass::Event_Killed(info);
 }
 
-//---------------------------------------------------------
-//---------------------------------------------------------
+//=========================================================
+//=========================================================
 bool CNPC_BaseZombie::BecomeRagdoll( const CTakeDamageInfo &info, const Vector &forceVector )
 {
-	bool bKilledByVehicle = ( ( info.GetDamageType() & DMG_VEHICLE ) != 0 );
-	if( m_fIsTorso || (!IsChopped(info) && !IsSquashed(info)) || bKilledByVehicle )
-	{
-		return BaseClass::BecomeRagdoll( info, forceVector );
-	}
+	bool bKilledByVehicle = ( (info.GetDamageType() & DMG_VEHICLE) != 0 );
 
-	if( !(GetFlags()&FL_TRANSRAGDOLL) )
-	{
+	if ( IsTorso || (!IsChopped(info) && !IsSquashed(info)) || bKilledByVehicle )
+		return BaseClass::BecomeRagdoll(info, forceVector);
+
+	if( !(GetFlags() & FL_TRANSRAGDOLL) )
 		RemoveDeferred();
-	}
 
 	return true;
 }
 
-//---------------------------------------------------------
-//---------------------------------------------------------
+//=========================================================
+//=========================================================
 void CNPC_BaseZombie::StopLoopingSounds()
 {
-	ENVELOPE_CONTROLLER.SoundDestroy( m_pMoanSound );
-	m_pMoanSound = NULL;
+	ENVELOPE_CONTROLLER.SoundDestroy(sMoanSound);
+	sMoanSound = NULL;
 
 	BaseClass::StopLoopingSounds();
 }
 
-
-//---------------------------------------------------------
-//---------------------------------------------------------
-void CNPC_BaseZombie::RemoveHead( void )
+//=========================================================
+//=========================================================
+void CNPC_BaseZombie::RemoveHead()
 {
-	m_fIsHeadless = true;
+	IsHeadless = true;
 	SetZombieModel();
 }
 
-
-bool CNPC_BaseZombie::ShouldPlayFootstepMoan( void )
+//=========================================================
+//=========================================================
+bool CNPC_BaseZombie::ShouldPlayFootstepMoan()
 {
-	if( random->RandomInt( 1, zombie_stepfreq.GetInt() * s_iAngryZombies ) == 1 )
-	{
+	if ( random->RandomInt( 1, zombie_stepfreq.GetInt() * AngryZombies ) == 1 )
 		return true;
-	}
 
 	return false;
 }
 
-
-#define ZOMBIE_CRAB_INHERITED_SPAWNFLAGS	(SF_NPC_GAG|SF_NPC_LONG_RANGE|SF_NPC_FADE_CORPSE|SF_NPC_ALWAYSTHINK)
-#define CRAB_HULL_EXPAND	1.1f
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-bool CNPC_BaseZombie::HeadcrabFits( CBaseAnimating *pCrab )
+//=========================================================
+//=========================================================
+bool CNPC_BaseZombie::HeadcrabFits(CBaseAnimating *pCrab)
 {
 	Vector vecSpawnLoc = pCrab->GetAbsOrigin();
 
-	CTraceFilterSimpleList traceFilter( COLLISION_GROUP_NONE );
-	traceFilter.AddEntityToIgnore( pCrab );
-	traceFilter.AddEntityToIgnore( this );
+	CTraceFilterSimpleList traceFilter(COLLISION_GROUP_NONE);
+	traceFilter.AddEntityToIgnore(pCrab);
+	traceFilter.AddEntityToIgnore(this);
+
 	if ( GetInteractionPartner() )
-	{
-		traceFilter.AddEntityToIgnore( GetInteractionPartner() );
-	}
+		traceFilter.AddEntityToIgnore(GetInteractionPartner());
 
 	trace_t tr;
-	AI_TraceHull(	vecSpawnLoc,
-					vecSpawnLoc - Vector( 0, 0, 1 ), 
+	AI_TraceHull(vecSpawnLoc,
+					vecSpawnLoc - Vector( 0, 0, 1 ),
 					NAI_Hull::Mins(HULL_TINY) * CRAB_HULL_EXPAND,
 					NAI_Hull::Maxs(HULL_TINY) * CRAB_HULL_EXPAND,
 					MASK_NPCSOLID,
 					&traceFilter,
-					&tr );
+					&tr);
 
 	if( tr.fraction != 1.0 )
-	{
-		//NDebugOverlay::Box( vecSpawnLoc, NAI_Hull::Mins(HULL_TINY) * CRAB_HULL_EXPAND, NAI_Hull::Maxs(HULL_TINY) * CRAB_HULL_EXPAND, 255, 0, 0, 100, 10.0 );
 		return false;
-	}
 
-	//NDebugOverlay::Box( vecSpawnLoc, NAI_Hull::Mins(HULL_TINY) * CRAB_HULL_EXPAND, NAI_Hull::Maxs(HULL_TINY) * CRAB_HULL_EXPAND, 0, 255, 0, 100, 10.0 );
 	return true;
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : &vecOrigin - 
-//			&vecVelocity - 
-//			fRemoveHead - 
-//			fRagdollBody - 
-//-----------------------------------------------------------------------------
-void CNPC_BaseZombie::ReleaseHeadcrab( const Vector &vecOrigin, const Vector &vecVelocity, bool fRemoveHead, bool fRagdollBody, bool fRagdollCrab )
+//=========================================================
+// Liberar al Headcrab
+//=========================================================
+void CNPC_BaseZombie::ReleaseHeadcrab(const Vector &vecOrigin, const Vector &vecVelocity, bool fRemoveHead, bool fRagdollBody, bool fRagdollCrab)
 {
 	CAI_BaseNPC		*pCrab;
 	Vector vecSpot = vecOrigin;
 
 	// Until the headcrab is a bodygroup, we have to approximate the
 	// location of the head with magic numbers.
-	if( !m_fIsTorso )
-	{
+	if ( !IsTorso )
 		vecSpot.z -= 16;
-	}
 
-	if( fRagdollCrab )
+	if ( fRagdollCrab )
 	{
-		//Vector vecForce = Vector( 0, 0, random->RandomFloat( 700, 1100 ) );
-		CBaseEntity *pGib = CreateRagGib( GetHeadcrabModel(), vecOrigin, GetLocalAngles(), vecVelocity, 15, ShouldIgniteZombieGib() );
+		CBaseEntity *pGib = CreateRagGib(GetHeadcrabModel(), vecOrigin, GetLocalAngles(), vecVelocity, 15, ShouldIgniteZombieGib());
 
 		if ( pGib )
 		{
 			CBaseAnimating *pAnimatingGib = dynamic_cast<CBaseAnimating*>(pGib);
 
 			// don't collide with this thing ever
-			int iCrabAttachment = LookupAttachment( "headcrab" );
-			if (iCrabAttachment > 0 && pAnimatingGib )
-			{
-				SetHeadcrabSpawnLocation( iCrabAttachment, pAnimatingGib );
-			}
+			int iCrabAttachment = LookupAttachment("headcrab");
 
-			if( !HeadcrabFits(pAnimatingGib) )
+			if ( iCrabAttachment <= 0 )
+				iCrabAttachment = LookupAttachment("eyes");
+
+			if (iCrabAttachment > 0 && pAnimatingGib )
+				SetHeadcrabSpawnLocation(iCrabAttachment, pAnimatingGib);
+
+			if ( !HeadcrabFits(pAnimatingGib) )
 			{
 				UTIL_Remove(pGib);
 				return;
 			}
 
-			pGib->SetOwnerEntity( this );
-			CopyRenderColorTo( pGib );
+			pGib->SetOwnerEntity(this);
+			CopyRenderColorTo(pGib);
 
-			
-			if( UTIL_ShouldShowBlood(BLOOD_COLOR_YELLOW) )
+			if ( UTIL_ShouldShowBlood(ZOMBIE_BLOOD) )
 			{
-				UTIL_BloodImpact( pGib->WorldSpaceCenter(), Vector(0,0,1), BLOOD_COLOR_YELLOW, 1 );
+				UTIL_BloodImpact(pGib->WorldSpaceCenter(), Vector(0,0,1), ZOMBIE_BLOOD, 1);
 
 				for ( int i = 0 ; i < 3 ; i++ )
 				{
 					Vector vecSpot = pGib->WorldSpaceCenter();
-					
-					vecSpot.x += random->RandomFloat( -8, 8 ); 
-					vecSpot.y += random->RandomFloat( -8, 8 ); 
-					vecSpot.z += random->RandomFloat( -8, 8 ); 
 
-					UTIL_BloodDrips( vecSpot, vec3_origin, BLOOD_COLOR_YELLOW, 50 );
+					vecSpot.x += random->RandomFloat( -8, 8 );
+					vecSpot.y += random->RandomFloat( -8, 8 );
+					vecSpot.z += random->RandomFloat( -8, 8 );
+
+					UTIL_BloodDrips(vecSpot, vec3_origin, ZOMBIE_BLOOD, 50);
 				}
 			}
 		}
 	}
 	else
 	{
-		pCrab = (CAI_BaseNPC*)CreateEntityByName( GetHeadcrabClassname() );
+		pCrab = (CAI_BaseNPC*)CreateEntityByName(GetHeadcrabClassname());
 
 		if ( !pCrab )
 		{
@@ -2420,47 +2244,53 @@ void CNPC_BaseZombie::ReleaseHeadcrab( const Vector &vecOrigin, const Vector &ve
 		}
 
 		// Stick the crab in whatever squad the zombie was in.
-		pCrab->SetSquadName( m_SquadName );
+		pCrab->SetSquadName(m_SquadName);
 
 		// don't pop to floor, fall
-		pCrab->AddSpawnFlags( SF_NPC_FALL_TO_GROUND );
-		
+		pCrab->AddSpawnFlags(SF_NPC_FALL_TO_GROUND);
+
 		// add on the parent flags
-		pCrab->AddSpawnFlags( m_spawnflags & ZOMBIE_CRAB_INHERITED_SPAWNFLAGS );
-		
+		pCrab->AddSpawnFlags(m_spawnflags & ZOMBIE_CRAB_INHERITED_SPAWNFLAGS);
+
 		// make me the crab's owner to avoid collision issues
-		pCrab->SetOwnerEntity( this );
+		pCrab->SetOwnerEntity(this);
 
-		pCrab->SetAbsOrigin( vecSpot );
-		pCrab->SetAbsAngles( GetAbsAngles() );
-		DispatchSpawn( pCrab );
+		pCrab->SetAbsOrigin(vecSpot);
+		pCrab->SetAbsAngles(GetAbsAngles());
 
-		pCrab->GetMotor()->SetIdealYaw( GetAbsAngles().y );
+		DispatchSpawn(pCrab);
+
+		pCrab->GetMotor()->SetIdealYaw(GetAbsAngles().y);
 
 		// FIXME: npc's with multiple headcrabs will need some way to query different attachments.
 		// NOTE: this has till after spawn is called so that the model is set up
-		int iCrabAttachment = LookupAttachment( "headcrab" );
+		int iCrabAttachment = LookupAttachment("headcrab");
+
+		if ( iCrabAttachment <= 0 )
+			iCrabAttachment = LookupAttachment("eyes");
+
 		if (iCrabAttachment > 0)
 		{
-			SetHeadcrabSpawnLocation( iCrabAttachment, pCrab );
-			pCrab->GetMotor()->SetIdealYaw( pCrab->GetAbsAngles().y );
-			
+			SetHeadcrabSpawnLocation(iCrabAttachment, pCrab);
+			pCrab->GetMotor()->SetIdealYaw(pCrab->GetAbsAngles().y);
+
 			// Take out any pitch
-			QAngle angles = pCrab->GetAbsAngles();
-			angles.x = 0.0;
-			pCrab->SetAbsAngles( angles );
+			QAngle angles	= pCrab->GetAbsAngles();
+			angles.x		= 0.0;
+
+			pCrab->SetAbsAngles(angles);
 		}
 
-		if( !HeadcrabFits(pCrab) )
+		if ( !HeadcrabFits(pCrab) )
 		{
 			UTIL_Remove(pCrab);
 			return;
 		}
 
-		pCrab->SetActivity( ACT_IDLE );
-		pCrab->SetNextThink( gpGlobals->curtime );
+		pCrab->SetActivity(ACT_IDLE);
+		pCrab->SetNextThink(gpGlobals->curtime);
 		pCrab->PhysicsSimulate();
-		pCrab->SetAbsVelocity( vecVelocity );
+		pCrab->SetAbsVelocity(vecVelocity);
 
 		// if I have an enemy, stuff that to the headcrab.
 		CBaseEntity *pEnemy;
@@ -2469,112 +2299,96 @@ void CNPC_BaseZombie::ReleaseHeadcrab( const Vector &vecOrigin, const Vector &ve
 		pCrab->m_flNextAttack = gpGlobals->curtime + 1.0f;
 
 		if( pEnemy )
-		{
 			pCrab->SetEnemy( pEnemy );
-		}
+
 		if( ShouldIgniteZombieGib() )
-		{
-			pCrab->Ignite( 30 );
-		}
+			pCrab->Ignite(30);
 
-		CopyRenderColorTo( pCrab );
-
+		CopyRenderColorTo(pCrab);
 		pCrab->Activate();
 	}
 
-	if( fRemoveHead )
-	{
+	if ( fRemoveHead )
 		RemoveHead();
-	}
 
-	if( fRagdollBody )
-	{
+	if ( fRagdollBody )
 		BecomeRagdollOnClient( vec3_origin );
-	}
 }
 
-
-
+//=========================================================
+//=========================================================
 void CNPC_BaseZombie::SetHeadcrabSpawnLocation( int iCrabAttachment, CBaseAnimating *pCrab )
 {
-	Assert( iCrabAttachment > 0 );
+	Assert(iCrabAttachment > 0);
 
 	// get world location of intended headcrab root bone
 	matrix3x4_t attachmentToWorld;
-	GetAttachment( iCrabAttachment, attachmentToWorld );
+	GetAttachment(iCrabAttachment, attachmentToWorld);
 
-	// find offset of root bone from origin 
-	pCrab->SetAbsOrigin( Vector( 0, 0, 0 ) );
-	pCrab->SetAbsAngles( QAngle( 0, 0, 0 ) );
+	// find offset of root bone from origin
+	pCrab->SetAbsOrigin(Vector( 0, 0, 0 ));
+	pCrab->SetAbsAngles(QAngle( 0, 0, 0 ));
 	pCrab->InvalidateBoneCache();
 	matrix3x4_t rootLocal;
-	pCrab->GetBoneTransform( 0, rootLocal );
+	pCrab->GetBoneTransform(0, rootLocal);
 
 	// invert it
 	matrix3x4_t rootInvLocal;
-	MatrixInvert( rootLocal, rootInvLocal );
+	MatrixInvert(rootLocal, rootInvLocal);
 
 	// find spawn location needed for rootLocal transform to match attachmentToWorld
 	matrix3x4_t spawnOrigin;
-	ConcatTransforms( attachmentToWorld, rootInvLocal, spawnOrigin );
+	ConcatTransforms(attachmentToWorld, rootInvLocal, spawnOrigin);
 
 	// reset location of headcrab
 	Vector vecOrigin;
 	QAngle vecAngles;
-	MatrixAngles( spawnOrigin, vecAngles, vecOrigin );
-	pCrab->SetAbsOrigin( vecOrigin );
-	
+	MatrixAngles(spawnOrigin, vecAngles, vecOrigin);
+	pCrab->SetAbsOrigin(vecOrigin);
+
 	// FIXME: head crabs don't like pitch or roll!
 	vecAngles.z = 0;
 
-	pCrab->SetAbsAngles( vecAngles );
+	pCrab->SetAbsAngles(vecAngles);
 	pCrab->InvalidateBoneCache();
 }
 
-
-
-//---------------------------------------------------------
-// Provides a standard way for the zombie to get the 
-// distance to a physics ent. Since the code to find physics 
+//=========================================================
+// Provides a standard way for the zombie to get the
+// distance to a physics ent. Since the code to find physics
 // objects uses a fast dis approx, we have to use that here
 // as well.
-//---------------------------------------------------------
-float CNPC_BaseZombie::DistToPhysicsEnt( void )
+//=========================================================
+float CNPC_BaseZombie::DistToPhysicsEnt()
 {
-	//return ( GetLocalOrigin() - m_hPhysicsEnt->GetLocalOrigin() ).Length();
-	if ( m_hPhysicsEnt != NULL )
-		return UTIL_DistApprox2D( GetAbsOrigin(), m_hPhysicsEnt->WorldSpaceCenter() );
+	if ( PhysicsEnt != NULL )
+		return UTIL_DistApprox2D( GetAbsOrigin(), PhysicsEnt->WorldSpaceCenter() );
+
 	return ZOMBIE_PHYSOBJ_SWATDIST + 1;
 }
 
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-void CNPC_BaseZombie::OnStateChange( NPC_STATE OldState, NPC_STATE NewState )
+//=========================================================
+//=========================================================
+void CNPC_BaseZombie::OnStateChange(NPC_STATE OldState, NPC_STATE NewState)
 {
-	switch( NewState )
+	switch ( NewState )
 	{
-	case NPC_STATE_COMBAT:
-		{
-			RemoveSpawnFlags( SF_NPC_GAG );
-			s_iAngryZombies++;
-		}
+		case NPC_STATE_COMBAT:
+			RemoveSpawnFlags(SF_NPC_GAG);
+			AngryZombies++;
 		break;
 
-	default:
-		if( OldState == NPC_STATE_COMBAT )
-		{
+		default:
 			// Only decrement if coming OUT of combat state.
-			s_iAngryZombies--;
-		}
+			if( OldState == NPC_STATE_COMBAT )
+				AngryZombies--;
 		break;
 	}
 }
 
-
-//-----------------------------------------------------------------------------
+//=========================================================
 // Purpose: Refines a base activity into something more specific to our internal state.
-//-----------------------------------------------------------------------------
+//=========================================================
 Activity CNPC_BaseZombie::NPC_TranslateActivity( Activity baseAct )
 {
 	if ( baseAct == ACT_WALK && IsCurSchedule( SCHED_COMBAT_PATROL, false) )
@@ -2586,112 +2400,111 @@ Activity CNPC_BaseZombie::NPC_TranslateActivity( Activity baseAct )
 		{
 			case ACT_RUN_ON_FIRE:
 			{
-				return ( Activity )ACT_WALK_ON_FIRE;
+				return (Activity)ACT_WALK_ON_FIRE;
 			}
 
 			case ACT_WALK:
 			{
 				// I'm on fire. Put ME out.
-				return ( Activity )ACT_WALK_ON_FIRE;
+				return (Activity)ACT_WALK_ON_FIRE;
 			}
 
 			case ACT_IDLE:
 			{
 				// I'm on fire. Put ME out.
-				return ( Activity )ACT_IDLE_ON_FIRE;
+				return (Activity)ACT_IDLE_ON_FIRE;
 			}
 		}
 	}
 
-	return BaseClass::NPC_TranslateActivity( baseAct );
+	return BaseClass::NPC_TranslateActivity(baseAct);
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-Vector CNPC_BaseZombie::BodyTarget( const Vector &posSrc, bool bNoisy ) 
-{ 
-	
+//=========================================================
+//=========================================================
+Vector CNPC_BaseZombie::BodyTarget(const Vector &posSrc, bool bNoisy)
+{
 	if( IsCurSchedule(SCHED_BIG_FLINCH) || m_ActBusyBehavior.IsActive() )
 	{
-		// This zombie is assumed to be standing up. 
+		// This zombie is assumed to be standing up.
 		// Return a position that's centered over the absorigin,
-		// halfway between the origin and the head. 
-		Vector vecTarget = GetAbsOrigin();
-		Vector vecHead = HeadTarget( posSrc );
-		vecTarget.z = ((vecTarget.z + vecHead.z) * 0.5f);
+		// halfway between the origin and the head.
+		Vector vecTarget	= GetAbsOrigin();
+		Vector vecHead		= HeadTarget( posSrc );
+		vecTarget.z			= ((vecTarget.z + vecHead.z) * 0.5f);
+
 		return vecTarget;
 	}
 
-	return BaseClass::BodyTarget( posSrc, bNoisy );
+	return BaseClass::BodyTarget(posSrc, bNoisy);
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-Vector CNPC_BaseZombie::HeadTarget( const Vector &posSrc )
+//=========================================================
+//=========================================================
+Vector CNPC_BaseZombie::HeadTarget(const Vector &posSrc)
 {
 	int iCrabAttachment = LookupAttachment( "headcrab" );
+
+	if ( iCrabAttachment <= 0 )
+		iCrabAttachment = LookupAttachment( "eyes" );
+
 	Assert( iCrabAttachment > 0 );
 
 	Vector vecPosition;
-
-	GetAttachment( iCrabAttachment, vecPosition );
+	GetAttachment(iCrabAttachment, vecPosition);
 
 	return vecPosition;
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 float CNPC_BaseZombie::GetAutoAimRadius()
 {
-	if( m_fIsTorso )
-	{
+	if( IsTorso )
 		return 12.0f;
-	}
 
 	return BaseClass::GetAutoAimRadius();
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 bool CNPC_BaseZombie::OnInsufficientStopDist( AILocalMoveGoal_t *pMoveGoal, float distClear, AIMoveResult_t *pResult )
 {
-	if ( pMoveGoal->directTrace.fStatus == AIMR_BLOCKED_ENTITY && gpGlobals->curtime >= m_flNextSwat )
-	{
-		m_hObstructor = pMoveGoal->directTrace.pObstruction;
-	}
-	
+	if ( pMoveGoal->directTrace.fStatus == AIMR_BLOCKED_ENTITY && gpGlobals->curtime >= NextSwat )
+		Obstructor = pMoveGoal->directTrace.pObstruction;
+
 	return false;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : *pEnemy - 
-//			&chasePosition - 
-//-----------------------------------------------------------------------------
-void CNPC_BaseZombie::TranslateNavGoal( CBaseEntity *pEnemy, Vector &chasePosition )
+//=========================================================
+//=========================================================
+void CNPC_BaseZombie::TranslateNavGoal(CBaseEntity *pEnemy, Vector &chasePosition)
 {
 	// If our enemy is in a vehicle, we need them to tell us where to navigate to them
 	if ( pEnemy == NULL )
 		return;
 
 	CBaseCombatCharacter *pBCC = pEnemy->MyCombatCharacterPointer();
+
 	if ( pBCC && pBCC->IsInAVehicle() )
 	{
 		Vector vecForward, vecRight;
-		pBCC->GetVectors( &vecForward, &vecRight, NULL );
+		pBCC->GetVectors(&vecForward, &vecRight, NULL);
 
 		chasePosition = pBCC->WorldSpaceCenter() + ( vecForward * 24.0f ) + ( vecRight * 48.0f );
 		return;
 	}
 
-	BaseClass::TranslateNavGoal( pEnemy, chasePosition );
+	BaseClass::TranslateNavGoal(pEnemy, chasePosition);
 }
 
-//-----------------------------------------------------------------------------
-//
-// Schedules
-//
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
+
+// INTELIGENCIA ARTIFICIAL
+
+//=========================================================
+//=========================================================
 
 AI_BEGIN_CUSTOM_NPC( base_zombie, CNPC_BaseZombie )
 
@@ -2713,7 +2526,6 @@ AI_BEGIN_CUSTOM_NPC( base_zombie, CNPC_BaseZombie )
 	DECLARE_CONDITION( COND_ZOMBIE_RELEASECRAB )
 	DECLARE_CONDITION( COND_ZOMBIE_LOCAL_MELEE_OBSTRUCTION )
 
-	//Adrian: events go here
 	DECLARE_ANIMEVENT( AE_ZOMBIE_ATTACK_RIGHT )
 	DECLARE_ANIMEVENT( AE_ZOMBIE_ATTACK_LEFT )
 	DECLARE_ANIMEVENT( AE_ZOMBIE_ATTACK_BOTH )
@@ -2788,7 +2600,6 @@ AI_BEGIN_CUSTOM_NPC( base_zombie, CNPC_BaseZombie )
 	//=========================================================
 	// ChaseEnemy
 	//=========================================================
-#ifdef HL2_EPISODIC
 	DEFINE_SCHEDULE
 	(
 		SCHED_ZOMBIE_CHASE_ENEMY,
@@ -2815,34 +2626,6 @@ AI_BEGIN_CUSTOM_NPC( base_zombie, CNPC_BaseZombie )
 		"		COND_ZOMBIE_RELEASECRAB"
 		"		COND_HEAVY_DAMAGE"
 	)
-#else 
-	DEFINE_SCHEDULE
-	(
-		SCHED_ZOMBIE_CHASE_ENEMY,
-
-		"	Tasks"
-		"		 TASK_SET_FAIL_SCHEDULE			SCHEDULE:SCHED_CHASE_ENEMY_FAILED"
-		"		 TASK_SET_TOLERANCE_DISTANCE	24"
-		"		 TASK_GET_CHASE_PATH_TO_ENEMY	600"
-		"		 TASK_RUN_PATH					0"
-		"		 TASK_WAIT_FOR_MOVEMENT			0"
-		"		 TASK_FACE_ENEMY				0"
-		"	"
-		"	Interrupts"
-		"		COND_NEW_ENEMY"
-		"		COND_ENEMY_DEAD"
-		"		COND_ENEMY_UNREACHABLE"
-		"		COND_CAN_RANGE_ATTACK1"
-		"		COND_CAN_MELEE_ATTACK1"
-		"		COND_CAN_RANGE_ATTACK2"
-		"		COND_CAN_MELEE_ATTACK2"
-		"		COND_TOO_CLOSE_TO_ATTACK"
-		"		COND_TASK_FAILED"
-		"		COND_ZOMBIE_CAN_SWAT_ATTACK"
-		"		COND_ZOMBIE_RELEASECRAB"
-	)
-#endif // HL2_EPISODIC
-
 
 	//=========================================================
 	//=========================================================
@@ -2896,7 +2679,7 @@ AI_BEGIN_CUSTOM_NPC( base_zombie, CNPC_BaseZombie )
 	)
 
 	//=========================================================
-	// Wander around for a while so we don't look stupid. 
+	// Wander around for a while so we don't look stupid.
 	// this is done if we ever lose track of our enemy.
 	//=========================================================
 	DEFINE_SCHEDULE
@@ -2940,7 +2723,7 @@ AI_BEGIN_CUSTOM_NPC( base_zombie, CNPC_BaseZombie )
 		"		COND_CAN_MELEE_ATTACK1"
 		"		COND_CAN_RANGE_ATTACK2"
 		"		COND_CAN_MELEE_ATTACK2"
-		"		COND_ZOMBIE_RELEASECRAB"
+		"		COND_SelectScheduleZOMBIE_RELEASECRAB"
 	)
 
 	//=========================================================
@@ -2967,7 +2750,7 @@ AI_BEGIN_CUSTOM_NPC( base_zombie, CNPC_BaseZombie )
 	)
 
 	//=========================================================
-	// Like the base class, only don't stop in the middle of 
+	// Like the base class, only don't stop in the middle of
 	// swinging if the enemy is killed, hides, or new enemy.
 	//=========================================================
 	DEFINE_SCHEDULE

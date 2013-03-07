@@ -1742,6 +1742,8 @@ public:
 	virtual void		Ignite( float flFlameLifetime, bool bNPCOnly = true, float flSize = 0.0f, bool bCalledByLevelDesigner = false );
 	virtual bool		PassesDamageFilter( const CTakeDamageInfo &info );
 
+	void CopyRenderColorTo(CBaseEntity *pOther);
+
 	//---------------------------------
 
 	void				MakeDamageBloodDecal( int cCount, float flNoise, trace_t *ptr, Vector vecDir );

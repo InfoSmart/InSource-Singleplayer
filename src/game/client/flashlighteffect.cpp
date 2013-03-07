@@ -17,7 +17,7 @@
 
 #ifdef HL2_CLIENT_DLL
 #include "c_basehlplayer.h"
-#endif // HL2_CLIENT_DLL
+#endif
 
 #if defined( _X360 )
 extern ConVar r_flashlightdepthres;
@@ -29,35 +29,37 @@ extern ConVar r_flashlightdepthres;
 #include "tier0/memdbgon.h"
 
 extern ConVar r_flashlightdepthtexture;
+void r_newflashlightCallback_f(IConVar *pConVar, const char *pOldString, float flOldValue);
 
-void r_newflashlightCallback_f( IConVar *pConVar, const char *pOldString, float flOldValue );
+static ConVar r_newflashlight				("r_newflashlight",				"1",		FCVAR_CHEAT, "", r_newflashlightCallback_f);
+static ConVar r_powerfulflashlight			("r_powerfulflashlight",		"0",		FCVAR_CHEAT, "Activa o desactiva una linterna más poderosa.");
+static ConVar r_swingflashlight				("r_swingflashlight",			"1",		FCVAR_CHEAT);
+static ConVar r_flashlightlockposition		("r_flashlightlockposition",	"0",		FCVAR_CHEAT);
+static ConVar r_flashlightfov				("r_flashlightfov",				"45.0",		FCVAR_CHEAT);
+static ConVar r_flashlight_powerfulfov		("r_flashlight_powerfulfov",	"65.0",		FCVAR_CHEAT, "Define el campo de visión (FOV) de la linterna poderosa.");
+static ConVar r_flashlightoffsetx			("r_flashlightoffsetx",			"10.0",		FCVAR_CHEAT);
+static ConVar r_flashlightoffsety			("r_flashlightoffsety",			"-20.0",	FCVAR_CHEAT);
+static ConVar r_flashlightoffsetz			("r_flashlightoffsetz",			"24.0",		FCVAR_CHEAT);
+static ConVar r_flashlightnear				("r_flashlightnear",			"4.0",		FCVAR_CHEAT);
+static ConVar r_flashlightfar				("r_flashlightfar",				"750.0",	FCVAR_CHEAT);
+static ConVar r_flashlight_powefulfar		("r_flashlight_powefulfar",		"1000.0",	FCVAR_CHEAT, "Define la distancia de iluminación de la linterna poderosa.");
+static ConVar r_flashlightconstant			("r_flashlightconstant",		"0.0",		FCVAR_CHEAT);
+static ConVar r_flashlightlinear			("r_flashlightlinear",			"100.0",	FCVAR_CHEAT);
+static ConVar r_flashlight_powerfullinear	("r_flashlight_powerfullinear",	"60.0",		FCVAR_CHEAT, "Define la iluminación de la linterna poderosa.");
+static ConVar r_flashlightquadratic			("r_flashlightquadratic",		"0.0",		FCVAR_CHEAT);
+static ConVar r_flashlightvisualizetrace	("r_flashlightvisualizetrace",	"0",		FCVAR_CHEAT);
+static ConVar r_flashlightambient			("r_flashlightambient",			"0.0",		FCVAR_CHEAT);
+static ConVar r_flashlightshadowatten		("r_flashlightshadowatten",		"0.35",		FCVAR_CHEAT);
+static ConVar r_flashlightladderdist		("r_flashlightladderdist",		"40.0",		FCVAR_CHEAT);
 
-static ConVar r_newflashlight( "r_newflashlight", "1", FCVAR_CHEAT, "", r_newflashlightCallback_f );
-static ConVar r_swingflashlight( "r_swingflashlight", "1", FCVAR_CHEAT );
-static ConVar r_flashlightlockposition( "r_flashlightlockposition", "0", FCVAR_CHEAT );
-static ConVar r_flashlightfov( "r_flashlightfov", "45.0", FCVAR_CHEAT );
-static ConVar r_flashlightoffsetx( "r_flashlightoffsetx", "10.0", FCVAR_CHEAT );
-static ConVar r_flashlightoffsety( "r_flashlightoffsety", "-20.0", FCVAR_CHEAT );
-static ConVar r_flashlightoffsetz( "r_flashlightoffsetz", "24.0", FCVAR_CHEAT );
-static ConVar r_flashlightnear( "r_flashlightnear", "4.0", FCVAR_CHEAT );
-static ConVar r_flashlightfar( "r_flashlightfar", "750.0", FCVAR_CHEAT );
-static ConVar r_flashlightconstant( "r_flashlightconstant", "0.0", FCVAR_CHEAT );
-static ConVar r_flashlightlinear( "r_flashlightlinear", "100.0", FCVAR_CHEAT );
-static ConVar r_flashlightquadratic( "r_flashlightquadratic", "0.0", FCVAR_CHEAT );
-static ConVar r_flashlightvisualizetrace( "r_flashlightvisualizetrace", "0", FCVAR_CHEAT );
-static ConVar r_flashlightambient( "r_flashlightambient", "0.0", FCVAR_CHEAT );
-static ConVar r_flashlightshadowatten( "r_flashlightshadowatten", "0.35", FCVAR_CHEAT );
-static ConVar r_flashlightladderdist( "r_flashlightladderdist", "40.0", FCVAR_CHEAT );
-static ConVar mat_slopescaledepthbias_shadowmap( "mat_slopescaledepthbias_shadowmap", "16", FCVAR_CHEAT );
-static ConVar mat_depthbias_shadowmap(	"mat_depthbias_shadowmap", "0.0005", FCVAR_CHEAT  );
+static ConVar mat_slopescaledepthbias_shadowmap	("mat_slopescaledepthbias_shadowmap", "16", FCVAR_CHEAT );
+static ConVar mat_depthbias_shadowmap			("mat_depthbias_shadowmap", "0.0005", FCVAR_CHEAT  );
 
 
 void r_newflashlightCallback_f( IConVar *pConVar, const char *pOldString, float flOldValue )
 {
-	if( engine->GetDXSupportLevel() < 70 )
-	{
-		r_newflashlight.SetValue( 0 );
-	}	
+	if(engine->GetDXSupportLevel() < 70)
+		r_newflashlight.SetValue(0);
 }
 
 //-----------------------------------------------------------------------------
@@ -199,7 +201,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 	iMask &= ~CONTENTS_HITBOX;
 	iMask |= CONTENTS_WINDOW;
 
-	Vector vTarget = vecPos + vecForward * r_flashlightfar.GetFloat();
+	Vector vTarget = vecPos + vecForward * ((r_powerfulflashlight.GetBool()) ? r_flashlight_powefulfar.GetFloat() : r_flashlightfar.GetFloat());
 
 	// Work with these local copies of the basis for the rest of the function
 	Vector vDir   = vTarget - vOrigin;
@@ -263,9 +265,13 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 
 	state.m_fQuadraticAtten = r_flashlightquadratic.GetFloat();
 
-	bool bFlicker = false;
+	bool bFlicker		= false;
+	float flashlightFOV = r_flashlightfov.GetFloat();
 
-#ifdef HL2_EPISODIC
+	if(r_powerfulflashlight.GetBool())
+		flashlightFOV = r_flashlight_powerfulfov.GetFloat();
+
+//#ifdef HL2_EPISODIC
 	C_BaseHLPlayer *pPlayer = (C_BaseHLPlayer *)C_BasePlayer::GetLocalPlayer();
 	if ( pPlayer )
 	{
@@ -291,7 +297,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 				if ( flFlicker > 0.25f && flFlicker < 0.75f )
 				{
 					// On
-					state.m_fLinearAtten = r_flashlightlinear.GetFloat() * flScale;
+					state.m_fLinearAtten = ((r_powerfulflashlight.GetBool()) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat()) * flScale;
 				}
 				else
 				{
@@ -301,34 +307,34 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 			}
 			else
 			{
-				float flNoise = cosf( gpGlobals->curtime * 7.0f ) * sinf( gpGlobals->curtime * 25.0f );
-				state.m_fLinearAtten = r_flashlightlinear.GetFloat() * flScale + 1.5f * flNoise;
+				float flNoise			= cosf( gpGlobals->curtime * 7.0f ) * sinf( gpGlobals->curtime * 25.0f );
+				state.m_fLinearAtten	= ((r_powerfulflashlight.GetBool()) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat()) * flScale + 1.5f * flNoise;
 			}
 
-			state.m_fHorizontalFOVDegrees = r_flashlightfov.GetFloat() - ( 16.0f * (1.0f-flScale) );
-			state.m_fVerticalFOVDegrees = r_flashlightfov.GetFloat() - ( 16.0f * (1.0f-flScale) );
+			state.m_fHorizontalFOVDegrees	= flashlightFOV - ( 16.0f * (1.0f-flScale) );
+			state.m_fVerticalFOVDegrees		= flashlightFOV - ( 16.0f * (1.0f-flScale) );
 			
 			bFlicker = true;
 		}
 	}
-#endif // HL2_EPISODIC
+//#endif // HL2_EPISODIC
 
-	if ( bFlicker == false )
+	if (bFlicker == false)
 	{
-		state.m_fLinearAtten = r_flashlightlinear.GetFloat();
-		state.m_fHorizontalFOVDegrees = r_flashlightfov.GetFloat();
-		state.m_fVerticalFOVDegrees = r_flashlightfov.GetFloat();
+		state.m_fLinearAtten			= ((r_powerfulflashlight.GetBool()) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat());
+		state.m_fHorizontalFOVDegrees	= flashlightFOV;
+		state.m_fVerticalFOVDegrees		= flashlightFOV;
 	}
 
-	state.m_fConstantAtten = r_flashlightconstant.GetFloat();
-	state.m_Color[0] = 1.0f;
-	state.m_Color[1] = 1.0f;
-	state.m_Color[2] = 1.0f;
-	state.m_Color[3] = r_flashlightambient.GetFloat();
-	state.m_NearZ = r_flashlightnear.GetFloat() + m_flDistMod;	// Push near plane out so that we don't clip the world when the flashlight pulls back 
-	state.m_FarZ = r_flashlightfar.GetFloat();
-	state.m_bEnableShadows = r_flashlightdepthtexture.GetBool();
-	state.m_flShadowMapResolution = r_flashlightdepthres.GetInt();
+	state.m_fConstantAtten			= r_flashlightconstant.GetFloat();
+	state.m_Color[0]				= 1.0f;
+	state.m_Color[1]				= 1.0f;
+	state.m_Color[2]				= 1.0f;
+	state.m_Color[3]				= r_flashlightambient.GetFloat();
+	state.m_NearZ					= r_flashlightnear.GetFloat() + m_flDistMod;	// Push near plane out so that we don't clip the world when the flashlight pulls back 
+	state.m_FarZ					= (r_powerfulflashlight.GetBool()) ? r_flashlight_powefulfar.GetFloat() : r_flashlightfar.GetFloat();
+	state.m_bEnableShadows			= r_flashlightdepthtexture.GetBool();
+	state.m_flShadowMapResolution	= r_flashlightdepthres.GetInt();
 
 	state.m_pSpotlightTexture = m_FlashlightTexture;
 	state.m_nSpotlightTextureFrame = 0;
@@ -511,20 +517,20 @@ void CHeadlightEffect::UpdateLight( const Vector &vecPos, const Vector &vecDir, 
 		
 	state.m_vecLightOrigin = vecPos;
 
-	state.m_fHorizontalFOVDegrees = 45.0f;
-	state.m_fVerticalFOVDegrees = 30.0f;
-	state.m_fQuadraticAtten = r_flashlightquadratic.GetFloat();
-	state.m_fLinearAtten = r_flashlightlinear.GetFloat();
-	state.m_fConstantAtten = r_flashlightconstant.GetFloat();
-	state.m_Color[0] = 1.0f;
-	state.m_Color[1] = 1.0f;
-	state.m_Color[2] = 1.0f;
-	state.m_Color[3] = r_flashlightambient.GetFloat();
-	state.m_NearZ = r_flashlightnear.GetFloat();
-	state.m_FarZ = r_flashlightfar.GetFloat();
-	state.m_bEnableShadows = true;
-	state.m_pSpotlightTexture = m_FlashlightTexture;
-	state.m_nSpotlightTextureFrame = 0;
+	state.m_fHorizontalFOVDegrees	= 45.0f;
+	state.m_fVerticalFOVDegrees		= 30.0f;
+	state.m_fQuadraticAtten			= r_flashlightquadratic.GetFloat();
+	state.m_fLinearAtten			= ((r_powerfulflashlight.GetBool()) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat());
+	state.m_fConstantAtten			= r_flashlightconstant.GetFloat();
+	state.m_Color[0]				= 1.0f;
+	state.m_Color[1]				= 1.0f;
+	state.m_Color[2]				= 1.0f;
+	state.m_Color[3]				= r_flashlightambient.GetFloat();
+	state.m_NearZ					= r_flashlightnear.GetFloat();
+	state.m_FarZ					= (r_powerfulflashlight.GetBool()) ? r_flashlight_powefulfar.GetFloat() : r_flashlightfar.GetFloat();
+	state.m_bEnableShadows			= true;
+	state.m_pSpotlightTexture		= m_FlashlightTexture;
+	state.m_nSpotlightTextureFrame	= 0;
 	
 	if( GetFlashlightHandle() == CLIENTSHADOW_INVALID_HANDLE )
 	{

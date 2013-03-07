@@ -783,6 +783,7 @@ void UTIL_BloodDrips( const Vector &origin, const Vector &direction, int color, 
 	if (color == BLOOD_COLOR_MECH)
 	{
 		g_pEffects->Sparks(origin);
+
 		if (random->RandomFloat(0, 2) >= 1)
 		{
 			UTIL_Smoke(origin, random->RandomInt(10, 15), 10);

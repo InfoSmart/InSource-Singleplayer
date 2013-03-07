@@ -199,7 +199,6 @@ void CBaseEntity::SetEffects( int nEffects )
 void CBaseEntity::AddEffects( int nEffects ) 
 { 
 #if !defined( CLIENT_DLL )
-#ifdef HL2_EPISODIC
 	if ( (nEffects & (EF_BRIGHTLIGHT|EF_DIMLIGHT)) && !(m_fEffects & (EF_BRIGHTLIGHT|EF_DIMLIGHT)) )
 	{
 		// Hack for now, to avoid player emitting radius with his flashlight
@@ -208,7 +207,6 @@ void CBaseEntity::AddEffects( int nEffects )
 			AddEntityToDarknessCheck( this );
 		}
 	}
-#endif // HL2_EPISODIC
 #endif // !CLIENT_DLL
 
 	m_fEffects |= nEffects; 

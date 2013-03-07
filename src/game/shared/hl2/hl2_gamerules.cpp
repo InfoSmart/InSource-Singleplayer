@@ -1469,6 +1469,8 @@ ConVar  alyx_darkness_force( "alyx_darkness_force", "0", FCVAR_CHEAT | FCVAR_REP
 			case CLASS_FLARE:			return "CLASS_FLARE";
 			case CLASS_EARTH_FAUNA:		return "CLASS_EARTH_FAUNA";
 
+			case CLASS_GRUNT:			return "CLASS_GRUNT";
+
 			default:					return "MISSING CLASS in ClassifyText()";
 		}
 	}

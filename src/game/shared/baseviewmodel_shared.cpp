@@ -47,7 +47,7 @@ float gMoveTime(0.3f);
 // Comandos para probar y calcular la vista IronSight.
 //----------------------------------------------------
 
-ConVar	 in_ironsight_enabled("in_ironsight_enabled", "1", FCVAR_REPLICATED, "Mira del arma");
+ConVar	 in_ironsight_enabled("in_ironsight_enabled", "1", FCVAR_REPLICATED, "Apuntar");
 ConVar   in_ironsight_test_offset("in_ironsight_test_offset", "0", 0, "Probar y calcular los angulos de la vista IronSight.", (FnChangeCallback_t)IronSightTestOffset);
 
 ConVar   in_ironsight_test_offset_x("in_ironsight_test_offset_x", "0");
@@ -95,40 +95,36 @@ void IronSightTestOffset(ConVar *pConVar, char *pszString)
 void IronSightToggle()
 {
 	// Función desactivada.
-	if(in_ironsight_enabled.GetInt() == 0)
+	if ( in_ironsight_enabled.GetInt() == 0 )
 		return;
 
 	// ¿Spam?
-	if(gpGlobals->curtime - gIronsightedTime < 0.5f)
+	if ( gpGlobals->curtime - gIronsightedTime < 0.5f )
 		return;
 
 	CBasePlayer *pPlayer = UTIL_PlayerByIndex(engine->GetLocalPlayer());
 
 	// Algo anda mal con el usuario. ?
-	if(!pPlayer)
+	if ( !pPlayer )
 		return;
 	
 	C_BaseViewModel *pVm = pPlayer->GetViewModel();
 
 	// Se ha encontrado un modelo válido del jugador.
-	if(pVm)
+	if ( pVm )
 	{
 		// Alternar entre activado/desactivado.
 		pVm->m_bExpSighted			^= true;
 		// La última vez que se activo fue AHORA.
         gIronsightedTime			= gpGlobals->curtime;
 
+		ConVarRef crosshair("crosshair");
+
 		// Mostrar u ocultar el CrossHair.
-		if(pVm->m_bExpSighted == true)
-		{
-			//pPlayer->CHL2_Player.
-			pPlayer->m_Local.m_iHideHUD |= HIDEHUD_CROSSHAIR;
-		}
+		if ( pVm->m_bExpSighted == true )
+			crosshair.SetValue(false);
 		else
-		{
-			pPlayer->SetFOV(pPlayer, 0, 0.2f);
-			pPlayer->m_Local.m_iHideHUD &= HIDEHUD_CROSSHAIR;
-		}
+			crosshair.SetValue(true);
 	}
 }
 
@@ -549,14 +545,17 @@ void CBaseViewModel::CalcViewModelView(CBasePlayer *owner, const Vector& eyePosi
 
 		if (pWeapon != NULL)
 		{
-			#if defined(CLIENT_DLL)
-				  if (!prediction->InPrediction())
-			#endif
-			{
-				pWeapon->AddViewmodelBob(this, vmorigin, vmangles);
+			C_BaseViewModel *pVm = owner->GetViewModel();
 
-				//if(m_bExpSighted == false)
-					//CalcViewModelLag( vmorigin, vmangles, vmangoriginal );
+			if ( pVm )
+			{
+				#if defined(CLIENT_DLL)
+				if ( !prediction->InPrediction() && !pVm->m_bExpSighted )
+				#endif
+				{
+					pWeapon->AddViewmodelBob(this, vmorigin, vmangles);
+					CalcViewModelLag( vmorigin, vmangles, vmangoriginal );
+				}
 			}
 		}
  

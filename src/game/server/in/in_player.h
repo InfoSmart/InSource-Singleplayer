@@ -8,24 +8,29 @@
 
 #define ENVELOPE_CONTROLLER (CSoundEnvelopeController::GetController())
 
-class CIN_Player : public CHL2_Player
+class CIn_Player : public CHL2_Player
 {
 public:
-	DECLARE_CLASS(CIN_Player, CHL2_Player);
+	DECLARE_CLASS(CIn_Player, CHL2_Player);
 
-	CIN_Player();
-	~CIN_Player();
+	CIn_Player();
+	~CIn_Player();
+
+	static CIn_Player *CreatePlayer( const char *className, edict_t *ed )
+	{
+		CIn_Player::s_PlayerEdict = ed;
+		return (CIn_Player*)CreateEntityByName( className );
+	}
 
 	DECLARE_DATADESC();
 
 	void Precache();
 	void Spawn();
+	void StartDirector();
 
 	void PreThink();
 	void PostThink();
 	void PlayerDeathThink();
-
-	void StartDirector();
 
 	void HandleSpeedChanges();
 	void StartSprinting();
@@ -39,7 +44,7 @@ public:
 
 	int OnTakeDamage(const CTakeDamageInfo &inputInfo);
 
-	void HandleAnimEvent(animevent_t *pEvent);
+	virtual void CreateRagdollEntity();
 
 	// Sonido
 	// [FIXME] Mover a un mejor lugar.
@@ -53,20 +58,20 @@ private:
 
 	CInDirector		Director;
 
-	float			RegenRemander;
+	float			NextHealthRegeneration;
 	float			BodyHurt;
 	float			TasksTimer;
 };
 
-inline CIN_Player *ToInPlayer(CBasePlayer *pEntity)
+inline CIn_Player *GetInPlayer(CBasePlayer *pEntity)
 {
-	if (!pEntity)
+	if ( !pEntity )
 		return NULL;
 
 	#if _DEBUG
-		return dynamic_cast<CIN_Player *>(pEntity);
+		return dynamic_cast<CIn_Player *>(pEntity);
 	#else
-		return static_cast<CIN_Player *>(pEntity);
+		return static_cast<CIn_Player *>(pEntity);
 	#endif
 
 }

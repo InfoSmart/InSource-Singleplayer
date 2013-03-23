@@ -43,10 +43,6 @@ public:
 	CNetworkVar( float, m_flFlashBattery );
 	CNetworkVar( Vector, m_vecLocatorOrigin );
 
-	CNetworkVar( int,	m_iSquadMemberHealthOne );
-	CNetworkVar( int,	m_iSquadMemberHealthTwo );
-	CNetworkVar( int,	m_iSquadMemberHealthThree );
-
 	// Ladder related data
 	CNetworkVar( EHANDLE, m_hLadder );
 	LadderMove_t			m_LadderMove;

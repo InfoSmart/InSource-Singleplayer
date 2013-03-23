@@ -32,10 +32,6 @@ BEGIN_SEND_TABLE_NOBASE( CHL2PlayerLocalData, DT_HL2Local )
 	SendPropFloat( SENDINFO(m_flFlashBattery) ),
 	SendPropVector( SENDINFO(m_vecLocatorOrigin) ),
 #endif
-
-	SendPropInt( SENDINFO(m_iSquadMemberHealthOne) ),
-	SendPropInt( SENDINFO(m_iSquadMemberHealthTwo) ),
-	SendPropInt( SENDINFO(m_iSquadMemberHealthThree) ),
 END_SEND_TABLE()
 
 BEGIN_SIMPLE_DATADESC( CHL2PlayerLocalData )
@@ -52,10 +48,6 @@ BEGIN_SIMPLE_DATADESC( CHL2PlayerLocalData )
 	DEFINE_FIELD( m_flFlashBattery, FIELD_FLOAT ),
 	DEFINE_FIELD( m_vecLocatorOrigin, FIELD_POSITION_VECTOR ),
 #endif
-
-	DEFINE_FIELD( m_iSquadMemberHealthOne, FIELD_INTEGER ),
-	DEFINE_FIELD( m_iSquadMemberHealthTwo, FIELD_INTEGER ),
-	DEFINE_FIELD( m_iSquadMemberHealthThree, FIELD_INTEGER ),
 
 	// Ladder related stuff
 	DEFINE_FIELD( m_hLadder, FIELD_EHANDLE ),
@@ -74,9 +66,5 @@ CHL2PlayerLocalData::CHL2PlayerLocalData()
 #ifdef HL2_EPISODIC
 	m_flFlashBattery = 0.0f;
 #endif
-
-	m_iSquadMemberHealthOne = 0;
-	m_iSquadMemberHealthTwo = 0;
-	m_iSquadMemberHealthThree = 0;
 }
 

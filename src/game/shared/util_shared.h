@@ -353,13 +353,31 @@ void		UTIL_StringToVector( float *pVector, const char *pString );
 void		UTIL_StringToIntArray( int *pVector, int count, const char *pString );
 void		UTIL_StringToFloatArray( float *pVector, int count, const char *pString );
 void		UTIL_StringToColor32( color32 *color, const char *pString );
+int			UTIL_StringFieldToInt( const char *szValue, const char **pValueStrings, int iNumStrings );
+
+int UTIL_CountNumBitsSet( unsigned int nVar );
+int UTIL_CountNumBitsSet( uint64 nVar );
+
 
 CBasePlayer *UTIL_PlayerByIndex( int entindex );
 
 // decodes a buffer using a 64bit ICE key (inplace)
 void		UTIL_DecodeICE( unsigned char * buffer, int size, const unsigned char *key);
 
-unsigned short UTIL_GetAchievementEventMask( void );	
+unsigned short UTIL_GetAchievementEventMask( void );
+
+//assumes the object is already in a mostly passable space
+#define FL_AXIS_DIRECTION_NONE	( 0 )
+#define FL_AXIS_DIRECTION_X		( 1 << 0 )
+#define FL_AXIS_DIRECTION_NX	( 1 << 1 )
+#define FL_AXIS_DIRECTION_Y		( 1 << 2 )
+#define FL_AXIS_DIRECTION_NY	( 1 << 3 )
+#define FL_AXIS_DIRECTION_Z		( 1 << 4 )
+#define FL_AXIS_DIRECTION_NZ	( 1 << 5 )
+
+bool		UTIL_FindClosestPassableSpace( const Vector &vCenter, const Vector &vExtents, const Vector &vIndecisivePush, ITraceFilter *pTraceFilter, unsigned int fMask, unsigned int iIterations, Vector &vCenterOut, int nAxisRestrictionFlags = FL_AXIS_DIRECTION_NONE );
+bool		UTIL_FindClosestPassableSpace( CBaseEntity *pEntity, const Vector &vIndecisivePush, unsigned int fMask, unsigned int iIterations, Vector &vOriginOut, Vector *pStartingPosition = NULL, int nAxisRestrictionFlags = FL_AXIS_DIRECTION_NONE );
+bool		UTIL_FindClosestPassableSpace( CBaseEntity *pEntity, const Vector &vIndecisivePush, unsigned int fMask, Vector *pStartingPosition = NULL, int nAxisRestrictionFlags = FL_AXIS_DIRECTION_NONE );
 
 
 //--------------------------------------------------------------------------------------------------------------

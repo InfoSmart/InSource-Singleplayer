@@ -17,7 +17,6 @@ public:
 	~CInDirector();
 
 	void Spawn();
-	void SpawnScriptedSchedule();
 	void Precache();
 	void Think();
 
@@ -26,6 +25,9 @@ public:
 
 	int GetStatus() { return Status; };
 	void SetStatus(int status);
+
+	int GetAngryLevel() { return AngryLevel; };
+	int CalculateAngryLevel();
 
 	void Relaxed();
 	void Horde(bool super = false);
@@ -57,14 +59,17 @@ public:
 	bool MayQueueGrunt();
 
 	/* FUNCIONES RELACIONADAS AL DIRECTOR ZOMBIE MAKER */
+	int GetMaxZombiesScale();
 	int CountZombies();
 	void CheckZombies();
 	void SpawnZombies();
 	void SpawnGrunt();
+	void ZombieKilled() { ZombiesKilled++; };
 
 	/* FUNCIONES RELACIONADAS AL GRUNT */
 	int CountGrunts();
 	void CheckGrunts();
+	void GruntKilled() { GruntsKilled++; };
 
 	/* FUNCIONES RELACIONADAS AL SONIDO/MUSICA */
 	void EmitHordeMusic(bool A, bool B);
@@ -77,7 +82,6 @@ public:
 	//=========================================================
 	// Estados de InDirector
 	//=========================================================
-
 	enum
 	{
 		RELAXED = 0,	// Relajado: Vamos con calma.
@@ -87,6 +91,17 @@ public:
 		CLIMAX			// Climax: ¡¡Se nos va!! ¡Ataquen sin compasión carajo!
 	};
 
+	//=========================================================
+	// Estados de enojo de InDirector
+	//=========================================================
+	enum
+	{
+		HAPPY = 0,
+		UNCOMFORTABLE,
+		ANGRY,
+		FURIOUS
+	};
+
 	DECLARE_DATADESC();
 
 private:
@@ -94,6 +109,7 @@ private:
 	CSoundPatch *pSound;
 
 	int		Status;
+	int		AngryLevel;
 	int		Left4Exalted;
 	int		Left4Horde;
 	bool	Disabled;
@@ -104,6 +120,7 @@ private:
 	bool		GruntsMusic;
 	CSoundPatch *Sound_GruntMusic;
 	bool		GruntSpawnPending;
+	int			GruntsKilled;
 
 	bool		PlayingHordeMusic;
 	CSoundPatch *Sound_HordeMusic;
@@ -114,8 +131,10 @@ private:
 
 	int	LastSpawnZombies;
 	int HordeQueue;
+	int HordesPassed;
 
 	int ZombiesAlive;
+	int ZombiesKilled;
 	int ZombiesTargetPlayer;
 	int SpawnQueue;
 	int ZombiesSpawned;

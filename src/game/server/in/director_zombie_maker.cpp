@@ -157,7 +157,7 @@ bool CNPCZombieMaker::CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult)
 		if( !pDirector )
 			return false;
 
-		if ( pDirector->GetStatus() == 4 )
+		if ( pDirector->GetStatus() == pDirector->CLIMAX )
 		{
 			if ( pPlayer->FVisible(origin) )
 			{
@@ -180,6 +180,7 @@ bool CNPCZombieMaker::CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult)
 	}
 
 	*pResult = origin;
+	return true;
 }
 
 //=========================================================
@@ -295,8 +296,17 @@ CAI_BaseNPC *CNPCZombieMaker::MakeNPC(bool Horde, bool disclosePlayer)
 	// Es un zombi para la horda ¡woot!
 	if ( Horde )
 	{
+		int MoreHealth = 3;
+
+		// Aumentamos la salud dependiendo del nivel de dificultad.
+		if ( GameRules()->IsSkillLevel(SKILL_MEDIUM) ) 
+			MoreHealth = 6;
+
+		if ( GameRules()->IsSkillLevel(SKILL_HARD) )
+			MoreHealth = 15;
+
 		// Más salud.
-		pZombie->SetMaxHealth(pZombie->GetMaxHealth() + 20);
+		pZombie->SetMaxHealth(pZombie->GetMaxHealth() + MoreHealth);
 		pZombie->SetHealth(pZombie->GetMaxHealth());
 
 		// Más rápido.
@@ -382,6 +392,19 @@ void CNPCZombieMaker::DeathNotice(CBaseEntity *pVictim)
 {
 	ChildsAlive--;
 	ChildsKilled++;
+
+	CInDirector *pDirector = GetDirector();
+
+	if ( pDirector )
+	{
+		// ¡Han matado a un Zombie!
+		if ( pVictim->GetEntityName() == MAKE_STRING("director_zombie") )
+			pDirector->ZombieKilled();
+			
+		// ¡Han matado a un Grunt!
+		if ( pVictim->GetEntityName() == MAKE_STRING("director_grunt") )
+			pDirector->GruntKilled();
+	}
 
 	OnNPCDead.FireOutput(pVictim, this);
 }

@@ -169,4 +169,6 @@ void UTIL_IncrementMapKey( const char *pszCustomKey );
 // the intro movie for this map
 int UTIL_GetMapKeyCount( const char *pszCustomKey );
 
+C_BasePlayer* UTIL_PlayerByUserId( int userID );
+
 #endif // !UTIL_H

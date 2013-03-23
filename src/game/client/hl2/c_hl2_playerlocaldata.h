@@ -44,10 +44,6 @@ public:
 	float	m_flFlashBattery;
 	Vector	m_vecLocatorOrigin;
 
-	int		m_iSquadMemberHealthOne;
-	int		m_iSquadMemberHealthTwo;
-	int		m_iSquadMemberHealthThree;
-
 	// Ladder related data
 	EHANDLE			m_hLadder;
 	LadderMove_t	m_LadderMove;

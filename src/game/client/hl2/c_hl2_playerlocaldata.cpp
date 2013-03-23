@@ -27,10 +27,6 @@ BEGIN_RECV_TABLE_NOBASE( C_HL2PlayerLocalData, DT_HL2Local )
 	RecvPropBool( RECVINFO(m_bAutoAimTarget) ),
 	RecvPropFloat( RECVINFO(m_flFlashBattery) ),
 	RecvPropVector( RECVINFO(m_vecLocatorOrigin) ),
-
-	RecvPropInt(RECVINFO(m_iSquadMemberHealthOne)),
-	RecvPropInt(RECVINFO(m_iSquadMemberHealthTwo)),
-	RecvPropInt(RECVINFO(m_iSquadMemberHealthThree)),
 END_RECV_TABLE()
 
 BEGIN_PREDICTION_DATA_NO_BASE( C_HL2PlayerLocalData )
@@ -48,9 +44,4 @@ C_HL2PlayerLocalData::C_HL2PlayerLocalData()
 	m_hLadder = NULL;
 	m_flFlashBattery = 0.0f;
 	m_vecLocatorOrigin = vec3_origin;
-
-	m_iSquadMemberHealthOne = 0;
-	m_iSquadMemberHealthTwo = 0;
-	m_iSquadMemberHealthThree = 0;
 }
-

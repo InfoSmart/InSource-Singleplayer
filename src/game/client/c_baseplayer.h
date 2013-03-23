@@ -110,7 +110,11 @@ public:
 	void					UpdateUnderwaterState( void );
 	bool					IsPlayerUnderwater( void ) { return m_bPlayerUnderwater; }
 
+	virtual	C_BaseCombatCharacter *ActivePlayerCombatCharacter( void ) { return this; }
+	//const char * GetPlayerName();
+
 	virtual Vector			Weapon_ShootPosition();
+	//virtual bool			Weapon_CanUse( C_BaseCombatWeapon *pWeapon );
 	virtual void			Weapon_DropPrimary( void ) {}
 
 	virtual Vector			GetAutoaimVector( float flScale );
@@ -272,7 +276,9 @@ public:
 	bool				IsPlayerDead();
 	bool				IsPoisoned( void ) { return m_Local.m_bPoisoned; }
 
-	C_BaseEntity				*GetUseEntity();
+	//C_BaseEntity				*GetUseEntity();
+	virtual C_BaseEntity* GetUseEntity( void ) const;
+	virtual C_BaseEntity* GetPotentialUseEntity( void ) const;
 
 	// Vehicles...
 	IClientVehicle			*GetVehicle();
@@ -412,7 +418,7 @@ protected:
 	virtual void		CalcDeathCamView( Vector& eyeOrigin, QAngle& eyeAngles, float& fov );
 	virtual void		CalcRoamingView(Vector& eyeOrigin, QAngle& eyeAngles, float& fov);
 	virtual void		CalcFreezeCamView( Vector& eyeOrigin, QAngle& eyeAngles, float& fov );
-	virtual void        CalcThirdPersonDeathView( Vector& eyeOrigin, QAngle& eyeAngles, float& fov );
+	virtual void        CalcThirdPersonDeathView( Vector& eyeOrigin, QAngle& eyeAngles, float& fov ) { return; }; // Se ha movido a CalcDeathCamView (InSource)
 
 	// Check to see if we're in vgui input mode...
 	void DetermineVguiInputMode( CUserCmd *pCmd );
@@ -449,8 +455,6 @@ private:
 	EHANDLE			m_hVehicle;
 	EHANDLE			m_hOldVehicle;
 	EHANDLE			m_hUseEntity;
-
-	EHANDLE			m_hRagdoll;
 	
 	float			m_flMaxspeed;
 
@@ -603,10 +607,12 @@ inline C_BasePlayer *ToBasePlayer( C_BaseEntity *pEntity )
 	return static_cast<C_BasePlayer *>( pEntity );
 }
 
+/*
 inline C_BaseEntity *C_BasePlayer::GetUseEntity() 
 { 
 	return m_hUseEntity;
 }
+*/
 
 
 inline IClientVehicle *C_BasePlayer::GetVehicle() 
@@ -642,38 +648,5 @@ inline const CUserCmd *CBasePlayer::GetCurrentUserCommand() const
 	Assert( m_pCurrentCommand );
 	return m_pCurrentCommand;
 }
-
-class C_HL2Ragdoll : public C_BaseAnimatingOverlay
-{
-public:
-	DECLARE_CLASS( C_HL2Ragdoll, C_BaseAnimatingOverlay );
-	DECLARE_CLIENTCLASS();
-	
-	C_HL2Ragdoll();
-	~C_HL2Ragdoll();
-
-	virtual void OnDataChanged( DataUpdateType_t type );
-
-	int GetPlayerEntIndex() const;
-	IRagdoll* GetIRagdoll() const;
-
-	void ImpactTrace( trace_t *pTrace, int iDamageType, char *pCustomImpactName );
-	void UpdateOnRemove( void );
-	virtual void SetupWeights( const matrix3x4_t *pBoneToWorld, int nFlexWeightCount, float *pFlexWeights, float *pFlexDelayedWeights );
-	
-private:
-	
-	C_HL2Ragdoll( const C_HL2Ragdoll & ) {}
-
-	void Interp_Copy( C_BaseAnimatingOverlay *pDestinationEntity );
-	void CreateHL2Ragdoll( void );
-
-private:
-
-	EHANDLE	m_hPlayer;
-
-	CNetworkVector( m_vecRagdollVelocity );
-	CNetworkVector( m_vecRagdollOrigin );
-};
 
 #endif // C_BASEPLAYER_H

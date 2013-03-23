@@ -258,8 +258,6 @@ END_RECV_TABLE()
 
 		RecvPropInt( RECVINFO( m_ubEFNoInterpParity ) ),
 
-		RecvPropEHandle( RECVINFO( m_hRagdoll ) ),
-
 	END_RECV_TABLE()
 
 BEGIN_PREDICTION_DATA_NO_BASE( CPlayerState )
@@ -2015,6 +2013,17 @@ bool C_BasePlayer::IsUseableEntity( CBaseEntity *pEntity, unsigned int requiredC
 	return false;
 }
 
+C_BaseEntity* C_BasePlayer::GetUseEntity( void ) const 
+{ 
+	return m_hUseEntity;
+}
+
+C_BaseEntity* C_BasePlayer::GetPotentialUseEntity( void ) const 
+{ 
+	return GetUseEntity();
+}
+
+
 
 //-----------------------------------------------------------------------------
 // Purpose: 
@@ -2299,7 +2308,6 @@ void C_BasePlayer::GetPredictionErrorSmoothingVector( Vector &vOffset )
 #endif
 }
 
-
 IRagdoll* C_BasePlayer::GetRepresentativeRagdoll() const
 {
 	return m_pRagdoll;
@@ -2471,308 +2479,3 @@ void CC_DumpClientSoundscapeData( const CCommand& args )
 	Msg("End dump.\n");
 }
 static ConCommand soundscape_dumpclient("soundscape_dumpclient", CC_DumpClientSoundscapeData, "Dumps the client's soundscape data.\n", FCVAR_CHEAT);
-
-void C_BasePlayer::CalcThirdPersonDeathView(Vector& eyeOrigin, QAngle& eyeAngles, float& fov)
-{
-    if (m_lifeState != LIFE_ALIVE )
-    {
-        C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
-
-        if (!pPlayer)
-            return;
-
-        // Keep a copy of the actual player model.
-        pPlayer->SnatchModelInstance(this);
-
-		// Creates the ragdoll asset from the player's model.
-		m_nRenderFX = kRenderFxRagdoll;
-
-		matrix3x4_t boneDelta0[MAXSTUDIOBONES];
-		matrix3x4_t boneDelta1[MAXSTUDIOBONES];
-		matrix3x4_t currentBones[MAXSTUDIOBONES];
-		const float boneDt = 0.05f;
-
-		if ( pPlayer && !pPlayer->IsDormant() )
-		{
-			pPlayer->GetRagdollInitBoneArrays( boneDelta0, boneDelta1, currentBones, boneDt );
-		}
-		else
-		{
-			GetRagdollInitBoneArrays( boneDelta0, boneDelta1, currentBones, boneDt );
-		}
-
-		// Sets the ragdoll.
-		InitAsClientRagdoll( boneDelta0, boneDelta1, currentBones, boneDt );
-
-		if(::input->CAM_IsThirdPerson())
-		{
-			// Calculate origin of the ragdoll.
-			Vector origin = EyePosition();           
-
-			IRagdoll *pRagdoll = GetRepresentativeRagdoll();
-
-			if ( pRagdoll )
-			{
-				origin = pRagdoll->GetRagdollOrigin();
-				origin.z += VEC_DEAD_VIEWHEIGHT.z; // look over ragdoll, not through
-			}
-
-			eyeOrigin = origin;
-   
-			Vector vForward;
-			AngleVectors( eyeAngles, &vForward );
-
-			VectorNormalize( vForward );
-			VectorMA( origin, -CHASE_CAM_DISTANCE, vForward, eyeOrigin );
-
-			Vector WALL_MIN( -WALL_OFFSET, -WALL_OFFSET, -WALL_OFFSET );
-			Vector WALL_MAX( WALL_OFFSET, WALL_OFFSET, WALL_OFFSET );
-
-			trace_t trace; // clip against world
-			C_BaseEntity::PushEnableAbsRecomputations( false ); // HACK don't recompute positions while doing RayTrace
-			UTIL_TraceHull( origin, eyeOrigin, WALL_MIN, WALL_MAX, MASK_SOLID_BRUSHONLY, this, COLLISION_GROUP_NONE, &trace );
-			C_BaseEntity::PopEnableAbsRecomputations();
-
-			if (trace.fraction < 1.0)
-			{
-				eyeOrigin = trace.endpos;
-			}
-
-			fov = GetFOV();
-		}
-       
-        return;
-    }
-}
-
-//HL2MPRAGDOLL
-
-
-IMPLEMENT_CLIENTCLASS_DT_NOBASE( C_HL2Ragdoll, DT_HL2Ragdoll, CHL2Ragdoll )
-	RecvPropVector( RECVINFO(m_vecRagdollOrigin) ),
-	RecvPropEHandle( RECVINFO( m_hPlayer ) ),
-	RecvPropInt( RECVINFO( m_nModelIndex ) ),
-	RecvPropInt( RECVINFO(m_nForceBone) ),
-	RecvPropVector( RECVINFO(m_vecForce) ),
-	RecvPropVector( RECVINFO( m_vecRagdollVelocity ) )
-END_RECV_TABLE()
-
-
-
-C_HL2Ragdoll::C_HL2Ragdoll()
-{
-
-}
-
-C_HL2Ragdoll::~C_HL2Ragdoll()
-{
-	PhysCleanupFrictionSounds( this );
-
-	if ( m_hPlayer )
-	{
-		m_hPlayer->CreateModelInstance();
-	}
-}
-
-void C_HL2Ragdoll::Interp_Copy( C_BaseAnimatingOverlay *pSourceEntity )
-{
-	if ( !pSourceEntity )
-		return;
-	
-	VarMapping_t *pSrc = pSourceEntity->GetVarMapping();
-	VarMapping_t *pDest = GetVarMapping();
-    	
-	// Find all the VarMapEntry_t's that represent the same variable.
-	for ( int i = 0; i < pDest->m_Entries.Count(); i++ )
-	{
-		VarMapEntry_t *pDestEntry = &pDest->m_Entries[i];
-		const char *pszName = pDestEntry->watcher->GetDebugName();
-		for ( int j=0; j < pSrc->m_Entries.Count(); j++ )
-		{
-			VarMapEntry_t *pSrcEntry = &pSrc->m_Entries[j];
-			if ( !Q_strcmp( pSrcEntry->watcher->GetDebugName(), pszName ) )
-			{
-				pDestEntry->watcher->Copy( pSrcEntry->watcher );
-				break;
-			}
-		}
-	}
-}
-
-void C_HL2Ragdoll::ImpactTrace( trace_t *pTrace, int iDamageType, char *pCustomImpactName )
-{
-	IPhysicsObject *pPhysicsObject = VPhysicsGetObject();
-
-	if( !pPhysicsObject )
-		return;
-
-	Vector dir = pTrace->endpos - pTrace->startpos;
-
-	if ( iDamageType == DMG_BLAST )
-	{
-		dir *= 4000;  // adjust impact strenght
-				
-		// apply force at object mass center
-		pPhysicsObject->ApplyForceCenter( dir );
-	}
-	else
-	{
-		Vector hitpos;  
-	
-		VectorMA( pTrace->startpos, pTrace->fraction, dir, hitpos );
-		VectorNormalize( dir );
-
-		dir *= 4000;  // adjust impact strenght
-
-		// apply force where we hit it
-		pPhysicsObject->ApplyForceOffset( dir, hitpos );	
-
-		// Blood spray!
-//		FX_CS_BloodSpray( hitpos, dir, 10 );
-	}
-
-	m_pRagdoll->ResetRagdollSleepAfterTime();
-}
-
-
-void C_HL2Ragdoll::CreateHL2Ragdoll( void )
-{
-	// First, initialize all our data. If we have the player's entity on our client,
-	// then we can make ourselves start out exactly where the player is.
-	C_BasePlayer *pPlayer = dynamic_cast< C_BasePlayer* >( m_hPlayer.Get() );
-	
-	if ( pPlayer && !pPlayer->IsDormant() )
-	{
-		// move my current model instance to the ragdoll's so decals are preserved.
-		pPlayer->SnatchModelInstance( this );
-
-		VarMapping_t *varMap = GetVarMapping();
-
-		// Copy all the interpolated vars from the player entity.
-		// The entity uses the interpolated history to get bone velocity.
-		bool bRemotePlayer = (pPlayer != C_BasePlayer::GetLocalPlayer());			
-		if ( bRemotePlayer )
-		{
-			Interp_Copy( pPlayer );
-
-			SetAbsAngles( pPlayer->GetRenderAngles() );
-			GetRotationInterpolator().Reset();
-
-			m_flAnimTime = pPlayer->m_flAnimTime;
-			SetSequence( pPlayer->GetSequence() );
-			m_flPlaybackRate = pPlayer->GetPlaybackRate();
-		}
-		else
-		{
-			// This is the local player, so set them in a default
-			// pose and slam their velocity, angles and origin
-			SetAbsOrigin( m_vecRagdollOrigin );
-			
-			SetAbsAngles( pPlayer->GetRenderAngles() );
-
-			SetAbsVelocity( m_vecRagdollVelocity );
-
-			int iSeq = pPlayer->GetSequence();
-			if ( iSeq == -1 )
-			{
-				Assert( false );	// missing walk_lower?
-				iSeq = 0;
-			}
-			
-			SetSequence( iSeq );	// walk_lower, basic pose
-			SetCycle( 0.0 );
-
-			Interp_Reset( varMap );
-		}		
-	}
-	else
-	{
-		// overwrite network origin so later interpolation will
-		// use this position
-		SetNetworkOrigin( m_vecRagdollOrigin );
-
-		SetAbsOrigin( m_vecRagdollOrigin );
-		SetAbsVelocity( m_vecRagdollVelocity );
-
-		Interp_Reset( GetVarMapping() );
-		
-	}
-
-	SetModelIndex( m_nModelIndex );
-
-	// Make us a ragdoll..
-	m_nRenderFX = kRenderFxRagdoll;
-
-	matrix3x4_t boneDelta0[MAXSTUDIOBONES];
-	matrix3x4_t boneDelta1[MAXSTUDIOBONES];
-	matrix3x4_t currentBones[MAXSTUDIOBONES];
-	const float boneDt = 0.05f;
-
-	if ( pPlayer && !pPlayer->IsDormant() )
-	{
-		pPlayer->GetRagdollInitBoneArrays( boneDelta0, boneDelta1, currentBones, boneDt );
-	}
-	else
-	{
-		GetRagdollInitBoneArrays( boneDelta0, boneDelta1, currentBones, boneDt );
-	}
-
-	InitAsClientRagdoll( boneDelta0, boneDelta1, currentBones, boneDt );
-}
-
-
-void C_HL2Ragdoll::OnDataChanged( DataUpdateType_t type )
-{
-	BaseClass::OnDataChanged( type );
-
-	if ( type == DATA_UPDATE_CREATED )
-	{
-		CreateHL2Ragdoll();
-	}
-}
-
-IRagdoll* C_HL2Ragdoll::GetIRagdoll() const
-{
-	return m_pRagdoll;
-}
-
-void C_HL2Ragdoll::UpdateOnRemove( void )
-{
-	VPhysicsSetObject( NULL );
-
-	BaseClass::UpdateOnRemove();
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: clear out any face/eye values stored in the material system
-//-----------------------------------------------------------------------------
-void C_HL2Ragdoll::SetupWeights( const matrix3x4_t *pBoneToWorld, int nFlexWeightCount, float *pFlexWeights, float *pFlexDelayedWeights )
-{
-	BaseClass::SetupWeights( pBoneToWorld, nFlexWeightCount, pFlexWeights, pFlexDelayedWeights );
-
-	static float destweight[128];
-	static bool bIsInited = false;
-
-	CStudioHdr *hdr = GetModelPtr();
-	if ( !hdr )
-		return;
-
-	int nFlexDescCount = hdr->numflexdesc();
-	if ( nFlexDescCount )
-	{
-		Assert( !pFlexDelayedWeights );
-		memset( pFlexWeights, 0, nFlexWeightCount * sizeof(float) );
-	}
-
-	if ( m_iEyeAttachment > 0 )
-	{
-		matrix3x4_t attToWorld;
-		if (GetAttachment( m_iEyeAttachment, attToWorld ))
-		{
-			Vector local, tmp;
-			local.Init( 1000.0f, 0.0f, 0.0f );
-			VectorTransform( local, attToWorld, tmp );
-			modelrender->SetViewTarget( GetModelPtr(), GetBody(), tmp );
-		}
-	}
-}

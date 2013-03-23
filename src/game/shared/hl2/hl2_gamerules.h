@@ -45,7 +45,10 @@ public:
 	virtual float			GetAutoAimScale( CBasePlayer *pPlayer );
 	virtual float			GetAmmoQuantityScale( int iAmmoIndex );
 	virtual void			LevelInitPreEntity();
+	virtual void			InitDefaultAIRelationships( void );
 #endif
+
+	
 
 private:
 	// Rules change for the mega physgun
@@ -67,7 +70,7 @@ private:
 	virtual bool			ClientCommand( CBaseEntity *pEdict, const CCommand &args );
 	virtual void			PlayerSpawn( CBasePlayer *pPlayer );
 
-	virtual void			InitDefaultAIRelationships( void );
+	
 	virtual const char*		AIClassText(int classType);
 	virtual const char *GetGameDescription( void ) { return "Half-Life 2"; }
 
@@ -98,17 +101,16 @@ private:
 
 	int						DefaultFOV( void ) { return 75; }
 #endif
+
 };
 
-
-//-----------------------------------------------------------------------------
+//=========================================================
 // Gets us at the Half-Life 2 game rules
-//-----------------------------------------------------------------------------
+//=========================================================
+
 inline CHalfLife2* HL2GameRules()
 {
 	return static_cast<CHalfLife2*>(g_pGameRules);
 }
-
-
 
 #endif // HL2_GAMERULES_H

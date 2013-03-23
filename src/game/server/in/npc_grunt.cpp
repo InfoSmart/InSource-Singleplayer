@@ -54,7 +54,7 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-extern void CreateConcussiveBlast( const Vector &origin, const Vector &surfaceNormal, CBaseEntity *pOwner, float magnitude );
+//extern void CreateConcussiveBlast( const Vector &origin, const Vector &surfaceNormal, CBaseEntity *pOwner, float magnitude );
 
 //=========================================================
 // Definición de variables para la configuración.
@@ -160,17 +160,17 @@ int ImpactEffectTexture = -1;
 // Guardado y definición de datos
 //=========================================================
 
-LINK_ENTITY_TO_CLASS(npc_grunt, CNPC_Grunt);
+LINK_ENTITY_TO_CLASS( npc_grunt, CNPC_Grunt );
 
-BEGIN_DATADESC(CNPC_Grunt)
+BEGIN_DATADESC( CNPC_Grunt )
 
-	DEFINE_FIELD(LastHurtTime,			FIELD_TIME),
-	DEFINE_FIELD(NextAlertSound,		FIELD_TIME),
-	DEFINE_FIELD(NextPainSound,			FIELD_TIME),
-	DEFINE_FIELD(NextThrow,				FIELD_TIME),
+	DEFINE_FIELD( LastHurtTime,				FIELD_TIME ),
+	DEFINE_FIELD( NextAlertSound,			FIELD_TIME ),
+	DEFINE_FIELD( NextPainSound,			FIELD_TIME ),
+	DEFINE_FIELD( NextThrow,				FIELD_TIME ),
 
-	DEFINE_FIELD(PhysicsEnt,			FIELD_EHANDLE),
-	DEFINE_FIELD(PhysicsCanThrow,		FIELD_BOOLEAN),
+	DEFINE_FIELD( PhysicsEnt,			FIELD_EHANDLE ),
+	DEFINE_FIELD( PhysicsCanThrow,		FIELD_BOOLEAN ),
 
 END_DATADESC()
 
@@ -346,14 +346,14 @@ void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 	DevMsg("[GRUNT] Se ha producido el evento %s \n", pName);
 
 	// Ataque de fuerza mayor.
-	if( pEvent->event == AE_AGRUNT_MELEE_ATTACK_HIGH )
+	if ( pEvent->event == AE_AGRUNT_MELEE_ATTACK_HIGH )
 	{
 		MeleeAttack(true);
 		return;
 	}
 
 	// Ataque de fuerza menor.
-	if( pEvent->event == AE_AGRUNT_MELEE_ATTACK_LOW )
+	if ( pEvent->event == AE_AGRUNT_MELEE_ATTACK_LOW )
 	{
 		MeleeAttack();
 		return;
@@ -369,7 +369,7 @@ void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 	*/
 
 	// Aventando objeto.
-	if( pEvent->event == AE_SWAT_OBJECT )
+	if ( pEvent->event == AE_SWAT_OBJECT )
 	{
 		CBaseEntity *pEnemy = GetEnemy();
 
@@ -406,17 +406,6 @@ void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 		return;
 	}
 
-	switch( pEvent->event )
-	{
-		case NPC_EVENT_LEFTFOOT:
-			DevMsg("[GRUNT] - LEFT FOOT");
-		break;
-
-		case NPC_EVENT_RIGHTFOOT:
-			DevMsg("[GRUNT] - RIGHT FOOT");
-		break;
-	}
-
 	BaseClass::HandleAnimEvent(pEvent);
 }
 
@@ -430,15 +419,13 @@ bool CNPC_Grunt::IsJumpLegal(const Vector &startPos, const Vector &apex, const V
 }
 
 //=========================================================
-// MeleeAttack1()
-// Ataque cuerpo a cuerpo #1
-// En este caso: Golpe alto
+// Ataque cuerpo a cuerpo.
 //=========================================================
-CBaseEntity *CNPC_Grunt::MeleeAttack(bool highAttack)
+void CNPC_Grunt::MeleeAttack(bool highAttack)
 {
 	// No hay un enemigo a quien atacar.
 	if ( !GetEnemy() )
-		return NULL;
+		return;
 
 	CBasePlayer *pPlayer	= UTIL_GetLocalPlayer();
 	CBaseEntity *pVictim	= NULL;
@@ -462,36 +449,33 @@ CBaseEntity *CNPC_Grunt::MeleeAttack(bool highAttack)
 		CTakeDamageInfo info(this, this, vec3_origin, GetAbsOrigin(), pDamage, pTypeDamage);
 		pVictim->TakeDamage(info);
 	}
-
-	// Intentamos realizar un ataque verdadero contra un jugador/NPC
+	// Intentamos realizar un ataque verdadero contra el jugador o varios NPC.
 	else
-		pVictim = CheckTraceHullAttack(Melee_Attack_Dist, vecMins, vecMaxs, pDamage, pTypeDamage);
+		pVictim = CheckTraceHullAttack(Melee_Attack_Dist, vecMins, vecMaxs, pDamage, pTypeDamage, 1.0, false);
 
-	// ¡Jaja! ¡Chúpate esa!
 	if ( pVictim )
 	{
 		// Grrr! te he dado.
 		AttackSound(highAttack);
-
+		
 		Vector forward, up;
 		AngleVectors(GetAbsAngles(), &forward, NULL, &up);
 
 		Vector pImpulse = Melee_Attack_Impulse * (up + 2 * forward);
 
 		// Nuestra victima es el jugador.
-		if ( pVictim == pPlayer )
+		if ( pVictim->IsPlayer() )
 		{
 			int pPunch = random->RandomInt(Melee_Attack_Min_Punch, Melee_Attack_Max_Punch);
 
 			// Desorientar
 			pVictim->ViewPunch(QAngle(pPunch, 0, -pPunch));
-			//pVictim->VelocityPunch(pImpulse);
 
 			// Lanzarlo por los aires.
 			pVictim->ApplyAbsVelocityImpulse(pImpulse);
 
 			// El jugador tiene un arma.
-			if ( pPlayer->GetActiveWeapon() )
+			if ( pPlayer->GetActiveWeapon() && !GameRules()->IsSkillLevel(SKILL_EASY) )
 			{
 				// !!!REFERENCE
 				// En Left4Dead cuando un Tank avienta por los aires a un jugador el mismo
@@ -514,7 +498,8 @@ CBaseEntity *CNPC_Grunt::MeleeAttack(bool highAttack)
 		else
 		{
 			// Lanzamos por los aires
-			pVictim->ApplyAbsVelocityImpulse(pImpulse * 2);
+			pVictim->ApplyAbsVelocityImpulse(pImpulse * 3);
+			pVictim->VelocityPunch(pImpulse * 2);
 
 			// ¡GRRR! Quitense de mi camino. (Matamos al NPC)
 			CTakeDamageInfo damage;
@@ -532,8 +517,6 @@ CBaseEntity *CNPC_Grunt::MeleeAttack(bool highAttack)
 		// TODO
 		//FailAttackSound();
 	}
-
-	return pVictim;
 }
 
 /*

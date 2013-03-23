@@ -40,7 +40,7 @@ public:
 
 	bool IsJumpLegal(const Vector &startPos, const Vector &apex, const Vector &endPos) const;
 
-	CBaseEntity *MeleeAttack(bool highAttack = false);
+	void MeleeAttack(bool highAttack = false);
 	//void RangeAttack1();
 
 	int MeleeAttack1Conditions(float flDot, float flDist);

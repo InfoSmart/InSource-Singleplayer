@@ -360,7 +360,7 @@ BEGIN_DATADESC(CHL2_Player)
 	DEFINE_FIELD(m_hLocatorTargetEntity, FIELD_EHANDLE),
 	DEFINE_FIELD(m_flTimeNextLadderHint, FIELD_TIME),
 
-	//DEFINE_THINKFUNC(GruntMusicThink),
+	DEFINE_FIELD(m_hRagdoll, FIELD_EHANDLE),
 
 END_DATADESC()
 
@@ -400,6 +400,7 @@ CSuitPowerDevice SuitDeviceBreather( bits_SUIT_DEVICE_BREATHER, 6.7f );		// 100 
 IMPLEMENT_SERVERCLASS_ST(CHL2_Player, DT_HL2_Player)
 	SendPropDataTable(SENDINFO_DT(m_HL2Local), &REFERENCE_SEND_TABLE(DT_HL2Local), SendProxy_SendLocalDataTable),
 	SendPropBool( SENDINFO(m_fIsSprinting) ),
+	SendPropEHandle( SENDINFO(m_hRagdoll) ),
 END_SEND_TABLE()
 
 //=========================================================
@@ -1437,19 +1438,15 @@ int CHL2_Player::GetNumSquadCommandables()
 	AISquadIter_t iter;
 	int c = 0;
 
-	int m_iHealthOne	= 0;
+	/*int m_iHealthOne	= 0;
 	int m_iHealthTwo	= 0;
-	int m_iHealthThree	= 0;
+	int m_iHealthThree	= 0;*/
 
 	for (CAI_BaseNPC *pAllyNpc = m_pPlayerAISquad->GetFirstMember(&iter); pAllyNpc; pAllyNpc = m_pPlayerAISquad->GetNextMember(&iter))
 	{
 		if ( pAllyNpc->IsCommandable() )
 			c++;
 	}
-
-	m_HL2Local.m_iSquadMemberHealthOne		= m_iHealthOne;
-	m_HL2Local.m_iSquadMemberHealthTwo		= m_iHealthTwo;
-	m_HL2Local.m_iSquadMemberHealthThree	= m_iHealthThree;
 
 	return c;
 }
@@ -1951,27 +1948,6 @@ bool CHL2_Player::ApplyBattery( float powerMultiplier )
 // Ragdoll entities.
 // -------------------------------------------------------------------------------- //
 
-class CHL2Ragdoll : public CBaseAnimatingOverlay
-{
-public:
-	DECLARE_CLASS( CHL2Ragdoll, CBaseAnimatingOverlay );
-	DECLARE_SERVERCLASS();
-
-	// Transmit ragdolls to everyone.
-	virtual int UpdateTransmitState()
-	{
-		return SetTransmitState( FL_EDICT_ALWAYS );
-	}
-
-public:
-	// In case the client has the player entity, we transmit the player index.
-	// In case the client doesn't have it, we transmit the player's model index, origin, and angles
-	// so they can create a ragdoll in the right place.
-	CNetworkHandle( CBaseEntity, m_hPlayer );	// networked entity handle 
-	CNetworkVector( m_vecRagdollVelocity );
-	CNetworkVector( m_vecRagdollOrigin );
-};
-
 LINK_ENTITY_TO_CLASS( hl2_ragdoll, CHL2Ragdoll );
 
 IMPLEMENT_SERVERCLASS_ST_NOBASE( CHL2Ragdoll, DT_HL2Ragdoll )
@@ -1982,39 +1958,6 @@ IMPLEMENT_SERVERCLASS_ST_NOBASE( CHL2Ragdoll, DT_HL2Ragdoll )
 	SendPropVector	( SENDINFO(m_vecForce), -1, SPROP_NOSCALE ),
 	SendPropVector( SENDINFO( m_vecRagdollVelocity ) )
 END_SEND_TABLE()
-
-
-void CHL2_Player::CreateRagdollEntity( void )
-{
-	if ( m_hRagdoll )
-	{
-		UTIL_RemoveImmediate( m_hRagdoll );
-		m_hRagdoll = NULL;
-	}
-
-	// If we already have a ragdoll, don't make another one.
-	CHL2Ragdoll *pRagdoll = dynamic_cast< CHL2Ragdoll* >( m_hRagdoll.Get() );
-	
-	if ( !pRagdoll )
-	{
-		// create a new one
-		pRagdoll = dynamic_cast< CHL2Ragdoll* >( CreateEntityByName( "hl2_ragdoll" ) );
-	}
-
-	if ( pRagdoll )
-	{
-		pRagdoll->m_hPlayer = this;
-		pRagdoll->m_vecRagdollOrigin = GetAbsOrigin();
-		pRagdoll->m_vecRagdollVelocity = GetAbsVelocity();
-		pRagdoll->m_nModelIndex = m_nModelIndex;
-		pRagdoll->m_nForceBone = m_nForceBone;
-		//pRagdoll->m_vecForce = m_vecTotalBulletForce;
-		pRagdoll->SetAbsOrigin( GetAbsOrigin() );
-	}
-
-	// ragdolls will be removed on round restart automatically
-	m_hRagdoll = pRagdoll;
-}
 
 //=========================================================-------------------------
 //=========================================================-------------------------

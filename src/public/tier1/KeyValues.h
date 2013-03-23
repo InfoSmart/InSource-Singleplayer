@@ -146,6 +146,7 @@ public:
 	const wchar_t *GetWString( const char *keyName = NULL, const wchar_t *defaultValue = L"" );
 	void *GetPtr( const char *keyName = NULL, void *defaultValue = (void*)0 );
 	Color GetColor( const char *keyName = NULL /* default value is all black */);
+	bool GetBool( const char *keyName = NULL, bool defaultValue = false ) { return GetInt( keyName, defaultValue ? 1 : 0 ) ? true : false; }
 	bool  IsEmpty(const char *keyName = NULL);
 
 	// Data access

@@ -885,8 +885,6 @@ protected:
 	CNetworkHandle( CBaseEntity, m_hZoomOwner );	//This is a pointer to the entity currently controlling the player's zoom
 													//Only this entity can change the zoom state once it has ownership
 
-	EHANDLE					m_hRagdoll;
-
 	float					m_tbdPrev;				// Time-based damage timer
 	int						m_idrowndmg;			// track drowning damage taken
 	int						m_idrownrestored;		// track drowning damage restored

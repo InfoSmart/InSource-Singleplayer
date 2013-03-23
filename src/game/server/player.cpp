@@ -796,13 +796,8 @@ void CBasePlayer::DeathSound(const CTakeDamageInfo &info)
 	
 	// Reproducir sonido del traje de protección.
 	// bep, bep, bep, beeeeeeep...
-	if (IsSuitEquipped())
+	if ( IsSuitEquipped() )
 		UTIL_EmitGroupnameSuit(edict(), "HEV_DEAD");
-
-	//enginesound->StopAllSounds(true);
-	engine->ClientCommand(edict(), "stopsound");
-
-	EmitSound("Player.Music.Dead");
 }
 
 /*---------------------------------------------------
@@ -1575,7 +1570,7 @@ void CBasePlayer::Event_Dying()
 	CTakeDamageInfo info;
 	DeathSound(info);
 
-	if (IsInAVehicle())
+	if ( IsInAVehicle() )
 		LeaveVehicle();
 
 	QAngle angles = GetLocalAngles();
@@ -1584,6 +1579,11 @@ void CBasePlayer::Event_Dying()
 	angles.z = 0;
 	
 	SetLocalAngles(angles);
+
+	// Creamos un cadaver ¿A muerto, no?
+	/// !!!FIXME: Se crean 2 cadaveres...
+	CreateRagdollEntity();
+	BecomeRagdollOnClient(vec3_origin);
 
 	SetThink(&CBasePlayer::PlayerDeathThink);
 	SetNextThink(gpGlobals->curtime + 0.1f);
@@ -8075,8 +8075,8 @@ void CBasePlayer::HandleAnimEvent( animevent_t *pEvent )
 		if ( pEvent->event == AE_RAGDOLL )
 		{
 			// Convert to ragdoll immediately
-			CreateRagdollEntity();
-			BecomeRagdollOnClient( vec3_origin );
+			//CreateRagdollEntity();
+			//BecomeRagdollOnClient( vec3_origin );
  
 			// Force the player to start death thinking
 			SetThink(&CBasePlayer::PlayerDeathThink);

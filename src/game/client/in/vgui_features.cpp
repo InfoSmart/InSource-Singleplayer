@@ -13,7 +13,7 @@ vgui::CheckButton* IronViewBob;
 vgui::CheckButton* IronSight;
 vgui::CheckButton* CrossHair;
 
-ConVar in_featurespanel("in_featurespanel", "0", FCVAR_CLIENTDLL, "Muestra u oculta el panel de funciones.");
+ConVar in_featurespanel("in_featurespanel", "0", FCVAR_CLIENTDLL, "Muestra u oculta el dialogo de funciones.");
 
 class CFeaturesPanel : public vgui::Frame
 {
@@ -22,14 +22,50 @@ class CFeaturesPanel : public vgui::Frame
 	CFeaturesPanel(vgui::VPANEL parent);
 	~CFeaturesPanel() { };
 
+public:
+	virtual void BuildPanel();
+
 	protected:
 		virtual void OnTick();
 		virtual void OnCommand(const char* Command);
-		virtual void BuildPanel();
 
 	private:
 		CheckButton *cb_AutomaticReload;
 };
+
+class CFeaturesPanelInterface : public IFeaturesPanel
+{
+	private:
+		CFeaturesPanel * FeaturesPanel;
+	public:
+		CFeaturesPanelInterface()
+		{
+			FeaturesPanel = NULL;
+		}
+		void Activate()
+		{
+			if ( FeaturesPanel )
+			{
+				FeaturesPanel->Activate();
+				FeaturesPanel->BuildPanel();
+			}
+		}
+		void Create(vgui::VPANEL parent)
+		{
+			FeaturesPanel = new CFeaturesPanel(parent);
+		}
+		void Destroy()
+		{
+			if ( FeaturesPanel )
+			{
+				FeaturesPanel->SetParent((vgui::Panel *)NULL);
+				delete FeaturesPanel;
+			}
+		}
+	};
+
+static CFeaturesPanelInterface g_FeaturesPanel;
+IFeaturesPanel* featurespanel = (IFeaturesPanel*)&g_FeaturesPanel;
 
 CFeaturesPanel::CFeaturesPanel(vgui::VPANEL parent) : BaseClass(NULL, "FeaturesPanel")
 {
@@ -50,63 +86,40 @@ CFeaturesPanel::CFeaturesPanel(vgui::VPANEL parent) : BaseClass(NULL, "FeaturesP
 	LoadControlSettings("resource/UI/Features.res");
 
 	vgui::ivgui()->AddTickSignal(GetVPanel(), 100);
-	BuildPanel();
 }
-
-class CFeaturesPanelInterface : public IFeaturesPanel
-{
-	private:
-		CFeaturesPanel * FeaturesPanel;
-	public:
-		CFeaturesPanelInterface()
-		{
-			FeaturesPanel = NULL;
-		}
-		void Activate(void)
-		{
-			if(FeaturesPanel)
-			{
-				FeaturesPanel->Activate();
-			}
-		}
-		void Create(vgui::VPANEL parent)
-		{
-			FeaturesPanel = new CFeaturesPanel(parent);
-		}
-		void Destroy()
-		{
-			if(FeaturesPanel)
-			{
-				FeaturesPanel->SetParent((vgui::Panel *)NULL);
-				delete FeaturesPanel;
-			}
-		}
-	};
-
-static CFeaturesPanelInterface g_FeaturesPanel;
-IFeaturesPanel* featurespanel = (IFeaturesPanel*)&g_FeaturesPanel;
 
 void CFeaturesPanel::OnTick()
 {
 	BaseClass::OnTick();
+
 	SetVisible(in_featurespanel.GetBool());
 }
 
 void CFeaturesPanel::OnCommand(const char* Command)
 {
-	if(!Q_stricmp(Command, "ToggleFeaturesPanel"))
+	// Abrir el dialogo.
+	if ( !Q_stricmp(Command, "OpenFeaturesDialog") )
 	{
-		in_featurespanel.SetValue(!in_featurespanel.GetBool());
+		in_featurespanel.SetValue(true);
 		featurespanel->Activate();
 	}
 
-	if(!Q_stricmp(Command, "HealthRegeneration"))
+	// Cerrar el dialogo.
+	if ( !Q_stricmp(Command, "CloseFeaturesDialog") )
+	{
+		in_featurespanel.SetValue(false);
+		featurespanel->Activate();
+	}
+
+	// Ajustar el valor de regeneración de salud.
+	if ( !Q_stricmp(Command, "HealthRegeneration") )
 	{
 		ConVarRef in_regeneration("in_regeneration");
 		in_regeneration.SetValue(HealthRegeneration->IsSelected());
 	}
 
-	if(!Q_stricmp(Command, "TiredEffect"))
+	// Ajustar el valor de los efectos de cansancio.
+	if ( !Q_stricmp(Command, "TiredEffect") )
 	{
 		ConVarRef in_tired_effect("in_tired_effect");
 		ConVarRef in_timescale_effect("in_timescale_effect");
@@ -115,23 +128,19 @@ void CFeaturesPanel::OnCommand(const char* Command)
 		in_timescale_effect.SetValue(TiredEffect->IsSelected());
 	}
 
-	if(!Q_stricmp(Command, "IronViewBob"))
+	// Oscilación de camara.
+	if ( !Q_stricmp(Command, "IronViewBob") )
 	{
 		ConVarRef in_viewbob_enabled("in_viewbob_enabled");
 		in_viewbob_enabled.SetValue(IronViewBob->IsSelected());
 	}
 
-	if(!Q_stricmp(Command, "IronSight"))
+	// Apuntar.
+	if ( !Q_stricmp(Command, "IronSight") )
 	{
 		ConVarRef in_ironsight_enabled("in_ironsight_enabled");
 		in_ironsight_enabled.SetValue(IronSight->IsSelected());
 	}
-
-	if(!Q_stricmp(Command, "CrossHair"))
-	{
-		ConVarRef crosshair("crosshair");
-		crosshair.SetValue(CrossHair->IsSelected());
-	}	
 }
 
 void CFeaturesPanel::BuildPanel()
@@ -146,17 +155,15 @@ void CFeaturesPanel::BuildPanel()
 	ConVarRef in_tired_effect("in_tired_effect");
 	ConVarRef in_viewbob_enabled("in_viewbob_enabled");
 	ConVarRef in_ironsight_enabled("in_ironsight_enabled");
-	ConVarRef crosshair("crosshair");
 
 	HealthRegeneration->SetSelected(in_regeneration.GetBool());
 	TiredEffect->SetSelected(in_tired_effect.GetBool());
 	IronViewBob->SetSelected(in_viewbob_enabled.GetBool());
 	IronSight->SetSelected(in_ironsight_enabled.GetBool());
-	CrossHair->SetSelected(crosshair.GetBool());
 }
 
-CON_COMMAND(ToggleFeaturesPanel, "Mostrar u ocultar el panel.")
+CON_COMMAND(OpenFeaturesDialog, "Abre el dialogo de opciones")
 {
-	in_featurespanel.SetValue(!in_featurespanel.GetBool());
+	in_featurespanel.SetValue(true);
 	featurespanel->Activate();
 };

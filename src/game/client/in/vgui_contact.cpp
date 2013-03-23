@@ -143,16 +143,16 @@ void CContactPanel::OnTick()
  
 void CContactPanel::OnCommand(const char* pcCommand)
 {
-	if(!Q_stricmp(pcCommand, "ToggleContactPanel"))
+	if(!Q_stricmp(pcCommand, "CloseContactDialog"))
 	{
-		in_contactpanel.SetValue(!in_contactpanel.GetBool());
+		in_contactpanel.SetValue(false);
 		contactpanel->Activate();
 	}
 }
  
-CON_COMMAND(ToggleContactPanel, "Muestra u oculta el panel de contacto")
+CON_COMMAND(OpenContactDialog, "Abre el dialogo de Contacto")
 {
-	in_contactpanel.SetValue(!in_contactpanel.GetBool());
+	in_contactpanel.SetValue(true);
 	contactpanel->UpdateHTML();
 	contactpanel->Activate();	
 };

@@ -14,6 +14,7 @@
 #include "tier0/vprof.h"
 #include "tier1/KeyValues.h"
 #include "toolframework_client.h"
+#include "iinput.h"
 
 #ifdef HL2_CLIENT_DLL
 #include "c_basehlplayer.h"
@@ -151,6 +152,225 @@ public:
 //-----------------------------------------------------------------------------
 // Purpose: Do the headlight
 //-----------------------------------------------------------------------------
+
+void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecForward, const Vector &vecRight, const Vector &vecUp )
+{
+	VPROF_BUDGET( "CFlashlightEffect::UpdateLightNew", VPROF_BUDGETGROUP_SHADOW_DEPTH_TEXTURING );
+
+	FlashlightState_t state;
+
+	// We will lock some of the flashlight params if player is on a ladder, to prevent oscillations due to the trace-rays
+	bool bPlayerOnLadder = ( C_BasePlayer::GetLocalPlayer()->GetMoveType() == MOVETYPE_LADDER );
+
+	const float flEpsilon		= 0.1f;			// Offset flashlight position along vecUp
+	const float flDistCutoff	= 128.0f;
+	const float flDistDrag		= 0.2;
+
+	CTraceFilterSkipPlayerAndViewModel traceFilter;
+	float flOffsetY = r_flashlightoffsety.GetFloat();
+
+	if( r_swingflashlight.GetBool() )
+	{
+		// This projects the view direction backwards, attempting to raise the vertical
+		// offset of the flashlight, but only when the player is looking down.
+		Vector vecSwingLight = vecPos + vecForward * -12.0f;
+
+		if( vecSwingLight.z > vecPos.z )
+			flOffsetY += (vecSwingLight.z - vecPos.z);
+	}
+
+	Vector vOrigin = vecPos + flOffsetY * vecUp;
+
+	// Not on ladder...trace a hull
+	if ( !bPlayerOnLadder ) 
+	{
+		trace_t pmOriginTrace;
+		UTIL_TraceHull(vecPos, vOrigin, Vector(-4, -4, -4), Vector(4, 4, 4), MASK_SOLID & ~(CONTENTS_HITBOX), &traceFilter, &pmOriginTrace);
+
+		if ( pmOriginTrace.DidHit() )
+			vOrigin = vecPos;
+	}
+	else // on ladder...skip the above hull trace
+		vOrigin = vecPos;
+
+	// Now do a trace along the flashlight direction to ensure there is nothing within range to pull back from
+	int iMask	= MASK_OPAQUE_AND_NPCS;
+	iMask		&= ~CONTENTS_HITBOX;
+	iMask		|= CONTENTS_WINDOW;
+
+	Vector vTarget = vecPos + vecForward * ((r_powerfulflashlight.GetBool()) ? r_flashlight_powefulfar.GetFloat() : r_flashlightfar.GetFloat());
+
+	// Work with these local copies of the basis for the rest of the function
+	Vector vDir   = vTarget - vOrigin;
+	Vector vRight = vecRight;
+	Vector vUp    = vecUp;
+
+	VectorNormalize(vDir);
+	VectorNormalize(vRight);
+	VectorNormalize(vUp);
+
+	// Orthonormalize the basis, since the flashlight texture projection will require this later...
+	vUp		-= DotProduct(vDir, vUp) * vDir;
+	VectorNormalize(vUp);
+	vRight	-= DotProduct(vDir, vRight) * vDir;
+	VectorNormalize(vRight);
+	vRight	-= DotProduct(vUp, vRight) * vUp;
+	VectorNormalize(vRight);
+
+	AssertFloatEquals(DotProduct( vDir, vRight ), 0.0f, 1e-3);
+	AssertFloatEquals(DotProduct( vDir, vUp    ), 0.0f, 1e-3);
+	AssertFloatEquals(DotProduct( vRight, vUp  ), 0.0f, 1e-3);
+
+	trace_t pmDirectionTrace;
+	UTIL_TraceHull(vOrigin, vTarget, Vector( -4, -4, -4 ), Vector( 4, 4, 4 ), iMask, &traceFilter, &pmDirectionTrace);
+
+	if ( r_flashlightvisualizetrace.GetBool() == true )
+	{
+		debugoverlay->AddBoxOverlay( pmDirectionTrace.endpos, Vector( -4, -4, -4 ), Vector( 4, 4, 4 ), QAngle( 0, 0, 0 ), 0, 0, 255, 16, 0 );
+		debugoverlay->AddLineOverlay( vOrigin, pmDirectionTrace.endpos, 255, 0, 0, false, 0 );
+	}
+
+	float flDist	= (pmDirectionTrace.endpos - vOrigin).Length();
+	float flFov		= r_flashlightfov.GetFloat();
+
+	if ( flDist < flDistCutoff )
+	{
+		// We have an intersection with our cutoff range
+		// Determine how far to pull back, then trace to see if we are clear
+		float flPullBackDist	= bPlayerOnLadder ? r_flashlightladderdist.GetFloat() : flDistCutoff - flDist;	// Fixed pull-back distance if on ladder
+		float flDistModTmp		= Lerp( flDistDrag, m_flDistMod, flPullBackDist );
+
+		//m_flDistMod = Lerp( flDistDrag, m_flDistMod, flPullBackDist );
+		
+		if ( !bPlayerOnLadder )
+		{
+			trace_t pmBackTrace;
+			UTIL_TraceHull(vOrigin, vOrigin - vDir*(flPullBackDist-flEpsilon), Vector( -4, -4, -4 ), Vector( 4, 4, 4 ), iMask, &traceFilter, &pmBackTrace);
+
+			if( pmBackTrace.DidHit() )
+			{
+				// We have an intersection behind us as well, so limit our m_flDistMod
+				float flMaxDist = (pmBackTrace.endpos - vOrigin).Length() - flEpsilon;
+
+				if( m_flDistMod > flMaxDist )
+					m_flDistMod = flMaxDist;
+			}
+		}
+
+		if ( ::input->CAM_IsThirdPersonOverShoulder() )
+			m_flDistMod		= Lerp(flDistDrag, m_flDistMod, 0.0f);
+		else
+			m_flDistMod		= flDistModTmp;
+	}
+	else
+		m_flDistMod = Lerp(flDistDrag, m_flDistMod, 0.0f);
+
+	vOrigin					= vOrigin - vDir * m_flDistMod;
+	state.m_vecLightOrigin	= vOrigin;
+
+	BasisToQuaternion(vDir, vRight, vUp, state.m_quatOrientation);
+	state.m_fQuadraticAtten = r_flashlightquadratic.GetFloat();
+
+	bool bFlicker		= false;
+	float flashlightFOV = r_flashlightfov.GetFloat();
+
+	if ( r_powerfulflashlight.GetBool() )
+		flashlightFOV = r_flashlight_powerfulfov.GetFloat();
+
+	C_BaseHLPlayer *pPlayer = (C_BaseHLPlayer *)C_BasePlayer::GetLocalPlayer();
+
+	if ( pPlayer )
+	{
+		float flBatteryPower = ( pPlayer->m_HL2Local.m_flFlashBattery >= 0.0f ) ? ( pPlayer->m_HL2Local.m_flFlashBattery ) : pPlayer->m_HL2Local.m_flSuitPower;
+
+		if ( flBatteryPower <= 10.0f )
+		{
+			float flScale;
+
+			if ( flBatteryPower >= 0.0f )
+				flScale = (flBatteryPower <= 4.5f) ? SimpleSplineRemapVal(flBatteryPower, 4.5f, 0.0f, 1.0f, 0.0f) : 1.0f;
+			else
+				flScale = SimpleSplineRemapVal(flBatteryPower, 10.0f, 4.8f, 1.0f, 0.0f);
+			
+			flScale = clamp(flScale, 0.0f, 1.0f);
+
+			if ( flScale < 0.35f )
+			{
+				float flFlicker = cosf( gpGlobals->curtime * 6.0f ) * sinf( gpGlobals->curtime * 15.0f );
+				
+				// On
+				if ( flFlicker > 0.25f && flFlicker < 0.75f )
+					state.m_fLinearAtten = ((r_powerfulflashlight.GetBool()) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat()) * flScale;
+
+				// Off
+				else
+					state.m_fLinearAtten = 0.0f;
+			}
+			else
+			{
+				float flNoise			= cosf( gpGlobals->curtime * 7.0f ) * sinf( gpGlobals->curtime * 25.0f );
+				state.m_fLinearAtten	= ((r_powerfulflashlight.GetBool()) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat()) * flScale + 1.5f * flNoise;
+			}
+
+			state.m_fHorizontalFOVDegrees	= flashlightFOV - ( 16.0f * (1.0f-flScale) );
+			state.m_fVerticalFOVDegrees		= flashlightFOV - ( 16.0f * (1.0f-flScale) );
+			
+			bFlicker = true;
+		}
+	}
+
+	if ( bFlicker == false )
+	{
+		state.m_fLinearAtten			= ( (r_powerfulflashlight.GetBool() ) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat());
+		state.m_fHorizontalFOVDegrees	= flashlightFOV;
+		state.m_fVerticalFOVDegrees		= flashlightFOV;
+	}
+
+	state.m_fConstantAtten			= r_flashlightconstant.GetFloat();
+	state.m_Color[0]				= 1.0f;
+	state.m_Color[1]				= 1.0f;
+	state.m_Color[2]				= 1.0f;
+	state.m_Color[3]				= r_flashlightambient.GetFloat();
+	state.m_NearZ					= r_flashlightnear.GetFloat() + m_flDistMod;	// Push near plane out so that we don't clip the world when the flashlight pulls back 
+	state.m_FarZ					= (r_powerfulflashlight.GetBool()) ? r_flashlight_powefulfar.GetFloat() : r_flashlightfar.GetFloat();
+	state.m_bEnableShadows			= r_flashlightdepthtexture.GetBool();
+	state.m_flShadowMapResolution	= r_flashlightdepthres.GetInt();
+
+	state.m_pSpotlightTexture		= m_FlashlightTexture;
+	state.m_nSpotlightTextureFrame	= 0;
+
+	state.m_flShadowAtten				= r_flashlightshadowatten.GetFloat();
+	state.m_flShadowSlopeScaleDepthBias = mat_slopescaledepthbias_shadowmap.GetFloat();
+	state.m_flShadowDepthBias			= mat_depthbias_shadowmap.GetFloat();
+
+	if( m_FlashlightHandle == CLIENTSHADOW_INVALID_HANDLE )
+		m_FlashlightHandle = g_pClientShadowMgr->CreateFlashlight( state );
+	else
+	{
+		if( !r_flashlightlockposition.GetBool() )
+			g_pClientShadowMgr->UpdateFlashlightState( m_FlashlightHandle, state );
+	}
+	
+	g_pClientShadowMgr->UpdateProjectedTexture( m_FlashlightHandle, true );
+	
+	// Kill the old flashlight method if we have one.
+	LightOffOld();
+
+	#ifndef NO_TOOLFRAMEWORK
+	if ( clienttools->IsInRecordingMode() )
+	{
+		KeyValues *msg = new KeyValues( "FlashlightState" );
+		msg->SetFloat( "time", gpGlobals->curtime );
+		msg->SetInt( "entindex", m_nEntIndex );
+		msg->SetInt( "flashlightHandle", m_FlashlightHandle );
+		msg->SetPtr( "flashlightState", &state );
+		ToolFramework_PostToolMessage( HTOOLHANDLE_INVALID, msg );
+		msg->deleteThis();
+	}
+	#endif
+}
+
+/*
 void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecForward, const Vector &vecRight, const Vector &vecUp )
 {
 	VPROF_BUDGET( "CFlashlightEffect::UpdateLightNew", VPROF_BUDGETGROUP_SHADOW_DEPTH_TEXTURING );
@@ -239,7 +459,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 		// Determine how far to pull back, then trace to see if we are clear
 		float flPullBackDist = bPlayerOnLadder ? r_flashlightladderdist.GetFloat() : flDistCutoff - flDist;	// Fixed pull-back distance if on ladder
 		m_flDistMod = Lerp( flDistDrag, m_flDistMod, flPullBackDist );
-		
+
 		if ( !bPlayerOnLadder )
 		{
 			trace_t pmBackTrace;
@@ -287,13 +507,13 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 			{
 				flScale = SimpleSplineRemapVal( flBatteryPower, 10.0f, 4.8f, 1.0f, 0.0f );
 			}
-			
+
 			flScale = clamp( flScale, 0.0f, 1.0f );
 
 			if ( flScale < 0.35f )
 			{
 				float flFlicker = cosf( gpGlobals->curtime * 6.0f ) * sinf( gpGlobals->curtime * 15.0f );
-				
+
 				if ( flFlicker > 0.25f && flFlicker < 0.75f )
 				{
 					// On
@@ -313,7 +533,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 
 			state.m_fHorizontalFOVDegrees	= flashlightFOV - ( 16.0f * (1.0f-flScale) );
 			state.m_fVerticalFOVDegrees		= flashlightFOV - ( 16.0f * (1.0f-flScale) );
-			
+
 			bFlicker = true;
 		}
 	}
@@ -354,9 +574,9 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 			g_pClientShadowMgr->UpdateFlashlightState( m_FlashlightHandle, state );
 		}
 	}
-	
+
 	g_pClientShadowMgr->UpdateProjectedTexture( m_FlashlightHandle, true );
-	
+
 	// Kill the old flashlight method if we have one.
 	LightOffOld();
 
@@ -373,6 +593,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 	}
 #endif
 }
+*/
 
 //-----------------------------------------------------------------------------
 // Purpose: Do the headlight

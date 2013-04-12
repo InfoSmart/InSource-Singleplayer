@@ -9,6 +9,7 @@
 #include "basecombatweapon_shared.h"
 #include "baseviewmodel_shared.h"
 #include "particles_new.h"
+#include "iinput.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -46,7 +47,8 @@ Vector GetTracerOrigin( const CEffectData &data )
 		}
 
 		C_BaseCombatWeapon *pWpn = dynamic_cast<C_BaseCombatWeapon *>( pEnt );
-		if ( pWpn && pWpn->IsCarriedByLocalPlayer() )
+
+		if ( pWpn && pWpn->IsCarriedByLocalPlayer() && !::input->CAM_IsThirdPerson() )
 		{
 			C_BasePlayer *player = ToBasePlayer( pWpn->GetOwner() );
 

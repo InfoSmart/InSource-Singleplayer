@@ -4,6 +4,7 @@
 //
 // $NoKeywords: $
 //===========================================================================//
+
 #include "cbase.h"
 #include "c_sprite.h"
 #include "model_types.h"
@@ -20,6 +21,7 @@
 #include "tier1/KeyValues.h"
 #include "toolframework/itoolframework.h"
 #include "toolframework_client.h"
+#include "iinput.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -374,35 +376,44 @@ int C_SpriteRenderer::DrawSprite(
 	VPROF_BUDGET( "C_SpriteRenderer::DrawSprite", VPROF_BUDGETGROUP_PARTICLE_RENDERING );
 
 	if ( !r_drawsprites.GetBool() || !model || modelinfo->GetModelType( model ) != mod_sprite )
-	{
 		return 0;
-	}
 
 	// Get extra data
-	CEngineSprite *psprite = (CEngineSprite *)modelinfo->GetModelExtraData( model );
+	CEngineSprite *psprite = (CEngineSprite *)modelinfo->GetModelExtraData(model);
+
 	if ( !psprite )
-	{
 		return 0;
-	}
 
 	Vector effect_origin;
-	VectorCopy( origin, effect_origin );
+	VectorCopy(origin, effect_origin);
 
 	// Use attachment point
 	if ( attachedto )
 	{
 		C_BaseEntity *ent = attachedto->GetBaseEntity();
+
 		if ( ent )
 		{
+			if ( ent->GetBaseAnimating() && ent->GetBaseAnimating()->IsViewModel() && ::input->CAM_IsThirdPersonOverShoulder() )
+			{
+				C_BaseViewModel *pVm = (C_BaseViewModel*)ent;
+				C_BasePlayer *pOwner = ( pVm->GetOwner() && pVm->GetOwner()->IsPlayer() ) ? (C_BasePlayer*)pVm->GetOwner() : NULL;
+
+				if ( pOwner && pOwner->GetActiveWeapon() )
+					return 0; //worldmodels don't have the same attachments, so just get out (crossbow)
+			}
+
 			// don't draw viewmodel effects in reflections
 			if ( CurrentViewID() == VIEW_REFLECTION )
 			{
 				int group = ent->GetRenderGroup();
+
 				if ( group == RENDER_GROUP_VIEW_MODEL_TRANSLUCENT || group == RENDER_GROUP_VIEW_MODEL_OPAQUE )
 					return 0;
 			}
+
 			QAngle temp;
-			ent->GetAttachment( attachmentindex, effect_origin, temp );
+			ent->GetAttachment(attachmentindex, effect_origin, temp);
 		}
 	}
 

@@ -10,6 +10,7 @@
 	#pragma once
 
 	#include "singleplayer_animstate.h"
+	//#include "inmp_playeranimstate.h"
 	#include "player.h"
 	#include "hl2_playerlocaldata.h"
 	#include "simtimer.h"

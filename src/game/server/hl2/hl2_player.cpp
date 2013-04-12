@@ -858,6 +858,8 @@ void CHL2_Player::PostThink()
 	angles[PITCH] = 0;
 	SetLocalAngles(angles);
 
+
+	//m_pPlayerAnimState->Update(m_angEyeAngles[YAW], m_angEyeAngles[PITCH]);
 	m_pPlayerAnimState->Update();
 }
 
@@ -1065,24 +1067,17 @@ void CHL2_Player::PlayerRunCommand(CUserCmd *ucmd, IMoveHelper *moveHelper)
 //=========================================================-------------------------
 void CHL2_Player::Spawn()
 {
-	
-	/*
-	#ifndef HL2MP
-	#ifndef PORTAL
-		SetModel(in_player_model.GetString());
-	#endif
-	#endif
-	*/
-
 	BaseClass::Spawn();
 
 	if ( !IsSuitEquipped() )
 		 StartWalking();
 
-	SuitPower_SetCharge( 100 );
+	SuitPower_SetCharge(100);
 
-	m_Local.m_iHideHUD |= HIDEHUD_CHAT;
-	m_pPlayerAISquad = g_AI_SquadManager.FindCreateSquad(AllocPooledString(PLAYER_SQUADNAME));
+	if ( !GameRules()->IsMultiplayer() )
+		m_Local.m_iHideHUD |= HIDEHUD_CHAT;
+
+	m_pPlayerAISquad	= g_AI_SquadManager.FindCreateSquad(AllocPooledString(PLAYER_SQUADNAME));
 
 	InitSprinting();
 
@@ -1092,8 +1087,7 @@ void CHL2_Player::Spawn()
 #endif 
 
 	GetPlayerProxy();
-	SetFlashlightPowerDrainScale( 1.0f );
-
+	SetFlashlightPowerDrainScale(1.0f);
 }
 
 //=========================================================
@@ -3866,169 +3860,179 @@ void CLogicPlayerProxy::InputSetLocatorTargetEntity( inputdata_t &inputdata )
 // Set the activity based on an event or current state
 void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
 {
-    int animDesired;
+	/*
+		Msg("Sequence: (%3d) %s \r\n", GetSequence(), GetSequenceName( GetSequence() ));
+		
+		const char *pActname = GetSequenceActivityName(GetSequence());
+		if ( pActname && strlen(pActname) )
+		{
+			Msg("Activity %s \r\n", pActname );
+		}
+	*/
+
+    int animDesired; 
     float speed;
-
+ 
     speed = GetAbsVelocity().Length2D();
-
-    if (GetFlags() & (FL_FROZEN | FL_ATCONTROLS))
+	
+	// Esta congelado.
+    if ( GetFlags() & ( FL_FROZEN | FL_ATCONTROLS ) )
     {
         speed = 0;
         playerAnim = PLAYER_IDLE;
     }
-
-    Activity idealActivity = ACT_RUN;
-
-    if (playerAnim == PLAYER_JUMP)
+ 
+    Activity idealActivity = ACT_HL2MP_RUN_PHYSGUN;
+ 
+    if ( playerAnim == PLAYER_JUMP )
     {
-        if (HasWeapons())
-            idealActivity = ACT_JUMP;
+        if ( HasWeapons() )
+            idealActivity = ACT_HL2MP_JUMP;
         else
-            idealActivity = ACT_JUMP;
+            idealActivity = ACT_HL2MP_JUMP_PHYSGUN;
     }
-
-    else if (playerAnim == PLAYER_DIE)
+    else if ( playerAnim == PLAYER_DIE )
     {
-        if (m_lifeState == LIFE_ALIVE)
+        if ( m_lifeState == LIFE_ALIVE )
             return;
     }
-
-    else if (playerAnim == PLAYER_ATTACK1)
+    else if ( playerAnim == PLAYER_ATTACK1 )
     {
-        if ( GetActivity() == ACT_HOVER    ||
-             GetActivity() == ACT_SWIM        ||
-             GetActivity() == ACT_HOP        ||
-             GetActivity() == ACT_LEAP        ||
-             GetActivity() == ACT_DIESIMPLE )
+        if ( GetActivity( ) == ACT_HOVER    ||
+             GetActivity( ) == ACT_SWIM        ||
+             GetActivity( ) == ACT_HOP        ||
+             GetActivity( ) == ACT_LEAP        ||
+             GetActivity( ) == ACT_DIESIMPLE )
         {
             idealActivity = GetActivity();
         }
         else
-           idealActivity = ACT_GESTURE_RANGE_ATTACK1;
+            idealActivity = ACT_HL2MP_GESTURE_RANGE_ATTACK;
     }
-
-    else if (playerAnim == PLAYER_RELOAD)
-        idealActivity = ACT_GESTURE_RELOAD;
-
-    else if (playerAnim == PLAYER_IDLE || playerAnim == PLAYER_WALK)
+    else if ( playerAnim == PLAYER_RELOAD )
     {
-        if (!(GetFlags() & FL_ONGROUND) && (GetActivity() == ACT_JUMP || GetActivity( ) == ACT_JUMP))    // Still jumping
-            idealActivity = GetActivity();
-        
-		else if (GetWaterLevel() > 1)
+        idealActivity = ACT_HL2MP_GESTURE_RELOAD;
+    }
+    else if ( playerAnim == PLAYER_IDLE || playerAnim == PLAYER_WALK )
+    {
+        if ( !( GetFlags() & FL_ONGROUND ) && ( GetActivity( ) == ACT_HL2MP_JUMP || GetActivity( ) == ACT_JUMP ) )    // Still jumping
         {
-            if (speed == 0)
+            idealActivity = GetActivity( );
+        }   
+        else if ( GetWaterLevel() > 1 )
+        {
+            if ( speed == 0 )
             {
-                if (HasWeapons())
-                    idealActivity = ACT_IDLE;
+                if ( HasWeapons() )
+                    idealActivity = ACT_HL2MP_IDLE;
                 else
-                    idealActivity = ACT_IDLE;
+                    idealActivity = ACT_HL2MP_IDLE_PHYSGUN;
             }
             else
             {
-                if (HasWeapons())
-                    idealActivity = ACT_RUN;
+                if ( HasWeapons() )
+                    idealActivity = ACT_HL2MP_RUN;
                 else
-                    idealActivity = ACT_RUN;
+                    idealActivity = ACT_HL2MP_RUN_PHYSGUN;
             }
         }
-
         else
         {
-            if (GetFlags() & FL_DUCKING)
+            if ( GetFlags() & FL_DUCKING )
             {
-                if (speed > 0)
+                if ( speed > 0 )
                 {
-                    if (HasWeapons())
-                        idealActivity = ACT_WALK_CROUCH;
+                    if ( HasWeapons() )
+                        idealActivity = ACT_HL2MP_WALK_CROUCH;
                     else
-                        idealActivity = ACT_WALK_CROUCH;
+                        idealActivity = ACT_HL2MP_WALK_CROUCH_PHYSGUN;
                 }
                 else
                 {
-                        idealActivity = ACT_COVER_LOW;
+                    if ( HasWeapons() )
+                        idealActivity = ACT_HL2MP_IDLE_CROUCH;
+                    else
+                        idealActivity = ACT_HL2MP_IDLE_CROUCH_PHYSGUN;
                 }
             }
-
             else
             {
-                if (speed > 0)
+                if ( speed > 0 )
                 {
                     {
-                        if (HasWeapons())
-                            idealActivity = ACT_RUN;
+                        if ( HasWeapons() )
+                            idealActivity = ACT_HL2MP_RUN;
                         else
                         {
-                            if (speed > hl2_walkspeed.GetFloat() + 20.0f)
-                                idealActivity = ACT_RUN;
+							if ( speed > hl2_walkspeed.GetFloat() + 20.0f )
+                                idealActivity = ACT_HL2MP_RUN_PHYSGUN;
                             else
-                                idealActivity = ACT_WALK;
+                                idealActivity = ACT_HL2MP_RUN_PHYSGUN;  // @TODO
                         }
                     }
                 }
                 else
                 {
-                    if (HasWeapons())
-						idealActivity = ACT_IDLE;
+                    if ( HasWeapons() )
+						idealActivity = ACT_HL2MP_IDLE;
                     else
-						idealActivity = ACT_IDLE;
+						idealActivity = ACT_HL2MP_IDLE_PHYSGUN;
                 }
             }
         }
     }
-
-    if (IsInAVehicle())
-        idealActivity = ACT_COVER_LOW;
-   
-    if (idealActivity == ACT_GESTURE_RANGE_ATTACK1)
+ 
+    if ( IsInAVehicle() )
     {
-        RestartGesture(Weapon_TranslateActivity(idealActivity));
-
+        idealActivity = ACT_COVER_LOW; // @TODO
+    }
+ 
+    if ( idealActivity == ACT_HL2MP_GESTURE_RANGE_ATTACK )
+    {
+        RestartGesture( Weapon_TranslateActivity( idealActivity ) );
+ 
         // FIXME: this seems a bit wacked
-        Weapon_SetActivity(Weapon_TranslateActivity(ACT_RANGE_ATTACK1), 0);
-
+        Weapon_SetActivity( Weapon_TranslateActivity( ACT_RANGE_ATTACK1 ), 0 );
+ 
         return;
     }
-
-    else if (idealActivity == ACT_GESTURE_RELOAD)
+    else if ( idealActivity == ACT_HL2MP_GESTURE_RELOAD )
     {
-        RestartGesture(Weapon_TranslateActivity(idealActivity));
+        RestartGesture( Weapon_TranslateActivity( idealActivity ) );
         return;
     }
-
     else
     {
-        SetActivity(idealActivity);
-
-        animDesired = SelectWeightedSequence(Weapon_TranslateActivity(idealActivity));
-
+        SetActivity( idealActivity );
+ 
+        animDesired = SelectWeightedSequence( Weapon_TranslateActivity ( idealActivity ) );
+ 
         if (animDesired == -1)
         {
-            animDesired = SelectWeightedSequence(idealActivity);
-
-            if (animDesired == -1)
+            animDesired = SelectWeightedSequence( idealActivity );
+ 
+            if ( animDesired == -1 )
+            {
                 animDesired = 0;
+            }
         }
-   
+ 
         // Already using the desired animation?
-        if (GetSequence() == animDesired)
+        if ( GetSequence() == animDesired )
             return;
-
+ 
         m_flPlaybackRate = 1.0;
-
         ResetSequence(animDesired);
         SetCycle(0);
-
         return;
     }
-
+ 
     // Already using the desired animation?
-    if (GetSequence() == animDesired)
+    if ( GetSequence() == animDesired )
         return;
-
-    DevMsg("Ajustando animación a %d\n", animDesired);
-
+ 
+    //Msg( "Set animation to %d\n", animDesired );
     // Reset to first frame of desired animation
-    ResetSequence(animDesired);
-    SetCycle(0);
+    ResetSequence( animDesired );
+    SetCycle( 0 );
 }

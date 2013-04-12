@@ -1126,11 +1126,22 @@ bool CNPC_Citizen::FInViewCone( CBaseEntity *pEntity )
 #if 0
 	if ( IsMortar( pEntity ) )
 	{
-		// @TODO (toml 11-20-03): do this only if have heard mortar shell recently and it's active
+		// @TODO `(toml 11-20-03): do this only if have heard mortar shell recently and it's active
 		return true;
 	}
 #endif
 	return BaseClass::FInViewCone( pEntity );
+}
+
+//-----------------------------------------------------------------------------
+//-----------------------------------------------------------------------------
+bool CNPC_Citizen::IsJumpLegal(const Vector &startPos, const Vector &apex, const Vector &endPos) const
+{
+	const float MAX_JUMP_RISE		= 220.0f;
+	const float MAX_JUMP_DISTANCE	= 512.0f;
+	const float MAX_JUMP_DROP		= 384.0f;
+
+	return BaseClass::IsJumpLegal(startPos, apex, endPos, MAX_JUMP_RISE, MAX_JUMP_DROP, MAX_JUMP_DISTANCE);
 }
 
 //-----------------------------------------------------------------------------

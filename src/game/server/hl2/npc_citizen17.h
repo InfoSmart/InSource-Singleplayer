@@ -107,6 +107,7 @@ public:
 	void			BuildScheduleTestBits();
 
 	bool			FInViewCone( CBaseEntity *pEntity );
+	bool			IsJumpLegal(const Vector &startPos, const Vector &apex, const Vector &endPos) const;
 
 	int				SelectFailSchedule( int failedSchedule, int failedTask, AI_TaskFailureCode_t taskFailCode );
 	int				SelectSchedule();

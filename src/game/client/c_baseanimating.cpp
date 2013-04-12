@@ -3776,8 +3776,13 @@ void C_BaseAnimating::FireObsoleteEvent( const Vector& origin, const QAngle& ang
 	case CL_EVENT_NPC_MUZZLEFLASH2:
 	case CL_EVENT_NPC_MUZZLEFLASH3:
 		{
-			int iAttachment = -1;
-			bool bFirstPerson = true;
+			int iAttachment		= -1;
+			bool bFirstPerson	= true;
+
+			C_BaseEntity *follow = GetFollowedEntity();
+
+			if ( follow && follow->IsPlayer() && ::input->CAM_IsThirdPersonOverShoulder() )
+				break;
 
 			// First person muzzle flashes
 			switch (event) 

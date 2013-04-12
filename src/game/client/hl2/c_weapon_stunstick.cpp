@@ -4,7 +4,9 @@
 //
 //=============================================================================//
 #include "cbase.h"
-#include "c_basehlcombatweapon.h"
+//#include "c_basehlcombatweapon.h"
+#include "basehlcombatweapon.h"
+#include "basebludgeonweapon.h"
 #include "iviewrender_beams.h"
 #include "beam_shared.h"
 #include "c_weapon__stubs.h"

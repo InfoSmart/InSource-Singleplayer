@@ -6,7 +6,8 @@
 
 #include "cbase.h"
 #include "c_weapon__stubs.h"
-#include "c_basehlcombatweapon.h"
+//#include "c_basehlcombatweapon.h"
+#include "basehlcombatweapon.h"
 #include "fx.h"
 #include "particles_localspace.h"
 #include "view.h"

@@ -6,36 +6,44 @@
 //=============================================================================//
 
 #include "cbase.h"
+#include "weapon_crowbar.h"
 #include "basehlcombatweapon.h"
-#include "player.h"
 #include "gamerules.h"
 #include "ammodef.h"
 #include "mathlib/mathlib.h"
 #include "in_buttons.h"
-#include "soundent.h"
-#include "basebludgeonweapon.h"
 #include "vstdlib/random.h"
 #include "npcevent.h"
-#include "ai_basenpc.h"
-#include "weapon_crowbar.h"
+
+#ifdef CLIENT_DLL
+	#include "c_in_player.h"
+	#include "c_te_effect_dispatch.h"
+#else
+	#include "in_player.h"
+	#include "ai_basenpc.h"
+	#include "te_effect_dispatch.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-ConVar    sk_plr_dmg_crowbar		( "sk_plr_dmg_crowbar","0");
-ConVar    sk_npc_dmg_crowbar		( "sk_npc_dmg_crowbar","0");
+ConVar    sk_plr_dmg_crowbar		("sk_plr_dmg_crowbar", "0");
+ConVar    sk_npc_dmg_crowbar		("sk_npc_dmg_crowbar", "0");
 
 //-----------------------------------------------------------------------------
 // CWeaponCrowbar
 //-----------------------------------------------------------------------------
 
-IMPLEMENT_SERVERCLASS_ST(CWeaponCrowbar, DT_WeaponCrowbar)
-END_SEND_TABLE()
+IMPLEMENT_NETWORKCLASS_ALIASED( WeaponCrowbar, DT_WeaponCrowbar )
 
-#ifndef HL2MP
-LINK_ENTITY_TO_CLASS( weapon_crowbar, CWeaponCrowbar );
-PRECACHE_WEAPON_REGISTER( weapon_crowbar );
-#endif
+BEGIN_NETWORK_TABLE( CWeaponCrowbar, DT_WeaponCrowbar )
+END_NETWORK_TABLE()
+
+BEGIN_PREDICTION_DATA( CWeaponCrowbar )
+END_PREDICTION_DATA()
+
+LINK_ENTITY_TO_CLASS(weapon_crowbar, CWeaponCrowbar);
+PRECACHE_WEAPON_REGISTER(weapon_crowbar);
 
 acttable_t CWeaponCrowbar::m_acttable[] = 
 {
@@ -43,14 +51,14 @@ acttable_t CWeaponCrowbar::m_acttable[] =
 	{ ACT_IDLE,				ACT_IDLE_ANGRY_MELEE,	false },
 	{ ACT_IDLE_ANGRY,		ACT_IDLE_ANGRY_MELEE,	false },
 
-	{ ACT_RANGE_ATTACK1,                ACT_RANGE_ATTACK_SLAM, true },
-    { ACT_HL2MP_IDLE,                    ACT_HL2MP_IDLE_MELEE,                    false },
-    { ACT_HL2MP_RUN,                    ACT_HL2MP_RUN_MELEE,                    false },
-    { ACT_HL2MP_IDLE_CROUCH,            ACT_HL2MP_IDLE_CROUCH_MELEE,            false },
-    { ACT_HL2MP_WALK_CROUCH,            ACT_HL2MP_WALK_CROUCH_MELEE,            false },
-    { ACT_HL2MP_GESTURE_RANGE_ATTACK,    ACT_HL2MP_GESTURE_RANGE_ATTACK_MELEE,    false },
-    { ACT_HL2MP_GESTURE_RELOAD,            ACT_HL2MP_GESTURE_RELOAD_MELEE,            false },
-    { ACT_HL2MP_JUMP,                    ACT_HL2MP_JUMP_MELEE,                    false },
+	{ ACT_RANGE_ATTACK1,					ACT_RANGE_ATTACK_SLAM,					true },
+    { ACT_HL2MP_IDLE,						ACT_HL2MP_IDLE_MELEE,                   false },
+    { ACT_HL2MP_RUN,						ACT_HL2MP_RUN_MELEE,                    false },
+    { ACT_HL2MP_IDLE_CROUCH,				ACT_HL2MP_IDLE_CROUCH_MELEE,            false },
+    { ACT_HL2MP_WALK_CROUCH,				ACT_HL2MP_WALK_CROUCH_MELEE,            false },
+    { ACT_HL2MP_GESTURE_RANGE_ATTACK,		ACT_HL2MP_GESTURE_RANGE_ATTACK_MELEE,   false },
+    { ACT_HL2MP_GESTURE_RELOAD,				ACT_HL2MP_GESTURE_RELOAD_MELEE,         false },
+    { ACT_HL2MP_JUMP,						ACT_HL2MP_JUMP_MELEE,                   false },
 };
 
 IMPLEMENT_ACTTABLE(CWeaponCrowbar);
@@ -58,7 +66,7 @@ IMPLEMENT_ACTTABLE(CWeaponCrowbar);
 //-----------------------------------------------------------------------------
 // Constructor
 //-----------------------------------------------------------------------------
-CWeaponCrowbar::CWeaponCrowbar( void )
+CWeaponCrowbar::CWeaponCrowbar()
 {
 }
 
@@ -78,11 +86,11 @@ float CWeaponCrowbar::GetDamageForActivity( Activity hitActivity )
 //-----------------------------------------------------------------------------
 // Purpose: Add in a view kick for this weapon
 //-----------------------------------------------------------------------------
-void CWeaponCrowbar::AddViewKick( void )
+void CWeaponCrowbar::AddViewKick()
 {
 	CBasePlayer *pPlayer  = ToBasePlayer( GetOwner() );
 	
-	if ( pPlayer == NULL )
+	if ( !pPlayer )
 		return;
 
 	QAngle punchAng;
@@ -94,6 +102,7 @@ void CWeaponCrowbar::AddViewKick( void )
 	pPlayer->ViewPunch( punchAng ); 
 }
 
+#ifndef CLIENT_DLL
 
 //-----------------------------------------------------------------------------
 // Attempt to lead the target (needed because citizens can't hit manhacks with the crowbar!)
@@ -105,6 +114,7 @@ int CWeaponCrowbar::WeaponMeleeAttack1Condition( float flDot, float flDist )
 	// Attempt to lead the target (needed because citizens can't hit manhacks with the crowbar!)
 	CAI_BaseNPC *pNPC	= GetOwner()->MyNPCPointer();
 	CBaseEntity *pEnemy = pNPC->GetEnemy();
+
 	if (!pEnemy)
 		return COND_NONE;
 
@@ -151,6 +161,7 @@ int CWeaponCrowbar::WeaponMeleeAttack1Condition( float flDot, float flDist )
 //-----------------------------------------------------------------------------
 void CWeaponCrowbar::HandleAnimEventMeleeHit( animevent_t *pEvent, CBaseCombatCharacter *pOperator )
 {
+	Msg("[Crowbar] HandleAnimEventMeleeHit\r\n");
 	// Trace up or down based on where the enemy is...
 	// But only if we're basically facing that direction
 	Vector vecDirection;
@@ -210,3 +221,5 @@ void CWeaponCrowbar::Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatC
 		break;
 	}
 }
+
+#endif

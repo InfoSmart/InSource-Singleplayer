@@ -57,6 +57,14 @@ PRECACHE_WEAPON_REGISTER(weapon_slam);
 acttable_t	CWeapon_SLAM::m_acttable[] = 
 {
 	{ ACT_RANGE_ATTACK1, ACT_RANGE_ATTACK_SLAM, true },
+
+	{ ACT_HL2MP_IDLE,						ACT_HL2MP_IDLE_SLAM,                    false },
+    { ACT_HL2MP_RUN,						ACT_HL2MP_RUN_SLAM,                    false },
+    { ACT_HL2MP_IDLE_CROUCH,				ACT_HL2MP_IDLE_CROUCH_SLAM,            false },
+    { ACT_HL2MP_WALK_CROUCH,				ACT_HL2MP_WALK_CROUCH_SLAM,            false },
+    { ACT_HL2MP_GESTURE_RANGE_ATTACK,		ACT_HL2MP_GESTURE_RANGE_ATTACK_SLAM,    false },
+    { ACT_HL2MP_GESTURE_RELOAD,				ACT_HL2MP_GESTURE_RELOAD_SLAM,        false },
+	{ ACT_HL2MP_JUMP,						ACT_HL2MP_JUMP_SLAM,					false },
 };
 
 IMPLEMENT_ACTTABLE(CWeapon_SLAM);

@@ -6,17 +6,25 @@
 //=============================================================================//
 
 #include "cbase.h"
-#include "NPCEvent.h"
-#include "basehlcombatweapon.h"
-#include "basecombatcharacter.h"
-#include "AI_BaseNPC.h"
-#include "player.h"
-#include "gamerules.h"
+#include "npcevent.h"
 #include "in_buttons.h"
-#include "soundent.h"
-#include "game.h"
-#include "vstdlib/random.h"
-#include "gamestats.h"
+
+#ifdef CLIENT_DLL
+	#include "c_in_player.h"
+#else
+	#include "in_player.h"
+	#include "gamestats.h"
+#endif
+
+#include "basehlcombatweapon.h"
+
+//#include "basecombatcharacter.h"
+//#include "AI_BaseNPC.h"
+//#include "player.h"
+//#include "gamerules.h"
+//#include "soundent.h"
+//#include "game.h"
+//#include "vstdlib/random.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -29,20 +37,25 @@
 
 ConVar	pistol_use_new_accuracy( "pistol_use_new_accuracy", "1" );
 
+#ifdef CLIENT_DLL
+#define CWeaponPistol C_WeaponPistol
+#endif
+
 //-----------------------------------------------------------------------------
 // CWeaponPistol
 //-----------------------------------------------------------------------------
 
-class CWeaponPistol : public CBaseHLCombatWeapon
+class CWeaponPistol : public CHLMachineGun
 {
-	DECLARE_DATADESC();
+	//DECLARE_DATADESC();
 
 public:
-	DECLARE_CLASS( CWeaponPistol, CBaseHLCombatWeapon );
+	DECLARE_CLASS( CWeaponPistol, CHLMachineGun );
 
-	CWeaponPistol(void);
+	CWeaponPistol();
 
-	DECLARE_SERVERCLASS();
+	DECLARE_NETWORKCLASS(); 
+	DECLARE_PREDICTABLE();
 
 	void	Precache();
 	void	ItemPostFrame();
@@ -51,11 +64,14 @@ public:
 	void	PrimaryAttack();
 	void	AddViewKick();
 	void	DryFire();
-	void	Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatCharacter *pOperator );
 
 	void	UpdatePenaltyTime();
 
+#ifndef CLIENT_DLL
+	void	Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatCharacter *pOperator );
 	int		CapabilitiesGet() { return bits_CAP_WEAPON_RANGE_ATTACK1; }
+#endif
+
 	Activity	GetPrimaryAttackActivity();
 
 	virtual bool Reload();
@@ -64,6 +80,7 @@ public:
 	{		
 		// Handle NPCs first
 		static Vector npcCone = VECTOR_CONE_5DEGREES;
+
 		if ( GetOwner() && GetOwner()->IsNPC() )
 			return npcCone;
 			
@@ -107,27 +124,41 @@ public:
 	DECLARE_ACTTABLE();
 
 private:
-	float	m_flSoonestPrimaryAttack;
-	float	m_flLastAttackTime;
-	float	m_flAccuracyPenalty;
-	int		m_nNumShotsFired;
+	CNetworkVar( float,	m_flSoonestPrimaryAttack );
+	CNetworkVar( float,	m_flLastAttackTime );
+	CNetworkVar( float,	m_flAccuracyPenalty );
+	CNetworkVar( int,	m_nNumShotsFired );
+
+	CWeaponPistol( const CWeaponPistol & );
 };
 
+IMPLEMENT_NETWORKCLASS_ALIASED( WeaponPistol, DT_WeaponPistol )
 
-IMPLEMENT_SERVERCLASS_ST(CWeaponPistol, DT_WeaponPistol)
-END_SEND_TABLE()
+BEGIN_NETWORK_TABLE( CWeaponPistol, DT_WeaponPistol )
+#ifdef CLIENT_DLL
+	RecvPropTime( RECVINFO( m_flSoonestPrimaryAttack ) ),
+	RecvPropTime( RECVINFO( m_flLastAttackTime ) ),
+	RecvPropFloat( RECVINFO( m_flAccuracyPenalty ) ),
+	RecvPropInt( RECVINFO( m_nNumShotsFired ) ),
+#else
+	SendPropTime( SENDINFO( m_flSoonestPrimaryAttack ) ),
+	SendPropTime( SENDINFO( m_flLastAttackTime ) ),
+	SendPropFloat( SENDINFO( m_flAccuracyPenalty ) ),
+	SendPropInt( SENDINFO( m_nNumShotsFired ) ),
+#endif
+END_NETWORK_TABLE()
+
+#ifdef CLIENT_DLL
+BEGIN_PREDICTION_DATA( CWeaponPistol )
+	DEFINE_PRED_FIELD( m_flSoonestPrimaryAttack, FIELD_FLOAT, FTYPEDESC_INSENDTABLE ),
+	DEFINE_PRED_FIELD( m_flLastAttackTime, FIELD_FLOAT, FTYPEDESC_INSENDTABLE ),
+	DEFINE_PRED_FIELD( m_flAccuracyPenalty, FIELD_FLOAT, FTYPEDESC_INSENDTABLE ),
+	DEFINE_PRED_FIELD( m_nNumShotsFired, FIELD_INTEGER, FTYPEDESC_INSENDTABLE ),
+END_PREDICTION_DATA()
+#endif
 
 LINK_ENTITY_TO_CLASS( weapon_pistol, CWeaponPistol );
 PRECACHE_WEAPON_REGISTER( weapon_pistol );
-
-BEGIN_DATADESC( CWeaponPistol )
-
-	DEFINE_FIELD( m_flSoonestPrimaryAttack, FIELD_TIME ),
-	DEFINE_FIELD( m_flLastAttackTime,		FIELD_TIME ),
-	DEFINE_FIELD( m_flAccuracyPenalty,		FIELD_FLOAT ), //NOTENOTE: This is NOT tracking game time
-	DEFINE_FIELD( m_nNumShotsFired,			FIELD_INTEGER ),
-
-END_DATADESC()
 
 acttable_t	CWeaponPistol::m_acttable[] = 
 {
@@ -146,14 +177,14 @@ acttable_t	CWeaponPistol::m_acttable[] =
 	{ ACT_WALK,						ACT_WALK_PISTOL,				false },
 	{ ACT_RUN,						ACT_RUN_PISTOL,					false },
 
-	/*{ ACT_HL2MP_IDLE,                    ACT_HL2MP_IDLE_PISTOL,                    false },
-    { ACT_HL2MP_RUN,                    ACT_HL2MP_RUN_PISTOL,                    false },
-    { ACT_HL2MP_IDLE_CROUCH,            ACT_HL2MP_IDLE_CROUCH_PISTOL,            false },
-    { ACT_HL2MP_WALK_CROUCH,            ACT_HL2MP_WALK_CROUCH_PISTOL,            false },
-    { ACT_HL2MP_GESTURE_RANGE_ATTACK,    ACT_HL2MP_GESTURE_RANGE_ATTACK_PISTOL,    false },
-    { ACT_HL2MP_GESTURE_RELOAD,            ACT_HL2MP_GESTURE_RELOAD_PISTOL,        false },
-    { ACT_HL2MP_JUMP,                    ACT_HL2MP_JUMP_PISTOL,                    false },
-    { ACT_RANGE_ATTACK1,                ACT_RANGE_ATTACK_PISTOL,                false },*/
+	{ ACT_HL2MP_IDLE,						ACT_HL2MP_IDLE_PISTOL,                    false },
+    { ACT_HL2MP_RUN,						ACT_HL2MP_RUN_PISTOL,                    false },
+    { ACT_HL2MP_IDLE_CROUCH,				ACT_HL2MP_IDLE_CROUCH_PISTOL,            false },
+    { ACT_HL2MP_WALK_CROUCH,				ACT_HL2MP_WALK_CROUCH_PISTOL,            false },
+    { ACT_HL2MP_GESTURE_RANGE_ATTACK,		ACT_HL2MP_GESTURE_RANGE_ATTACK_PISTOL,    false },
+    { ACT_HL2MP_GESTURE_RELOAD,				ACT_HL2MP_GESTURE_RELOAD_PISTOL,        false },
+    { ACT_HL2MP_JUMP,						ACT_HL2MP_JUMP_PISTOL,                    false },
+    { ACT_RANGE_ATTACK1,					ACT_RANGE_ATTACK_PISTOL,                false },
 };
 
 
@@ -164,8 +195,8 @@ IMPLEMENT_ACTTABLE( CWeaponPistol );
 //-----------------------------------------------------------------------------
 CWeaponPistol::CWeaponPistol()
 {
-	m_flSoonestPrimaryAttack = gpGlobals->curtime;
-	m_flAccuracyPenalty = 0.0f;
+	m_flSoonestPrimaryAttack	= gpGlobals->curtime;
+	m_flAccuracyPenalty			= 0.0f;
 
 	m_fMinRange1		= 24;
 	m_fMaxRange1		= 1500;
@@ -182,6 +213,8 @@ void CWeaponPistol::Precache()
 {
 	BaseClass::Precache();
 }
+
+#ifndef CLIENT_DLL
 
 //-----------------------------------------------------------------------------
 // Purpose:
@@ -216,13 +249,15 @@ void CWeaponPistol::Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatCh
 	}
 }
 
+#endif
+
 //-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
 void CWeaponPistol::DryFire()
 {
-	WeaponSound( EMPTY );
-	SendWeaponAnim( ACT_VM_DRYFIRE );
+	WeaponSound(EMPTY);
+	SendWeaponAnim(ACT_VM_DRYFIRE);
 	
 	m_flSoonestPrimaryAttack	= gpGlobals->curtime + PISTOL_FASTEST_DRY_REFIRE_TIME;
 	m_flNextPrimaryAttack		= gpGlobals->curtime + SequenceDuration();
@@ -241,21 +276,22 @@ void CWeaponPistol::PrimaryAttack()
 	m_flLastAttackTime			= gpGlobals->curtime;
 	m_flSoonestPrimaryAttack	= gpGlobals->curtime + PISTOL_FASTEST_REFIRE_TIME;
 
+#ifndef CLIENT_DLL
 	CSoundEnt::InsertSound(SOUND_COMBAT, GetAbsOrigin(), SOUNDENT_VOLUME_PISTOL, 0.2, GetOwner());
-	CBasePlayer *pOwner = ToBasePlayer(GetOwner());
+#endif
 
+	CIN_Player *pOwner = ToInPlayer(GetOwner());
 	BaseClass::PrimaryAttack();
 
 	// Add an accuracy penalty which can move past our maximum penalty time if we're really spastic
 	m_flAccuracyPenalty += PISTOL_ACCURACY_SHOT_PENALTY_TIME;
 
 	// Desorientar al jugador
-	ConVarRef in_beginner_weapon("in_beginner_weapon");
 	ConVarRef sk_plr_dmg_pistol("sk_plr_dmg_pistol");
 
 	// InSource
 	// Efectos de "principalmente manejando armas"
-	if(in_beginner_weapon.GetBool())
+	/*if ( pOwner->GetConVar("in_beginner_weapon") == "1" )
 	{
 		// Efecto de golpe (Camara hacia arriba y abajo)
 		QAngle	viewPunch;
@@ -266,15 +302,20 @@ void CWeaponPistol::PrimaryAttack()
 
 		pOwner->ViewPunch(viewPunch);
 
+	#ifndef CLIENT_DLL
 		// Efecto de empuje (Camara hacia atras)
 		Vector recoilForce = pOwner->BodyDirection2D() * - (sk_plr_dmg_pistol.GetFloat() * 10.0f);
 		recoilForce[2] += random->RandomFloat(80.0f, 120.0f);
 
 		pOwner->ApplyAbsVelocityImpulse(recoilForce);
-	}
+	#endif
+	}*/
 
 	m_iPrimaryAttacks++;
+
+#ifndef CLIENT_DLL
 	gamestats->Event_WeaponFired(pOwner, true, GetClassname());
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -284,7 +325,7 @@ void CWeaponPistol::UpdatePenaltyTime()
 {
 	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
 
-	if ( pOwner == NULL )
+	if ( !pOwner )
 		return;
 
 	// Check our penalty time decay
@@ -332,13 +373,9 @@ void CWeaponPistol::ItemPostFrame()
 
 	//Allow a refire as fast as the player can click
 	if ( ( ( pOwner->m_nButtons & IN_ATTACK ) == false ) && ( m_flSoonestPrimaryAttack < gpGlobals->curtime ) )
-	{
 		m_flNextPrimaryAttack = gpGlobals->curtime - 0.1f;
-	}
 	else if ( ( pOwner->m_nButtons & IN_ATTACK ) && ( m_flNextPrimaryAttack < gpGlobals->curtime ) && ( m_iClip1 <= 0 ) )
-	{
 		DryFire();
-	}
 }
 
 //-----------------------------------------------------------------------------
@@ -364,11 +401,13 @@ Activity CWeaponPistol::GetPrimaryAttackActivity()
 bool CWeaponPistol::Reload()
 {
 	bool fRet = DefaultReload( GetMaxClip1(), GetMaxClip2(), ACT_VM_RELOAD );
+
 	if ( fRet )
 	{
 		WeaponSound( RELOAD );
 		m_flAccuracyPenalty = 0.0f;
 	}
+
 	return fRet;
 }
 

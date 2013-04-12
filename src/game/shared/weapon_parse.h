@@ -127,9 +127,8 @@ public:
 // TF2 specific
 	bool					bShowUsageHint;							// if true, then when you receive the weapon, show a hint about it
 
-	//jorg40 - ironsight
-	Vector m_expOffset; //ADDED
-	QAngle m_expOriOffset; //ADDED
+	Vector m_expOffset;
+	QAngle m_expOriOffset;
 
 	float m_WeaponWeight; 
 	int m_iPlayerDamage;

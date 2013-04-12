@@ -4,6 +4,7 @@
 //
 //=============================================================================//
 
+
 #include "cbase.h"
 #include "basehlcombatweapon.h"
 #include "basecombatcharacter.h"

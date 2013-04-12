@@ -5,19 +5,29 @@
 //=============================================================================
 
 #include "cbase.h"
-#include "player.h"
-#include "gamerules.h"
 #include "basehlcombatweapon.h"
-#include "decals.h"
+#include "in_buttons.h"
+#include "shake.h"
+
+#ifdef CLIENT_DLL
+	#include "c_in_player.h"
+#else
+	#include "in_player.h"
+	#include "explode.h"
+	#include "te_particlesystem.h"
+#endif
+
+//#include "player.h"
+//#include "gamerules.h"
+
+//#include "decals.h"
 #include "beam_shared.h"
 #include "AmmoDef.h"
 #include "IEffects.h"
-#include "engine/IEngineSound.h"
-#include "in_buttons.h"
-#include "soundenvelope.h"
-#include "soundent.h"
-#include "shake.h"
-#include "explode.h"
+//#include "engine/IEngineSound.h"
+
+//#include "soundenvelope.h"
+//#include "soundent.h"
 
 #include "weapon_gauss.h"
 
@@ -27,21 +37,27 @@
 // Definición de variables para la configuración.
 //=========================================================
 
+#ifndef CLIENT_DLL
+
 ConVar sk_plr_dmg_gauss("sk_plr_dmg_gauss", "0", 0, "Daño causado por el arma Gauss");
 ConVar sk_plr_max_dmg_gauss("sk_plr_max_dmg_gauss", "0", 0, "Daño máximo causado por el arma Gauss");
+
+#endif
 
 //=========================================================
 // Guardado y definición de datos
 //=========================================================
 
-IMPLEMENT_SERVERCLASS_ST(CWeaponGaussGun, DT_WeaponGaussGun)
-END_SEND_TABLE()
+IMPLEMENT_NETWORKCLASS_ALIASED( WeaponGaussGun, DT_WeaponGaussGun );
+
+BEGIN_NETWORK_TABLE( CWeaponGaussGun, DT_WeaponGaussGun )
+END_NETWORK_TABLE()
+
+BEGIN_PREDICTION_DATA( CWeaponGaussGun )
+END_PREDICTION_DATA()
 
 LINK_ENTITY_TO_CLASS(weapon_gauss, CWeaponGaussGun);
 PRECACHE_WEAPON_REGISTER(weapon_gauss);
-
-BEGIN_DATADESC(CWeaponGaussGun)
-END_DATADESC()
 
 //=========================================================
 // Tabla de animaciones
@@ -49,7 +65,14 @@ END_DATADESC()
 
 acttable_t	CWeaponGaussGun::m_acttable[] = 
 {
-	{ ACT_RANGE_ATTACK1, ACT_RANGE_ATTACK_AR2, true },
+	{ ACT_HL2MP_IDLE,						ACT_HL2MP_IDLE_AR2,                    false },
+    { ACT_HL2MP_RUN,						ACT_HL2MP_RUN_AR2,                    false },
+    { ACT_HL2MP_IDLE_CROUCH,				ACT_HL2MP_IDLE_CROUCH_AR2,            false },
+    { ACT_HL2MP_WALK_CROUCH,				ACT_HL2MP_WALK_CROUCH_AR2,            false },
+    { ACT_HL2MP_GESTURE_RANGE_ATTACK,		ACT_HL2MP_GESTURE_RANGE_ATTACK_AR2,    false },
+    { ACT_HL2MP_GESTURE_RELOAD,				ACT_HL2MP_GESTURE_RELOAD_AR2,        false },
+    { ACT_HL2MP_JUMP,						ACT_HL2MP_JUMP_AR2,                    false },
+    { ACT_RANGE_ATTACK1,					ACT_RANGE_ATTACK_AR2,                false },
 };
 
 IMPLEMENT_ACTTABLE(CWeaponGaussGun);
@@ -95,16 +118,16 @@ void CWeaponGaussGun::Fire()
 	CBasePlayer *pOwner = ToBasePlayer(GetOwner());
 	
 	// ¿El jugador no ha sido creado?
-	if (!pOwner)
+	if ( !pOwner )
 		return;
 
 	m_bCharging = false;
 
-	if (m_hViewModel == NULL)
+	if ( m_hViewModel == NULL )
 	{
 		CBaseViewModel *vm = pOwner->GetViewModel();
 
-		if (vm)
+		if ( vm )
 			m_hViewModel.Set(vm);
 	}
 
@@ -126,16 +149,18 @@ void CWeaponGaussGun::Fire()
 	aimDir			= aimDir + x * GetBulletSpread().x * vecRight + y * GetBulletSpread().y * vecUp;
 	Vector endPos	= startPos + (aimDir * MAX_TRACE_LENGTH);
 	
-	//Shoot a shot straight out
+	// Shoot a shot straight out
 	trace_t	tr;
 	UTIL_TraceLine(startPos, endPos, MASK_SHOT, pOwner, COLLISION_GROUP_NONE, &tr);
 	
+#ifndef CLIENT_DLL
+
 	ClearMultiDamage();
 
 	CBaseEntity *pHit = tr.m_pEnt;	
-	CTakeDamageInfo dmgInfo(this, pOwner, sk_plr_dmg_gauss.GetFloat(), DMG_SHOCK);
+	CTakeDamageInfo dmgInfo(this, pOwner, sk_plr_dmg_gauss.GetFloat(), DMG_SHOCK | DMG_DISSOLVE);
 
-	if (pHit != NULL)
+	if ( pHit != NULL )
 	{
 		CalculateBulletDamageForce(&dmgInfo, m_iPrimaryAmmoType, aimDir, tr.endpos);
 		pHit->DispatchTraceAttack(dmgInfo, aimDir, &tr);
@@ -182,6 +207,8 @@ void CWeaponGaussGun::Fire()
 	
 	ApplyMultiDamage();
 
+#endif
+
 	UTIL_ImpactTrace(&tr, GetAmmoDef()->DamageType(m_iPrimaryAmmoType), "ImpactGauss");
 
 	CPVSFilter filter(tr.endpos);
@@ -192,7 +219,10 @@ void CWeaponGaussGun::Fire()
 	AddViewKick();
 
 	// Register a muzzleflash for the AI
+#ifndef CLIENT_DLL
 	pOwner->SetMuzzleFlashTime(gpGlobals->curtime + 0.5);
+#endif
+
 }
 
 //-----------------------------------------------------------------------------
@@ -202,7 +232,7 @@ void CWeaponGaussGun::ChargedFire()
 {
 	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
 	
-	if ( pOwner == NULL )
+	if ( !pOwner )
 		return;
 
 	bool penetrated = false;
@@ -228,6 +258,8 @@ void CWeaponGaussGun::ChargedFire()
 	trace_t	tr;
 	UTIL_TraceLine( startPos, endPos, MASK_SHOT, pOwner, COLLISION_GROUP_NONE, &tr );
 	
+#ifndef CLIENT_DLL
+
 	ClearMultiDamage();
 
 	//Find how much damage to do
@@ -235,14 +267,15 @@ void CWeaponGaussGun::ChargedFire()
 
 	//Clamp this
 	if ( flChargeAmount > 1.0f )
-	{
 		flChargeAmount = 1.0f;
-	}
 
 	//Determine the damage amount
 	float flDamage = sk_plr_dmg_gauss.GetFloat() + ( ( sk_plr_max_dmg_gauss.GetFloat() - sk_plr_dmg_gauss.GetFloat() ) * flChargeAmount );
 
+#endif
+
 	CBaseEntity *pHit = tr.m_pEnt;
+
 	if ( tr.DidHitWorld() )
 	{
 		//Try wall penetration
@@ -263,9 +296,11 @@ void CWeaponGaussGun::ChargedFire()
 			penetrated = true;
 		}
 	}
+
+#ifndef CLIENT_DLL
 	else if ( pHit != NULL )
 	{
-		CTakeDamageInfo dmgInfo( this, pOwner, flDamage, DMG_SHOCK );
+		CTakeDamageInfo dmgInfo( this, pOwner, flDamage, DMG_SHOCK | DMG_DISSOLVE );
 		CalculateBulletDamageForce( &dmgInfo, m_iPrimaryAmmoType, aimDir, tr.endpos );
 
 		//Do direct damage to anything in our path
@@ -273,6 +308,7 @@ void CWeaponGaussGun::ChargedFire()
 	}
 
 	ApplyMultiDamage();
+#endif
 
 	UTIL_ImpactTrace( &tr, GetAmmoDef()->DamageType(m_iPrimaryAmmoType), "ImpactGauss" );
 
@@ -286,21 +322,23 @@ void CWeaponGaussGun::ChargedFire()
 
 	DrawBeam( startPos, tr.endpos, 25, true );
 
+#ifndef CLIENT_DLL
 	Vector	recoilForce = pOwner->BodyDirection2D() * -( flDamage * 10.0f );
 	recoilForce[2] += 300.0f;//128
 
 	pOwner->ApplyAbsVelocityImpulse( recoilForce );
+#endif
 
 	CPVSFilter filter( tr.endpos );
 	te->GaussExplosion( filter, 0.0f, tr.endpos, tr.plane.normal, 0 );
 
+#ifndef CLIENT_DLL
 	if ( penetrated == true )
-	{
 		RadiusDamage( CTakeDamageInfo( this, this, flDamage, DMG_SHOCK ), tr.endpos, 200.0f, CLASS_NONE, NULL );
-	}
 
 	// Register a muzzleflash for the AI
 	pOwner->SetMuzzleFlashTime( gpGlobals->curtime + 0.5 );
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -420,6 +458,7 @@ void CWeaponGaussGun::IncreaseCharge()
 			m_bChargeIndicated = true;
 		}
 
+	#ifndef CLIENT_DLL
 		if ( ( gpGlobals->curtime - m_flChargeStartTime ) > DANGER_GAUSS_CHARGE_TIME )
 		{
 			//Damage the player
@@ -433,6 +472,7 @@ void CWeaponGaussGun::IncreaseCharge()
 
 			m_flNextChargeTime = gpGlobals->curtime + random->RandomFloat( 0.5f, 2.5f );
 		}
+	#endif
 
 		return;
 	}
@@ -468,7 +508,8 @@ void CWeaponGaussGun::SecondaryAttack()
 		//Start looping animation
 		SendWeaponAnim( ACT_GAUSS_SPINCYCLE );
 		
-		//Start looping sound
+		// Start looping sound
+	#ifndef CLIENT_DLL
 		if ( m_sndCharge == NULL )
 		{
 			CPASAttenuationFilter filter( this );
@@ -481,6 +522,7 @@ void CWeaponGaussGun::SecondaryAttack()
 			(CSoundEnvelopeController::GetController()).Play( m_sndCharge, 1.0f, 50 );
 			(CSoundEnvelopeController::GetController()).SoundChangePitch( m_sndCharge, 250, 3.0f );
 		}
+	#endif
 
 		m_flChargeStartTime = gpGlobals->curtime;
 		m_bCharging = true;
@@ -521,19 +563,18 @@ void CWeaponGaussGun::ItemPostFrame()
 	//Get the view kick
 	CBasePlayer *pPlayer = ToBasePlayer( GetOwner() );
 
-	if ( pPlayer == NULL )
+	if ( !pPlayer )
 		return;
 
 	if ( pPlayer->m_afButtonReleased & IN_ATTACK2 )
 	{
 		if ( m_bCharging )
-		{
 			ChargedFire();
-		}
 	}
 
-	m_flCoilVelocity = UTIL_Approach( m_flCoilMaxVelocity, m_flCoilVelocity, 10.0f );
-	m_flCoilAngle = UTIL_AngleMod( m_flCoilAngle + ( m_flCoilVelocity * gpGlobals->frametime ) );
+#ifndef CLIENT_DLL
+	m_flCoilVelocity	= UTIL_Approach( m_flCoilMaxVelocity, m_flCoilVelocity, 10.0f );
+	m_flCoilAngle		= UTIL_AngleMod( m_flCoilAngle + ( m_flCoilVelocity * gpGlobals->frametime ) );
 
 	static float fanAngle = 0.0f;
 
@@ -542,6 +583,7 @@ void CWeaponGaussGun::ItemPostFrame()
 	//Update spinning bits
 	SetBoneController( 0, fanAngle );
 	SetBoneController( 1, m_flCoilAngle );
+#endif
 	
 	BaseClass::ItemPostFrame();
 }
@@ -551,10 +593,10 @@ void CWeaponGaussGun::ItemPostFrame()
 //-----------------------------------------------------------------------------
 void CWeaponGaussGun::StopChargeSound()
 {
+#ifndef CLIENT_DLL
 	if ( m_sndCharge != NULL )
-	{
 		(CSoundEnvelopeController::GetController()).SoundFadeOut( m_sndCharge, 0.1f );
-	}
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -565,8 +607,8 @@ void CWeaponGaussGun::StopChargeSound()
 bool CWeaponGaussGun::Holster( CBaseCombatWeapon *pSwitchingTo )
 {
 	StopChargeSound();
-	m_bCharging = false;
-	m_bChargeIndicated = false;
+	m_bCharging			= false;
+	m_bChargeIndicated	= false;
 
-	return BaseClass::Holster( pSwitchingTo );
+	return BaseClass::Holster(pSwitchingTo);
 }

@@ -4,15 +4,13 @@
 //
 //=============================================================================
 
-#include "basehlcombatweapon.h"
-
 #ifndef WEAPON_GAUSS_H
 #define WEAPON_GAUSS_H
 #ifdef _WIN32
 #pragma once
 #endif
 
-#include "te_particlesystem.h"
+#include "basehlcombatweapon.h"
 
 #define GAUSS_BEAM_SPRITE "sprites/laserbeam.vmt"
 
@@ -21,47 +19,55 @@
 #define	MAX_GAUSS_CHARGE_TIME		3
 #define	DANGER_GAUSS_CHARGE_TIME	10
 
+#ifdef CLIENT_DLL
+#define CWeaponGaussGun C_WeaponGaussGun
+#endif
+
 //=============================================================================
 // Gauss cannon
 //=============================================================================
 
 class CWeaponGaussGun : public CBaseHLCombatWeapon
 {
-	DECLARE_DATADESC();
+	//DECLARE_DATADESC();
 public:
 	DECLARE_CLASS( CWeaponGaussGun, CBaseHLCombatWeapon );
 
-	CWeaponGaussGun( void );
+	CWeaponGaussGun();
 
-	DECLARE_SERVERCLASS();
+	DECLARE_NETWORKCLASS();
+	DECLARE_PREDICTABLE();
+	DECLARE_ACTTABLE();
 
-	void	Spawn( void );
-	void	Precache( void );
-	void	PrimaryAttack( void );
-	void	SecondaryAttack( void );
-	void	AddViewKick( void );
+	void	Spawn();
+	void	Precache();
+	void	PrimaryAttack();
+	void	SecondaryAttack();
+	void	AddViewKick();
 
-	bool	Holster( CBaseCombatWeapon *pSwitchingTo = NULL );
+	bool	Holster(CBaseCombatWeapon *pSwitchingTo = NULL);
+	void	ItemPostFrame();
 
-	void	ItemPostFrame( void );
+	float	GetFireRate() { return 0.2f; }
 
-	float	GetFireRate( void ) { return 0.2f; }
-
-	virtual const Vector &GetBulletSpread( void )
+	virtual const Vector &GetBulletSpread()
 	{
 		static Vector cone = VECTOR_CONE_1DEGREES;	
 		return cone;
 	}
 
+private:
+	CWeaponGaussGun( const CWeaponGaussGun & );
+
 protected:
 
-	void	Fire( void );
-	void	ChargedFire( void );
+	void	Fire();
+	void	ChargedFire();
 
-	void	StopChargeSound( void );
+	void	StopChargeSound();
 
 	void	DrawBeam( const Vector &startPos, const Vector &endPos, float width, bool useMuzzle = false );
-	void	IncreaseCharge( void );
+	void	IncreaseCharge();
 
 	EHANDLE			m_hViewModel;
 	float			m_flNextChargeTime;
@@ -74,8 +80,6 @@ protected:
 	float			m_flCoilMaxVelocity;
 	float			m_flCoilVelocity;
 	float			m_flCoilAngle;
-
-	DECLARE_ACTTABLE();
 };
 
 #endif // WEAPON_GAUSS_H

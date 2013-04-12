@@ -13,8 +13,8 @@
 #pragma once
 #endif
 
-#ifdef HL2MP
-#error weapon_crowbar.h must not be included in hl2mp. The windows compiler will use the wrong class elsewhere if it is.
+#ifdef CLIENT_DLL
+#define CWeaponCrowbar C_WeaponCrowbar
 #endif
 
 #define	CROWBAR_RANGE	75.0f
@@ -29,26 +29,28 @@ class CWeaponCrowbar : public CBaseHLBludgeonWeapon
 public:
 	DECLARE_CLASS( CWeaponCrowbar, CBaseHLBludgeonWeapon );
 
-	DECLARE_SERVERCLASS();
+	DECLARE_NETWORKCLASS(); 
+	DECLARE_PREDICTABLE();
 	DECLARE_ACTTABLE();
 
 	CWeaponCrowbar();
 
-	float		GetRange( void )		{	return	CROWBAR_RANGE;	}
-	float		GetFireRate( void )		{	return	CROWBAR_REFIRE;	}
+	float		GetRange()		{	return	CROWBAR_RANGE;	}
+	float		GetFireRate()	{	return	CROWBAR_REFIRE;	}
 
-	void		AddViewKick( void );
+	void		AddViewKick();
 	float		GetDamageForActivity( Activity hitActivity );
+	void		SecondaryAttack()	{ return;	}
 
-	virtual int WeaponMeleeAttack1Condition( float flDot, float flDist );
-	void		SecondaryAttack( void )	{	return;	}
-
+#ifndef CLIENT_DLL
 	// Animation event
+	virtual int WeaponMeleeAttack1Condition( float flDot, float flDist );
 	virtual void Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatCharacter *pOperator );
-
-private:
-	// Animation event handlers
 	void HandleAnimEventMeleeHit( animevent_t *pEvent, CBaseCombatCharacter *pOperator );
+#endif
+
+	CWeaponCrowbar( const CWeaponCrowbar & );
+	
 };
 
 #endif // WEAPON_CROWBAR_H

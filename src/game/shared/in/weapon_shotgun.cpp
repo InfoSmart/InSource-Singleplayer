@@ -7,56 +7,65 @@
 //
 //=============================================================================//
 
+
 #include "cbase.h"
 #include "NPCEvent.h"
-#include "basehlcombatweapon_shared.h"
-#include "basecombatcharacter.h"
-#include "AI_BaseNPC.h"
-#include "player.h"
-#include "gamerules.h"		// For g_pGameRules
 #include "in_buttons.h"
-#include "soundent.h"
-#include "vstdlib/random.h"
-#include "gamestats.h"
+
+#ifdef CLIENT_DLL
+	#include "c_in_player.h"
+#else
+	#include "in_player.h"
+	#include "gamestats.h"
+#endif
+
+#include "basehlcombatweapon_shared.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+#ifdef CLIENT_DLL
+#define CWeaponShotgun C_WeaponShotgun
+#endif
+
+//=========================================================
+// Definición de variables para la configuración.
+//=========================================================
+
 extern ConVar sk_auto_reload_time;
 extern ConVar sk_plr_num_shotgun_pellets;
 
+//=========================================================
+// CWeaponShotgun
+//=========================================================
+
 class CWeaponShotgun : public CBaseHLCombatWeapon
 {
-	DECLARE_DATADESC();
-public:
-	DECLARE_CLASS( CWeaponShotgun, CBaseHLCombatWeapon );
+	//DECLARE_DATADESC();
 
-	DECLARE_SERVERCLASS();
+public:
+	DECLARE_CLASS(CWeaponShotgun, CBaseHLCombatWeapon);
+	
+	DECLARE_NETWORKCLASS(); 
+	DECLARE_PREDICTABLE();
 
 private:
-	bool	m_bNeedPump;		// When emptied completely
-	bool	m_bDelayedFire1;	// Fire primary when finished reloading
-	bool	m_bDelayedFire2;	// Fire secondary when finished reloading
+	CNetworkVar( bool,	m_bNeedPump );		// When emptied completely
+	CNetworkVar( bool,	m_bDelayedFire1 );	// Fire primary when finished reloading
+	CNetworkVar( bool,	m_bDelayedFire2 );	// Fire secondary when finished reloading
+	CNetworkVar( bool,	m_bDelayedReload );	// Reload when finished pump
 
 public:
 	void	Precache();
 
-	int CapabilitiesGet() { return bits_CAP_WEAPON_RANGE_ATTACK1; }
+#ifndef CLIENT_DLL
+	int		CapabilitiesGet() { return bits_CAP_WEAPON_RANGE_ATTACK1; }
+	void FireNPCPrimaryAttack(CBaseCombatCharacter *pOperator, bool bUseWeaponAngles);
+	void Operator_ForceNPCFire(CBaseCombatCharacter  *pOperator, bool bSecondary);
+	void Operator_HandleAnimEvent(animevent_t *pEvent, CBaseCombatCharacter *pOperator);
+#endif
 
-	virtual const Vector& GetBulletSpread()
-	{
-		static Vector vitalAllyCone = VECTOR_CONE_3DEGREES;
-		static Vector cone = VECTOR_CONE_10DEGREES;
-
-		if( GetOwner() && (GetOwner()->Classify() == CLASS_PLAYER_ALLY_VITAL) )
-		{
-			// Give Alyx's shotgun blasts more a more directed punch. She needs
-			// to be at least as deadly as she would be with her pistol to stay interesting (sjb)
-			return vitalAllyCone;
-		}
-
-		return cone;
-	}
+	virtual const Vector& GetBulletSpread();
 
 	virtual int				GetMinBurst() { return 1; }
 	virtual int				GetMaxBurst() { return 3; }
@@ -72,7 +81,6 @@ public:
 	void FinishReload();
 	void CheckHolsterReload();
 	void Pump();
-//	void WeaponIdle();
 	void ItemHolsterFrame();
 	void ItemPostFrame();
 	void PrimaryDisorient();
@@ -81,28 +89,45 @@ public:
 	void SecondaryAttack();
 	void DryFire();
 
-	void FireNPCPrimaryAttack( CBaseCombatCharacter *pOperator, bool bUseWeaponAngles );
-	void Operator_ForceNPCFire( CBaseCombatCharacter  *pOperator, bool bSecondary );
-	void Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatCharacter *pOperator );
-
 	DECLARE_ACTTABLE();
-
-	CWeaponShotgun(void);
+	CWeaponShotgun();
 };
 
-IMPLEMENT_SERVERCLASS_ST(CWeaponShotgun, DT_WeaponShotgun)
-END_SEND_TABLE()
+//=========================================================
+// Guardado y definición de datos
+//=========================================================
 
-LINK_ENTITY_TO_CLASS( weapon_shotgun, CWeaponShotgun );
+IMPLEMENT_NETWORKCLASS_ALIASED( WeaponShotgun, DT_WeaponShotgun )
+
+BEGIN_NETWORK_TABLE( CWeaponShotgun, DT_WeaponShotgun )
+#ifdef CLIENT_DLL
+	RecvPropBool( RECVINFO( m_bNeedPump ) ),
+	RecvPropBool( RECVINFO( m_bDelayedFire1 ) ),
+	RecvPropBool( RECVINFO( m_bDelayedFire2 ) ),
+	RecvPropBool( RECVINFO( m_bDelayedReload ) ),
+#else
+	SendPropBool( SENDINFO( m_bNeedPump ) ),
+	SendPropBool( SENDINFO( m_bDelayedFire1 ) ),
+	SendPropBool( SENDINFO( m_bDelayedFire2 ) ),
+	SendPropBool( SENDINFO( m_bDelayedReload ) ),
+#endif
+END_NETWORK_TABLE()
+
+#ifdef CLIENT_DLL
+BEGIN_PREDICTION_DATA( CWeaponShotgun )
+	DEFINE_PRED_FIELD( m_bNeedPump, FIELD_BOOLEAN, FTYPEDESC_INSENDTABLE ),
+	DEFINE_PRED_FIELD( m_bDelayedFire1, FIELD_BOOLEAN, FTYPEDESC_INSENDTABLE ),
+	DEFINE_PRED_FIELD( m_bDelayedFire2, FIELD_BOOLEAN, FTYPEDESC_INSENDTABLE ),
+	DEFINE_PRED_FIELD( m_bDelayedReload, FIELD_BOOLEAN, FTYPEDESC_INSENDTABLE ),
+END_PREDICTION_DATA()
+#endif
+
+LINK_ENTITY_TO_CLASS(weapon_shotgun, CWeaponShotgun);
 PRECACHE_WEAPON_REGISTER(weapon_shotgun);
 
-BEGIN_DATADESC( CWeaponShotgun )
-
-	DEFINE_FIELD( m_bNeedPump, FIELD_BOOLEAN ),
-	DEFINE_FIELD( m_bDelayedFire1, FIELD_BOOLEAN ),
-	DEFINE_FIELD( m_bDelayedFire2, FIELD_BOOLEAN ),
-
-END_DATADESC()
+//=========================================================
+// Actividades
+//=========================================================
 
 acttable_t	CWeaponShotgun::m_acttable[] = 
 {
@@ -158,78 +183,119 @@ acttable_t	CWeaponShotgun::m_acttable[] =
     { ACT_HL2MP_WALK_CROUCH,            ACT_HL2MP_WALK_CROUCH_SHOTGUN,            false },
     { ACT_HL2MP_GESTURE_RANGE_ATTACK,    ACT_HL2MP_GESTURE_RANGE_ATTACK_SHOTGUN,    false },
     //{ ACT_HL2MP_GESTURE_RELOAD,            ACT_HL2MP_GESTURE_RELOAD_SHOTGUN,        false }, ACT_RELOAD_SHOTGUN
-    { ACT_HL2MP_GESTURE_RELOAD,            ACT_RELOAD_SHOTGUN,        false },
+    { ACT_HL2MP_GESTURE_RELOAD,            ACT_RELOAD_SHOTGUN,        true }, // @TODO: No funciona!
     { ACT_HL2MP_JUMP,                    ACT_HL2MP_JUMP_SHOTGUN,                    false },
     { ACT_RANGE_ATTACK1,                ACT_RANGE_ATTACK_SHOTGUN,                false },
 };
 
 IMPLEMENT_ACTTABLE(CWeaponShotgun);
 
+//=========================================================
+// Guardar en caché objetos necesarios.
+//=========================================================
 void CWeaponShotgun::Precache()
 {
 	CBaseCombatWeapon::Precache();
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : *pOperator - 
-//-----------------------------------------------------------------------------
+
+//=========================================================
+//=========================================================
+const Vector& CWeaponShotgun::GetBulletSpread()
+{
+	static Vector VitalAllySpread	= VECTOR_CONE_3DEGREES;
+	static Vector Spread			= VECTOR_CONE_10DEGREES;
+
+#ifndef CLIENT_DLL
+	// El dueño de esta arma es el jugador.
+	if ( GetOwner() && GetOwner()->IsPlayer() )
+	{
+		CIN_Player *pPlayer		= ToInPlayer(GetOwner());
+		const char *crosshair	= pPlayer->GetConVar("crosshair");
+
+		// Esta agachado y con la mira puesta. Las balas se esparcirán al minimo.
+		//if ( pPlayer->IsDucked() && crosshair == "0" )
+			Spread = VECTOR_CONE_4DEGREES;
+
+		// Esta agachado. 4 grados de esparcimiento.
+		if ( pPlayer->IsDucked() )
+			Spread = VECTOR_CONE_8DEGREES;
+
+		// Esta con la mira. 3 grados de esparcimiento.
+		//else if ( crosshair == "0" )
+			Spread = VECTOR_CONE_6DEGREES;
+	}
+	// Es un aliado.
+	else if( GetOwner() && (GetOwner()->Classify() == CLASS_PLAYER_ALLY_VITAL) )
+		return VitalAllySpread;
+
+#endif
+
+	return Spread;
+}
+
+#ifndef CLIENT_DLL
+
+//=========================================================
+// Disparo primario desde un NPC.
+//=========================================================
 void CWeaponShotgun::FireNPCPrimaryAttack( CBaseCombatCharacter *pOperator, bool bUseWeaponAngles )
 {
 	Vector vecShootOrigin, vecShootDir;
-	CAI_BaseNPC *npc = pOperator->MyNPCPointer();
-	ASSERT( npc != NULL );
-	WeaponSound( SINGLE_NPC );
+	CAI_BaseNPC *pNPC = pOperator->MyNPCPointer();
+
+	ASSERT( pNPC != NULL );
+
+	WeaponSound(SINGLE_NPC);
 	pOperator->DoMuzzleFlash();
-	m_iClip1 = m_iClip1 - 1;
+	m_iClip1--;
 
 	if ( bUseWeaponAngles )
 	{
 		QAngle	angShootDir;
-		GetAttachment( LookupAttachment( "muzzle" ), vecShootOrigin, angShootDir );
-		AngleVectors( angShootDir, &vecShootDir );
+		GetAttachment(LookupAttachment( "muzzle" ), vecShootOrigin, angShootDir);
+		AngleVectors(angShootDir, &vecShootDir);
 	}
 	else 
 	{
-		vecShootOrigin = pOperator->Weapon_ShootPosition();
-		vecShootDir = npc->GetActualShootTrajectory( vecShootOrigin );
+		vecShootOrigin	= pOperator->Weapon_ShootPosition();
+		vecShootDir		= pNPC->GetActualShootTrajectory(vecShootOrigin);
 	}
 
-	pOperator->FireBullets( 8, vecShootOrigin, vecShootDir, GetBulletSpread(), MAX_TRACE_LENGTH, m_iPrimaryAmmoType, 0 );
+	pOperator->FireBullets(8, vecShootOrigin, vecShootDir, GetBulletSpread(), MAX_TRACE_LENGTH, m_iPrimaryAmmoType, 0);
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
+//=========================================================
+// Forzar a un NPC a disparar.
+//=========================================================
 void CWeaponShotgun::Operator_ForceNPCFire( CBaseCombatCharacter *pOperator, bool bSecondary )
 {
-	// Ensure we have enough rounds in the clip
+	// Hay que darle más munición.
 	m_iClip1++;
-
-	FireNPCPrimaryAttack( pOperator, true );
+	FireNPCPrimaryAttack(pOperator, true);
 }
 
-//-----------------------------------------------------------------------------
-// Purpose:
-// Input  :
-// Output :
-//-----------------------------------------------------------------------------
+//=========================================================
+// Ejecuta una acción al momento que el modelo hace
+// la animación correspondiente.
+//=========================================================
 void CWeaponShotgun::Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatCharacter *pOperator )
 {
 	switch( pEvent->event )
 	{
 		case EVENT_WEAPON_SHOTGUN_FIRE:
 		{
-			FireNPCPrimaryAttack( pOperator, false );
+			FireNPCPrimaryAttack(pOperator, false);
 		}
 		break;
 
 		default:
-			CBaseCombatWeapon::Operator_HandleAnimEvent( pEvent, pOperator );
-			break;
+			CBaseCombatWeapon::Operator_HandleAnimEvent(pEvent, pOperator);
+		break;
 	}
 }
 
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose:	When we shipped HL2, the shotgun weapon did not override the
@@ -245,56 +311,57 @@ void CWeaponShotgun::Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatC
 //-----------------------------------------------------------------------------
 float CWeaponShotgun::GetMinRestTime()
 {
+#ifndef CLIENT_DLL
 	if( hl2_episodic.GetBool() && GetOwner() && GetOwner()->Classify() == CLASS_COMBINE )
-	{
 		return 1.2f;
-	}
+#endif
 	
 	return BaseClass::GetMinRestTime();
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 float CWeaponShotgun::GetMaxRestTime()
 {
+#ifndef CLIENT_DLL
 	if( hl2_episodic.GetBool() && GetOwner() && GetOwner()->Classify() == CLASS_COMBINE )
-	{
 		return 1.5f;
-	}
+#endif
 
 	return BaseClass::GetMaxRestTime();
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Time between successive shots in a burst. Also returned for EP2
-//			with an eye to not messing up Alyx in EP1.
-//-----------------------------------------------------------------------------
+//=========================================================
+// Tiempo entre disparos.
+//=========================================================
 float CWeaponShotgun::GetFireRate()
 {
+#ifndef CLIENT_DLL
 	if( hl2_episodic.GetBool() && GetOwner() && GetOwner()->Classify() == CLASS_COMBINE )
-	{
 		return 0.8f;
-	}
+#endif
 
 	return 0.7;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Override so only reload one shell at a time
-// Input  :
-// Output :
-//-----------------------------------------------------------------------------
+//=========================================================
+// Empieza la recarga de munición.
+// En este caso bala por bala.
+//=========================================================
 bool CWeaponShotgun::StartReload()
 {
-	CBaseCombatCharacter *pOwner  = GetOwner();
+	CBaseCombatCharacter *pOwner = GetOwner();
 	
-	if ( pOwner == NULL )
+	// Nuestro dueño no existe ¿un fantasma?
+	if ( !pOwner )
 		return false;
 
-	if (pOwner->GetAmmoCount(m_iPrimaryAmmoType) <= 0)
+	// Ya no hay munición disponible.
+	if ( pOwner->GetAmmoCount(m_iPrimaryAmmoType) <= 0 )
 		return false;
 
-	if (m_iClip1 >= GetMaxClip1())
+	// Ya tenemos toda la munición.
+	if ( m_iClip1 >= GetMaxClip1() )
 		return false;
 
 	// If shotgun totally emptied then a pump animation is needed
@@ -302,102 +369,94 @@ bool CWeaponShotgun::StartReload()
 	//NOTENOTE: This is kinda lame because the player doesn't get strong feedback on when the reload has finished,
 	//			without the pump.  Technically, it's incorrect, but it's good for feedback...
 
-	if (m_iClip1 <= 0)
-	{
+	if ( m_iClip1 <= 0 )
 		m_bNeedPump = true;
-	}
 
 	int j = min(1, pOwner->GetAmmoCount(m_iPrimaryAmmoType));
 
-	if (j <= 0)
+	if ( j <= 0 )
 		return false;
 
-	SendWeaponAnim( ACT_SHOTGUN_RELOAD_START );
+	SendWeaponAnim(ACT_SHOTGUN_RELOAD_START);
 
 	// Make shotgun shell visible
-	SetBodygroup(1,0);
+	SetBodygroup(1, 0);
 
-	pOwner->m_flNextAttack = gpGlobals->curtime;
-	m_flNextPrimaryAttack = gpGlobals->curtime + SequenceDuration();
+	pOwner->m_flNextAttack	= gpGlobals->curtime;
+	m_flNextPrimaryAttack	= gpGlobals->curtime + SequenceDuration();
 
 	m_bInReload = true;
 	return true;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Override so only reload one shell at a time
-// Input  :
-// Output :
-//-----------------------------------------------------------------------------
+//=========================================================
+// Recarga de munición.
+//=========================================================
 bool CWeaponShotgun::Reload()
 {
 	// Check that StartReload was called first
-	if (!m_bInReload)
-	{
+	if ( !m_bInReload )
 		Warning("ERROR: Shotgun Reload called incorrectly!\n");
-	}
 
-	CBaseCombatCharacter *pOwner  = GetOwner();
+	CBaseCombatCharacter *pOwner = GetOwner();
 	
-	if ( pOwner == NULL )
+	// Nuestro dueño no existe ¿un fantasma?
+	if ( !pOwner )
 		return false;
 
-	if (pOwner->GetAmmoCount(m_iPrimaryAmmoType) <= 0)
+	// Ya no hay munición disponible.
+	if ( pOwner->GetAmmoCount(m_iPrimaryAmmoType) <= 0 )
 		return false;
 
-	if (m_iClip1 >= GetMaxClip1())
+	// Ya tenemos toda la munición.
+	if ( m_iClip1 >= GetMaxClip1() )
 		return false;
 
 	int j = min(1, pOwner->GetAmmoCount(m_iPrimaryAmmoType));
 
-	if (j <= 0)
+	if ( j <= 0 )
 		return false;
 
 	FillClip();
+
 	// Play reload on different channel as otherwise steals channel away from fire sound
 	WeaponSound(RELOAD);
-	SendWeaponAnim( ACT_VM_RELOAD );
+	SendWeaponAnim(ACT_VM_RELOAD);
 
-	pOwner->m_flNextAttack = gpGlobals->curtime;
-	m_flNextPrimaryAttack = gpGlobals->curtime + SequenceDuration();
+	pOwner->m_flNextAttack	= gpGlobals->curtime;
+	m_flNextPrimaryAttack	= gpGlobals->curtime + SequenceDuration();
 
 	return true;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play finish reload anim and fill clip
-// Input  :
-// Output :
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 void CWeaponShotgun::FinishReload()
 {
 	// Make shotgun shell invisible
-	SetBodygroup(1,1);
+	SetBodygroup(1, 1);
 
-	CBaseCombatCharacter *pOwner  = GetOwner();
+	CBaseCombatCharacter *pOwner = GetOwner();
 	
-	if ( pOwner == NULL )
+	if ( !pOwner )
 		return;
 
 	m_bInReload = false;
 
 	// Finish reload animation
-	SendWeaponAnim( ACT_SHOTGUN_RELOAD_FINISH );
+	SendWeaponAnim(ACT_SHOTGUN_RELOAD_FINISH);
 
-	pOwner->m_flNextAttack = gpGlobals->curtime;
-	m_flNextPrimaryAttack = gpGlobals->curtime + SequenceDuration();
+	pOwner->m_flNextAttack	= gpGlobals->curtime;
+	m_flNextPrimaryAttack	= gpGlobals->curtime + SequenceDuration();
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play finish reload anim and fill clip
-// Input  :
-// Output :
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 void CWeaponShotgun::FillClip()
 {
-	CBaseCombatCharacter *pOwner  = GetOwner();
+	CBaseCombatCharacter *pOwner = GetOwner();
 	
-	if ( pOwner == NULL )
+	if ( !pOwner )
 		return;
 
 	// Add them to the clip
@@ -406,62 +465,57 @@ void CWeaponShotgun::FillClip()
 		if ( Clip1() < GetMaxClip1() )
 		{
 			m_iClip1++;
-			pOwner->RemoveAmmo( 1, m_iPrimaryAmmoType );
+			pOwner->RemoveAmmo(1, m_iPrimaryAmmoType);
 		}
 	}
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play weapon pump anim
-// Input  :
-// Output :
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 void CWeaponShotgun::Pump()
 {
-	CBaseCombatCharacter *pOwner  = GetOwner();
+	CBaseCombatCharacter *pOwner = GetOwner();
 
-	if ( pOwner == NULL )
+	if ( !pOwner )
 		return;
 	
-	m_bNeedPump = false;
-	
-	WeaponSound( SPECIAL1 );
+	m_bNeedPump = false;	
+	WeaponSound(SPECIAL1);
 
 	// Finish reload animation
-	SendWeaponAnim( ACT_SHOTGUN_PUMP );
+	SendWeaponAnim(ACT_SHOTGUN_PUMP);
 
 	pOwner->m_flNextAttack	= gpGlobals->curtime + SequenceDuration();
 	m_flNextPrimaryAttack	= gpGlobals->curtime + SequenceDuration();
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//
-//
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 void CWeaponShotgun::DryFire()
 {
 	WeaponSound(EMPTY);
-	SendWeaponAnim( ACT_VM_DRYFIRE );
+	SendWeaponAnim(ACT_VM_DRYFIRE);
 	
 	m_flNextPrimaryAttack = gpGlobals->curtime + SequenceDuration();
 }
 
+//=========================================================
+// Desorientación del disparo primario.
+//=========================================================
 void CWeaponShotgun::PrimaryDisorient()
 {
 	// Only the player fires this way so we can cast
-	CBasePlayer *pPlayer = ToBasePlayer(GetOwner());
+	CIN_Player *pPlayer = ToInPlayer(GetOwner());
 
-	if (!pPlayer)
+	if ( !pPlayer )
 		return;
 
 	// Desorientar al jugador
-	ConVarRef in_beginner_weapon("in_beginner_weapon");
 	ConVarRef sk_plr_dmg_buckshot("sk_plr_dmg_buckshot");
 
 	// InSource
 	// Efectos de "principalmente manejando armas"
-	if(in_beginner_weapon.GetBool())
+	if ( pPlayer->GetConVar("in_beginner_weapon") == "1" )
 	{
 		// Efecto de golpe (Camara hacia arriba y abajo)
 		QAngle	viewPunch;
@@ -472,15 +526,18 @@ void CWeaponShotgun::PrimaryDisorient()
 
 		pPlayer->ViewPunch(viewPunch);
 
+	#ifndef CLIENT_DLL
 		// Efecto de empuje (Camara hacia atras)
 		Vector recoilForce = pPlayer->BodyDirection2D() * - (sk_plr_dmg_buckshot.GetFloat() * 20.0f);
 		recoilForce[2] += random->RandomFloat(100.0f, 150.0f);
 
 		pPlayer->ApplyAbsVelocityImpulse(recoilForce);
+	#endif
 	}
+
+	// ¡No es noob! Efectos minimos
 	else
 	{
-		// ¡No es noob! Efectos minimos
 		QAngle viewPunch;
 
 		viewPunch.x = random->RandomFloat(-2, -1);
@@ -491,21 +548,23 @@ void CWeaponShotgun::PrimaryDisorient()
 	}
 }
 
+//=========================================================
+// Desorientación del disparo secundario.
+//=========================================================
 void CWeaponShotgun::SecondaryDisorient()
 {
-	// Only the player fires this way so we can cast
-	CBasePlayer *pPlayer = ToBasePlayer(GetOwner());
+	// Solo el jugador sufre de desorientación.
+	CIN_Player *pPlayer = ToInPlayer(GetOwner());
 
-	if (!pPlayer)
+	if ( !pPlayer )
 		return;
 
 	// Desorientar al jugador
-	ConVarRef in_beginner_weapon("in_beginner_weapon");
 	ConVarRef sk_plr_dmg_buckshot("sk_plr_dmg_buckshot");
 
 	// InSource
 	// Efectos de "principalmente manejando armas"
-	if(in_beginner_weapon.GetBool())
+	if ( pPlayer->GetConVar("in_beginner_weapon") == "1" )
 	{
 		// Efecto de golpe (Camara hacia arriba y abajo)
 		QAngle	viewPunch;
@@ -516,15 +575,19 @@ void CWeaponShotgun::SecondaryDisorient()
 
 		pPlayer->ViewPunch(viewPunch);
 
+	#ifndef CLIENT_DLL
+
 		// Efecto de empuje (Camara hacia atras)
 		Vector recoilForce = pPlayer->BodyDirection2D() * - ((sk_plr_dmg_buckshot.GetFloat() * 2) * 30.0f);
 		recoilForce[2] += random->RandomFloat(100.0f, 150.0f);
 
 		pPlayer->ApplyAbsVelocityImpulse(recoilForce);
+	#endif
 	}
+
+	// ¡No es noob! Efectos minimos
 	else
 	{
-		// ¡No es noob! Efectos minimos
 		QAngle viewPunch;
 
 		viewPunch.x = random->RandomFloat(-5, -5);
@@ -535,17 +598,14 @@ void CWeaponShotgun::SecondaryDisorient()
 	}
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//
-//
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 void CWeaponShotgun::PrimaryAttack()
 {
-	// Only the player fires this way so we can cast
-	CBasePlayer *pPlayer = ToBasePlayer( GetOwner() );
+	// Solo el jugador puede usar este código.
+	CBasePlayer *pPlayer = ToBasePlayer(GetOwner());
 
-	if (!pPlayer)
+	if ( !pPlayer )
 		return;
 
 	// MUST call sound before removing a round from the clip of a CMachineGun
@@ -563,36 +623,45 @@ void CWeaponShotgun::PrimaryAttack()
 
 	Vector	vecSrc		= pPlayer->Weapon_ShootPosition();
 	Vector	vecAiming	= pPlayer->GetAutoaimVector(AUTOAIM_SCALE_DEFAULT);	
-
-	pPlayer->SetMuzzleFlashTime( gpGlobals->curtime + 1.0 );
 	
+#ifndef CLIENT_DLL
+	pPlayer->SetMuzzleFlashTime(gpGlobals->curtime + 1.0);
+#endif
+	
+	FireBulletsInfo_t info( 7, vecSrc, vecAiming, GetBulletSpread(), MAX_TRACE_LENGTH, m_iPrimaryAmmoType );
+	info.m_pAttacker = pPlayer;
+
 	// Fire the bullets, and force the first shot to be perfectly accuracy
-	pPlayer->FireBullets( sk_plr_num_shotgun_pellets.GetInt(), vecSrc, vecAiming, GetBulletSpread(), MAX_TRACE_LENGTH, m_iPrimaryAmmoType, 0, -1, -1, 0, NULL, true, true );
+	pPlayer->FireBullets(info);
 	
 	PrimaryDisorient();
-	CSoundEnt::InsertSound(SOUND_COMBAT, GetAbsOrigin(), SOUNDENT_VOLUME_SHOTGUN, 0.2, GetOwner());
 
-	if (!m_iClip1 && pPlayer->GetAmmoCount(m_iPrimaryAmmoType) <= 0)
+#ifndef CLIENT_DLL
+	CSoundEnt::InsertSound(SOUND_COMBAT, GetAbsOrigin(), SOUNDENT_VOLUME_SHOTGUN, 0.2, GetOwner());
+#endif
+
+	// Traje: Munición agotada.
+	if ( !m_iClip1 && pPlayer->GetAmmoCount(m_iPrimaryAmmoType) <= 0 )
 		pPlayer->SetSuitUpdate("!HEV_AMO0", false, 0); 
 
-	if(m_iClip1)
+	if ( m_iClip1 )
 		m_bNeedPump = true;
 
 	m_iPrimaryAttacks++;
+
+#ifndef CLIENT_DLL
 	gamestats->Event_WeaponFired(pPlayer, true, GetClassname());
+#endif
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//
-//
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 void CWeaponShotgun::SecondaryAttack()
 {
-	// Only the player fires this way so we can cast
+	// Solo el jugador puede usar este código.
 	CBasePlayer *pPlayer = ToBasePlayer(GetOwner());
 
-	if (!pPlayer)
+	if ( !pPlayer )
 		return;
 
 	pPlayer->m_nButtons &= ~IN_ATTACK2;
@@ -614,21 +683,29 @@ void CWeaponShotgun::SecondaryAttack()
 	Vector vecAiming = pPlayer->GetAutoaimVector(AUTOAIM_SCALE_DEFAULT);	
 
 	// Fire the bullets
-	pPlayer->FireBullets(12, vecSrc, vecAiming, GetBulletSpread(), MAX_TRACE_LENGTH, m_iPrimaryAmmoType, 0, -1, -1, 0, NULL, false, false);
+	FireBulletsInfo_t info( 12, vecSrc, vecAiming, GetBulletSpread(), MAX_TRACE_LENGTH, m_iPrimaryAmmoType );
+	info.m_pAttacker = pPlayer;
 
+	// Fire the bullets, and force the first shot to be perfectly accuracy
+	pPlayer->FireBullets(info);
 	SecondaryDisorient();
 
+#ifndef CLIENT_DLL
 	pPlayer->SetMuzzleFlashTime(gpGlobals->curtime + 1.0);
 	CSoundEnt::InsertSound(SOUND_COMBAT, GetAbsOrigin(), SOUNDENT_VOLUME_SHOTGUN, 0.2);
+#endif
 
-	if (!m_iClip1 && pPlayer->GetAmmoCount(m_iPrimaryAmmoType) <= 0)
+	if ( !m_iClip1 && pPlayer->GetAmmoCount(m_iPrimaryAmmoType) <= 0 )
 		pPlayer->SetSuitUpdate("!HEV_AMO0", false, 0);
 
-	if(m_iClip1)
+	if( m_iClip1 )
 		m_bNeedPump = true;
 
 	m_iSecondaryAttacks++;
+
+#ifndef CLIENT_DLL
 	gamestats->Event_WeaponFired( pPlayer, false, GetClassname() );
+#endif
 }
 	
 //-----------------------------------------------------------------------------
@@ -636,42 +713,45 @@ void CWeaponShotgun::SecondaryAttack()
 //-----------------------------------------------------------------------------
 void CWeaponShotgun::ItemPostFrame()
 {
-	CBasePlayer *pOwner = ToBasePlayer( GetOwner() );
-	if (!pOwner)
-	{
-		return;
-	}
+	CBasePlayer *pOwner = ToBasePlayer(GetOwner());
 
-	if (m_bInReload)
+	if ( !pOwner )
+		return;
+
+	if ( m_bInReload )
 	{
 		// If I'm primary firing and have one round stop reloading and fire
-		if ((pOwner->m_nButtons & IN_ATTACK ) && (m_iClip1 >=1))
+		if ( (pOwner->m_nButtons & IN_ATTACK ) && (m_iClip1 >= 1) )
 		{
 			m_bInReload		= false;
 			m_bNeedPump		= false;
 			m_bDelayedFire1 = true;
 		}
+
 		// If I'm secondary firing and have one round stop reloading and fire
-		else if ((pOwner->m_nButtons & IN_ATTACK2 ) && (m_iClip1 >=2))
+		else if ( (pOwner->m_nButtons & IN_ATTACK2 ) && (m_iClip1 >= 2) )
 		{
 			m_bInReload		= false;
 			m_bNeedPump		= false;
 			m_bDelayedFire2 = true;
 		}
-		else if (m_flNextPrimaryAttack <= gpGlobals->curtime)
+
+		else if ( m_flNextPrimaryAttack <= gpGlobals->curtime )
 		{
 			// If out of ammo end reload
-			if (pOwner->GetAmmoCount(m_iPrimaryAmmoType) <=0)
+			if ( pOwner->GetAmmoCount(m_iPrimaryAmmoType) <= 0 )
 			{
 				FinishReload();
 				return;
 			}
+
 			// If clip not full reload again
-			if (m_iClip1 < GetMaxClip1())
+			if ( m_iClip1 < GetMaxClip1() )
 			{
 				Reload();
 				return;
 			}
+
 			// Clip full, stop reloading
 			else
 			{
@@ -683,39 +763,35 @@ void CWeaponShotgun::ItemPostFrame()
 	else
 	{			
 		// Make shotgun shell invisible
-		SetBodygroup(1,1);
+		SetBodygroup(1, 1);
 	}
 
-	if ((m_bNeedPump) && (m_flNextPrimaryAttack <= gpGlobals->curtime))
+	if ( (m_bNeedPump) && (m_flNextPrimaryAttack <= gpGlobals->curtime) )
 	{
 		Pump();
 		return;
 	}
 	
 	// Shotgun uses same timing and ammo for secondary attack
-	if ((m_bDelayedFire2 || pOwner->m_nButtons & IN_ATTACK2)&&(m_flNextPrimaryAttack <= gpGlobals->curtime))
+	if ( (m_bDelayedFire2 || pOwner->m_nButtons & IN_ATTACK2)&&(m_flNextPrimaryAttack <= gpGlobals->curtime) )
 	{
 		m_bDelayedFire2 = false;
 		
-		if ( (m_iClip1 <= 1 && UsesClipsForAmmo1()))
+		if ( (m_iClip1 <= 1 && UsesClipsForAmmo1()) )
 		{
 			// If only one shell is left, do a single shot instead	
 			if ( m_iClip1 == 1 )
-			{
 				PrimaryAttack();
-			}
-			else if (!pOwner->GetAmmoCount(m_iPrimaryAmmoType))
-			{
+
+			else if ( !pOwner->GetAmmoCount(m_iPrimaryAmmoType) )
 				DryFire();
-			}
+
 			else
-			{
 				StartReload();
-			}
 		}
 
 		// Fire underwater?
-		else if (GetOwner()->GetWaterLevel() == 3 && m_bFiresUnderwater == false)
+		else if ( GetOwner()->GetWaterLevel() == 3 && m_bFiresUnderwater == false )
 		{
 			WeaponSound(EMPTY);
 			m_flNextPrimaryAttack = gpGlobals->curtime + 0.2;
@@ -725,26 +801,23 @@ void CWeaponShotgun::ItemPostFrame()
 		{
 			// If the firing button was just pressed, reset the firing time
 			if ( pOwner->m_afButtonPressed & IN_ATTACK )
-			{
 				 m_flNextPrimaryAttack = gpGlobals->curtime;
-			}
+
 			SecondaryAttack();
 		}
 	}
 	else if ( (m_bDelayedFire1 || pOwner->m_nButtons & IN_ATTACK) && m_flNextPrimaryAttack <= gpGlobals->curtime)
 	{
 		m_bDelayedFire1 = false;
+
 		if ( (m_iClip1 <= 0 && UsesClipsForAmmo1()) || ( !UsesClipsForAmmo1() && !pOwner->GetAmmoCount(m_iPrimaryAmmoType) ) )
 		{
 			if (!pOwner->GetAmmoCount(m_iPrimaryAmmoType))
-			{
 				DryFire();
-			}
 			else
-			{
 				StartReload();
-			}
 		}
+
 		// Fire underwater?
 		else if (pOwner->GetWaterLevel() == 3 && m_bFiresUnderwater == false)
 		{
@@ -752,14 +825,15 @@ void CWeaponShotgun::ItemPostFrame()
 			m_flNextPrimaryAttack = gpGlobals->curtime + 0.2;
 			return;
 		}
+
 		else
 		{
 			// If the firing button was just pressed, reset the firing time
-			CBasePlayer *pPlayer = ToBasePlayer( GetOwner() );
+			CBasePlayer *pPlayer = ToBasePlayer(GetOwner());
+
 			if ( pPlayer && pPlayer->m_afButtonPressed & IN_ATTACK )
-			{
 				 m_flNextPrimaryAttack = gpGlobals->curtime;
-			}
+			
 			PrimaryAttack();
 		}
 	}
@@ -802,11 +876,9 @@ void CWeaponShotgun::ItemPostFrame()
 
 }
 
-
-
-//-----------------------------------------------------------------------------
-// Purpose: Constructor
-//-----------------------------------------------------------------------------
+//=========================================================
+// Constructor
+//=========================================================
 CWeaponShotgun::CWeaponShotgun()
 {
 	m_bReloadsSingly = true;
@@ -821,9 +893,9 @@ CWeaponShotgun::CWeaponShotgun()
 	m_fMaxRange2		= 200;
 }
 
-//-----------------------------------------------------------------------------
+//=========================================================
 // Purpose: 
-//-----------------------------------------------------------------------------
+//=========================================================
 void CWeaponShotgun::ItemHolsterFrame()
 {
 	// Must be player held
@@ -853,23 +925,3 @@ void CWeaponShotgun::ItemHolsterFrame()
 		m_iClip1 += ammoFill;
 	}
 }
-
-//==================================================
-// Purpose: 
-//==================================================
-/*
-void CWeaponShotgun::WeaponIdle()
-{
-	//Only the player fires this way so we can cast
-	CBasePlayer *pPlayer = GetOwner()
-
-	if ( pPlayer == NULL )
-		return;
-
-	//If we're on a target, play the new anim
-	if ( pPlayer->IsOnTarget() )
-	{
-		SendWeaponAnim( ACT_VM_IDLE_ACTIVE );
-	}
-}
-*/

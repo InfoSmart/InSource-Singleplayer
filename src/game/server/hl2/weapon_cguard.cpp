@@ -221,8 +221,8 @@ protected:
 IMPLEMENT_SERVERCLASS_ST(CWeaponCGuard, DT_WeaponCGuard)
 END_SEND_TABLE()
 
-LINK_ENTITY_TO_CLASS( weapon_cguard, CWeaponCGuard );
-PRECACHE_WEAPON_REGISTER( weapon_cguard );
+//LINK_ENTITY_TO_CLASS( weapon_cguard, CWeaponCGuard );
+//PRECACHE_WEAPON_REGISTER( weapon_cguard );
 
 
 //---------------------------------------------------------

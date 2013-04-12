@@ -662,8 +662,8 @@ void CFlare::AddToActiveFlares( void )
 IMPLEMENT_SERVERCLASS_ST(CFlaregun, DT_Flaregun)
 END_SEND_TABLE()
 
-LINK_ENTITY_TO_CLASS( weapon_flaregun, CFlaregun );
-PRECACHE_WEAPON_REGISTER( weapon_flaregun );
+//LINK_ENTITY_TO_CLASS( weapon_flaregun, CFlaregun );
+//PRECACHE_WEAPON_REGISTER( weapon_flaregun );
 
 //-----------------------------------------------------------------------------
 // Purpose: Precache

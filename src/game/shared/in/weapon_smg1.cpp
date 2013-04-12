@@ -6,22 +6,32 @@
 //
 //=============================================================================//
 
+
 #include "cbase.h"
-#include "basehlcombatweapon.h"
 #include "NPCevent.h"
-#include "basecombatcharacter.h"
-#include "AI_BaseNPC.h"
-#include "player.h"
-#include "game.h"
 #include "in_buttons.h"
+
+#ifdef CLIENT_DLL
+	#include "c_in_player.h"
+#else
 #include "grenade_ar2.h"
-#include "AI_Memory.h"
-#include "soundent.h"
+#include "in_player.h"
+#endif
+
+#include "basehlcombatweapon.h"
 #include "rumble_shared.h"
 #include "gamestats.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+
+#ifdef CLIENT_DLL
+#define CWeaponSMG1 C_WeaponSMG1
+#endif
+
+//=========================================================
+// Definición de variables para la configuración.
+//=========================================================
 
 extern ConVar sk_plr_dmg_smg1_grenade;
 
@@ -31,14 +41,14 @@ extern ConVar sk_plr_dmg_smg1_grenade;
 
 class CWeaponSMG1 : public CHLSelectFireMachineGun
 {
-	DECLARE_DATADESC();
+	//DECLARE_DATADESC();
 
 public:
 	DECLARE_CLASS(CWeaponSMG1, CHLSelectFireMachineGun);
-
 	CWeaponSMG1();
 
-	DECLARE_SERVERCLASS();
+	DECLARE_NETWORKCLASS(); 
+	DECLARE_PREDICTABLE();
 	
 	void	Precache();
 	void	AddViewKick();
@@ -50,22 +60,21 @@ public:
 	virtual void Equip(CBaseCombatCharacter *pOwner);
 	bool	Reload();
 
-	float	GetFireRate() { return 0.075f; }	// 13.3hz
-	int		CapabilitiesGet() { return bits_CAP_WEAPON_RANGE_ATTACK1; }
-	int		WeaponRangeAttack2Condition(float flDot, float flDist);
+	float	GetFireRate() { return 0.055f; }
 	Activity	GetPrimaryAttackActivity();
 
-	virtual const Vector& GetBulletSpread()
-	{
-		static const Vector cone = VECTOR_CONE_1DEGREES;
-		return cone;
-	}
-
-	const WeaponProficiencyInfo_t *GetProficiencyValues();
+#ifndef CLIENT_DLL
+	int		CapabilitiesGet() { return bits_CAP_WEAPON_RANGE_ATTACK1; }
+	int		WeaponRangeAttack2Condition(float flDot, float flDist);
 
 	void FireNPCPrimaryAttack(CBaseCombatCharacter *pOperator, Vector &vecShootOrigin, Vector &vecShootDir);
 	void Operator_ForceNPCFire(CBaseCombatCharacter  *pOperator, bool bSecondary);
 	void Operator_HandleAnimEvent(animevent_t *pEvent, CBaseCombatCharacter *pOperator);
+#endif
+
+	virtual const Vector& GetBulletSpread();
+
+	const WeaponProficiencyInfo_t *GetProficiencyValues();
 
 	DECLARE_ACTTABLE();
 
@@ -73,20 +82,37 @@ protected:
 
 	Vector	m_vecTossVelocity;
 	float	m_flNextGrenadeCheck;
+private:
+	CWeaponSMG1( const CWeaponSMG1 & );
 };
 
-IMPLEMENT_SERVERCLASS_ST(CWeaponSMG1, DT_WeaponSMG1)
-END_SEND_TABLE()
+//=========================================================
+// Guardado y definición de datos
+//=========================================================
+
+IMPLEMENT_NETWORKCLASS_ALIASED( WeaponSMG1, DT_WeaponSMG1 )
+
+BEGIN_NETWORK_TABLE(CWeaponSMG1, DT_WeaponSMG1)
+END_NETWORK_TABLE()
+
+BEGIN_PREDICTION_DATA( CWeaponSMG1 )
+END_PREDICTION_DATA()
 
 LINK_ENTITY_TO_CLASS(weapon_smg1, CWeaponSMG1);
 PRECACHE_WEAPON_REGISTER(weapon_smg1);
 
+/*
 BEGIN_DATADESC(CWeaponSMG1)
 
-	DEFINE_FIELD(m_vecTossVelocity, FIELD_VECTOR),
-	DEFINE_FIELD(m_flNextGrenadeCheck, FIELD_TIME),
+	DEFINE_FIELD( m_vecTossVelocity,		FIELD_VECTOR ),
+	DEFINE_FIELD( m_flNextGrenadeCheck,		FIELD_TIME ),
 
 END_DATADESC()
+*/
+
+//=========================================================
+// Actividades
+//=========================================================
 
 acttable_t	CWeaponSMG1::m_acttable[] = 
 {
@@ -139,55 +165,95 @@ acttable_t	CWeaponSMG1::m_acttable[] =
 	{ ACT_RELOAD_LOW,				ACT_RELOAD_SMG1_LOW,			false },
 	{ ACT_GESTURE_RELOAD,			ACT_GESTURE_RELOAD_SMG1,		true },
 
-	{ ACT_HL2MP_IDLE,                    ACT_HL2MP_IDLE_SMG1,                    false },
-    { ACT_HL2MP_RUN,                    ACT_HL2MP_RUN_SMG1,                    false },
-    { ACT_HL2MP_IDLE_CROUCH,            ACT_HL2MP_IDLE_CROUCH_SMG1,            false },
-    { ACT_HL2MP_WALK_CROUCH,            ACT_HL2MP_WALK_CROUCH_SMG1,            false },
-    { ACT_HL2MP_GESTURE_RANGE_ATTACK,    ACT_HL2MP_GESTURE_RANGE_ATTACK_SMG1,    false },
-    { ACT_HL2MP_GESTURE_RELOAD,            ACT_GESTURE_RELOAD_SMG1,        false },
-    { ACT_HL2MP_JUMP,                    ACT_HL2MP_JUMP_SMG1,                    false },
-    { ACT_RANGE_ATTACK1,                ACT_RANGE_ATTACK_SMG1,                false },
+	{ ACT_HL2MP_IDLE,					    ACT_HL2MP_IDLE_SMG1,                    false },
+    { ACT_HL2MP_RUN,						ACT_HL2MP_RUN_SMG1,                    false },
+    { ACT_HL2MP_IDLE_CROUCH,				ACT_HL2MP_IDLE_CROUCH_SMG1,            false },
+    { ACT_HL2MP_WALK_CROUCH,				ACT_HL2MP_WALK_CROUCH_SMG1,            false },
+    { ACT_HL2MP_GESTURE_RANGE_ATTACK,		ACT_HL2MP_GESTURE_RANGE_ATTACK_SMG1,    false },
+    { ACT_HL2MP_GESTURE_RELOAD,				ACT_HL2MP_GESTURE_RELOAD_SMG1,        false },
+    { ACT_HL2MP_JUMP,						ACT_HL2MP_JUMP_SMG1,                    false },
+    { ACT_RANGE_ATTACK1,					ACT_RANGE_ATTACK_SMG1,                false },
 };
 
 IMPLEMENT_ACTTABLE(CWeaponSMG1);
 
 //=========================================================
-// CWeaponSMG1
+// Constructor
 //=========================================================
 CWeaponSMG1::CWeaponSMG1()
 {
+	// Rango minimo y máximo.
 	m_fMinRange1		= 0;
 	m_fMaxRange1		= 1400;
 
+	// No puede disparar bajo el agua.
 	m_bAltFiresUnderwater = false;
 }
 
 //=========================================================
-// Precache()
+//=========================================================
+const Vector& CWeaponSMG1::GetBulletSpread()
+{
+	static Vector Spread = VECTOR_CONE_3DEGREES;
+
+#ifndef CLIENT_DLL
+	// El dueño de esta arma es el jugador.
+	if ( GetOwner() && GetOwner()->IsPlayer() )
+	{
+		// Valor predeterminado.
+		Spread = VECTOR_CONE_6DEGREES;
+
+		CIN_Player *pPlayer		= ToInPlayer(GetOwner());
+		const char *crosshair	= pPlayer->GetConVar("crosshair");
+
+		// Esta agachado y con la mira puesta. Las balas se esparcirán al minimo.
+		if ( pPlayer->IsDucked() && crosshair == "0" )
+			Spread = VECTOR_CONE_1DEGREES;
+
+		// Esta agachado. 4 grados de esparcimiento.
+		else if ( pPlayer->IsDucked() )
+			Spread = VECTOR_CONE_4DEGREES;
+
+		// Esta con la mira. 3 grados de esparcimiento.
+		else if ( crosshair == "0" )
+			Spread = VECTOR_CONE_3DEGREES;
+	}
+#endif
+
+	return Spread;
+}
+
+//=========================================================
 // Guardar en caché objetos necesarios.
 //=========================================================
 void CWeaponSMG1::Precache()
 {
+#ifndef CLIENT_DLL
 	UTIL_PrecacheOther("grenade_ar2");
+#endif
+
 	BaseClass::Precache();
 }
 
 //=========================================================
-// Equip()
 // Equipar arma al jugador o a un NPC.
 //=========================================================
 void CWeaponSMG1::Equip(CBaseCombatCharacter *pOwner)
 {
-	if(pOwner->Classify() == CLASS_PLAYER_ALLY)
+
+#ifndef CLIENT_DLL
+	if ( pOwner->Classify() == CLASS_PLAYER_ALLY )
 		m_fMaxRange1 = 3000;
 	else
+#endif
 		m_fMaxRange1 = 1400;
 
 	BaseClass::Equip(pOwner);
 }
 
+#ifndef CLIENT_DLL
+
 //=========================================================
-// FireNPCPrimaryAttack()
 // Disparo primario desde un NPC.
 //=========================================================
 void CWeaponSMG1::FireNPCPrimaryAttack(CBaseCombatCharacter *pOperator, Vector &vecShootOrigin, Vector &vecShootDir)
@@ -199,11 +265,10 @@ void CWeaponSMG1::FireNPCPrimaryAttack(CBaseCombatCharacter *pOperator, Vector &
 	pOperator->FireBullets(5, vecShootOrigin, vecShootDir, VECTOR_CONE_PRECALCULATED, MAX_TRACE_LENGTH, m_iPrimaryAmmoType, 2, entindex(), 0);
 	pOperator->DoMuzzleFlash();
 
-	m_iClip1 = m_iClip1 - 1;
+	m_iClip1--;
 }
 
 //=========================================================
-// Operator_ForceNPCFire()
 // Forzar a un NPC a disparar.
 //=========================================================
 void CWeaponSMG1::Operator_ForceNPCFire( CBaseCombatCharacter *pOperator, bool bSecondary )
@@ -220,7 +285,6 @@ void CWeaponSMG1::Operator_ForceNPCFire( CBaseCombatCharacter *pOperator, bool b
 }
 
 //=========================================================
-// Operator_HandleAnimEvent()
 // Ejecuta una acción al momento que el modelo hace
 // la animación correspondiente.
 //=========================================================
@@ -235,9 +299,7 @@ void CWeaponSMG1::Operator_HandleAnimEvent(animevent_t *pEvent, CBaseCombatChara
 
 			// Support old style attachment point firing
 			if ((pEvent->options == NULL) || (pEvent->options[0] == '\0') || (!pOperator->GetAttachment(pEvent->options, vecShootOrigin, angDiscard)))
-			{
 				vecShootOrigin = pOperator->Weapon_ShootPosition();
-			}
 
 			CAI_BaseNPC *npc = pOperator->MyNPCPointer();
 			ASSERT(npc != NULL);
@@ -254,7 +316,18 @@ void CWeaponSMG1::Operator_HandleAnimEvent(animevent_t *pEvent, CBaseCombatChara
 }
 
 //=========================================================
-// GetPrimaryAttackActivity()
+// Verificar si es conveniente hacer un ataque secundario.
+// Solo para NPC.
+//=========================================================
+int CWeaponSMG1::WeaponRangeAttack2Condition(float flDot, float flDist)
+{
+	// A menos que tengas mucho tiempo, por ahora nada de lanzar BOMBAS para los NPC.
+	return COND_NONE;
+}
+
+#endif
+
+//=========================================================
 // Selecciona una actividad de combate dependiendo del escenario.
 //=========================================================
 Activity CWeaponSMG1::GetPrimaryAttackActivity()
@@ -272,7 +345,6 @@ Activity CWeaponSMG1::GetPrimaryAttackActivity()
 }
 
 //=========================================================
-// Reload()
 // Recarga de munición.
 //=========================================================
 bool CWeaponSMG1::Reload()
@@ -282,7 +354,7 @@ bool CWeaponSMG1::Reload()
 
 	fRet = DefaultReload(GetMaxClip1(), GetMaxClip2(), ACT_VM_RELOAD);
 
-	if (fRet)
+	if ( fRet )
 	{
 		// Undo whatever the reload process has done to our secondary
 		// attack timer. We allow you to interrupt reloading to fire
@@ -295,26 +367,23 @@ bool CWeaponSMG1::Reload()
 }
 
 //=========================================================
-// AddViewKick()
 // Efecto de la fuerza del arma.
 //=========================================================
 void CWeaponSMG1::AddViewKick()
 {
 	#define	EASY_DAMPEN			0.5f
-	#define	MAX_VERTICAL_KICK	1.0f	// Gradso
+	#define	MAX_VERTICAL_KICK	1.0f	// Grados
 	#define	SLIDE_LIMIT			2.0f	// Segundos
 	
-	// 
-	CBasePlayer *pPlayer = ToBasePlayer( GetOwner() );
+	CBasePlayer *pPlayer = ToBasePlayer(GetOwner());
 
-	if (pPlayer == NULL)
+	if ( !pPlayer )
 		return;
 
 	DoMachineGunKick(pPlayer, EASY_DAMPEN, MAX_VERTICAL_KICK, m_fFireDuration, SLIDE_LIMIT);
 }
 
 //=========================================================
-// SecondaryAttack()
 // Ataque secundario.
 //=========================================================
 void CWeaponSMG1::SecondaryAttack()
@@ -322,11 +391,11 @@ void CWeaponSMG1::SecondaryAttack()
 	// Solo el jugador puede lanzar el ataque secundario.
 	CBasePlayer *pPlayer = ToBasePlayer(GetOwner());
 	
-	if (pPlayer == NULL)
+	if ( !pPlayer )
 		return;
 
 	// Debemos tener munición y no estar bajo el agua.
-	if ((pPlayer->GetAmmoCount(m_iSecondaryAmmoType) <= 0 ) || (pPlayer->GetWaterLevel() == 3))
+	if ( (pPlayer->GetAmmoCount(m_iSecondaryAmmoType) <= 0 ) || (pPlayer->GetWaterLevel() == 3) )
 	{
 		SendWeaponAnim(ACT_VM_DRYFIRE);
 		BaseClass::WeaponSound(EMPTY);
@@ -335,13 +404,15 @@ void CWeaponSMG1::SecondaryAttack()
 		return;
 	}
 
-	if(m_bInReload)
+	if ( m_bInReload )
 		m_bInReload = false;
 
 	// MUST call sound before removing a round from the clip of a CMachineGun
 	BaseClass::WeaponSound(WPN_DOUBLE);
 
+#ifndef CLIENT_DLL
 	pPlayer->RumbleEffect(RUMBLE_357, 0, RUMBLE_FLAGS_NONE);
+#endif
 
 	Vector vecSrc = pPlayer->Weapon_ShootPosition();
 	Vector	vecThrow;
@@ -354,6 +425,7 @@ void CWeaponSMG1::SecondaryAttack()
 	QAngle angles;
 	VectorAngles(vecThrow, angles);
 
+#ifndef CLIENT_DLL
 	CGrenadeAR2 *pGrenade = (CGrenadeAR2*)Create("grenade_ar2", vecSrc, angles, pPlayer);
 	pGrenade->SetAbsVelocity(vecThrow);
 
@@ -364,6 +436,7 @@ void CWeaponSMG1::SecondaryAttack()
 
 	SendWeaponAnim(ACT_VM_SECONDARYATTACK);
 	CSoundEnt::InsertSound(SOUND_COMBAT, GetAbsOrigin(), 1000, 0.2, GetOwner(), SOUNDENT_CHANNEL_WEAPON);
+#endif
 
 	// player "shoot" animation
 	pPlayer->SetAnimation(PLAYER_ATTACK1);
@@ -377,24 +450,13 @@ void CWeaponSMG1::SecondaryAttack()
 	// Can blow up after a short delay (so have time to release mouse button)
 	m_flNextSecondaryAttack = gpGlobals->curtime + 1.0f;
 
+#ifndef CLIENT_DLL
 	// Register a muzzleflash for the AI.
 	pPlayer->SetMuzzleFlashTime(gpGlobals->curtime + 0.5);	
 
 	m_iSecondaryAttacks++;
 	gamestats->Event_WeaponFired(pPlayer, false, GetClassname());
-}
-
-#define	COMBINE_MIN_GRENADE_CLEAR_DIST 256
-
-//=========================================================
-// WeaponRangeAttack2Condition()
-// Verificar si es conveniente hacer un ataque secundario.
-// Solo para NPC.
-//=========================================================
-int CWeaponSMG1::WeaponRangeAttack2Condition(float flDot, float flDist)
-{
-	// A menos que tengas mucho tiempo, por ahora nada de lanzar BOMBAS para los NPC.
-	return COND_NONE;
+#endif
 }
 
 //-----------------------------------------------------------------------------

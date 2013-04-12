@@ -428,7 +428,7 @@ void C_BasePlayer::Spawn( void )
 
 	m_iFOV	= 0;	// init field of view.
 
-    SetModel( "models/player.mdl" );
+    //SetModel( "models/player.mdl" );
 
 	Precache();
 
@@ -1026,6 +1026,60 @@ void C_BasePlayer::TeamChange( int iNewTeam )
 //-----------------------------------------------------------------------------
 // Purpose: Creates, destroys, and updates the flashlight effect as needed.
 //-----------------------------------------------------------------------------
+
+void C_BasePlayer::UpdateFlashlight()
+{
+	// The dim light is the flashlight.
+	if ( IsEffectActive( EF_DIMLIGHT ) )
+	{
+		if ( !m_pFlashlight )
+		{
+			// Turned on the headlight; create it.
+			m_pFlashlight = new CFlashlightEffect(index);
+
+			if ( !m_pFlashlight )
+				return;
+
+			m_pFlashlight->TurnOn();
+		}
+
+		Vector vecForward, vecRight, vecUp;
+		Vector position = EyePosition();
+
+		if ( ::input->CAM_IsThirdPerson() && GetActiveWeapon() )
+		{
+			C_BaseCombatWeapon *pWeapon = GetActiveWeapon();
+			int iAttachment = pWeapon->LookupAttachment("muzzle");
+
+			if ( iAttachment > 0 )
+			{
+				QAngle ang;
+				pWeapon->GetAttachment(iAttachment, position, ang);
+
+				AngleVectors(ang, &vecForward, &vecRight, &vecUp);
+				position += vecForward * 6.0f;
+			}
+			else
+			{
+				EyeVectors(&vecForward, &vecRight, &vecUp);
+				position += vecForward * (VEC_HULL_MAX).Length2D();
+			}
+		}
+		else
+			EyeVectors(&vecForward, &vecRight, &vecUp);
+
+		// Update the light with the new position and direction.		
+		m_pFlashlight->UpdateLight(position, vecForward, vecRight, vecUp, FLASHLIGHT_DISTANCE);
+	}
+	else if ( m_pFlashlight )
+	{
+		// Turned off the flashlight; delete it.
+		delete m_pFlashlight;
+		m_pFlashlight = NULL;
+	}
+}
+
+/*
 void C_BasePlayer::UpdateFlashlight()
 {
 	// The dim light is the flashlight.
@@ -1055,28 +1109,27 @@ void C_BasePlayer::UpdateFlashlight()
 		m_pFlashlight = NULL;
 	}
 }
-
+*/
 
 //-----------------------------------------------------------------------------
 // Purpose: Creates player flashlight if it's ative
 //-----------------------------------------------------------------------------
-void C_BasePlayer::Flashlight( void )
+void C_BasePlayer::Flashlight()
 {
 	UpdateFlashlight();
 
 	// Check for muzzle flash and apply to view model
 	C_BaseAnimating *ve = this;
+
 	if ( GetObserverMode() == OBS_MODE_IN_EYE )
-	{
 		ve = dynamic_cast< C_BaseAnimating* >( GetObserverTarget() );
-	}
 }
 
 
 //-----------------------------------------------------------------------------
 // Purpose: Engine is asking whether to add this player to the visible entities list
 //-----------------------------------------------------------------------------
-void C_BasePlayer::AddEntity( void )
+void C_BasePlayer::AddEntity()
 {
 	// FIXME/UNDONE:  Should the local player say yes to adding itself now 
 	// and then, when it ges time to render and it shouldn't still do the render with
@@ -1085,16 +1138,12 @@ void C_BasePlayer::AddEntity( void )
 
 	// Add in water effects
 	if ( IsLocalPlayer() )
-	{
 		CreateWaterEffects();
-	}
 
 	// If set to invisible, skip. Do this before resetting the entity pointer so it has 
 	// valid data to decide whether it's visible.
 	if ( !IsVisible() || !g_pClientMode->ShouldDrawLocalPlayer( this ) )
-	{
 		return;
-	}
 
 	// Server says don't interpolate this frame, so set previous info to new info.
 	if ( IsEffectActive(EF_NOINTERP) || 
@@ -1105,7 +1154,6 @@ void C_BasePlayer::AddEntity( void )
 
 	// Add in lighting effects
 	CreateLightEffects();
-
 	SetLocalAnglesDim(X_INDEX, 0);
 }
 
@@ -2479,3 +2527,16 @@ void CC_DumpClientSoundscapeData( const CCommand& args )
 	Msg("End dump.\n");
 }
 static ConCommand soundscape_dumpclient("soundscape_dumpclient", CC_DumpClientSoundscapeData, "Dumps the client's soundscape data.\n", FCVAR_CHEAT);
+
+bool C_BasePlayer::AllowOvertheShoulderView()
+{
+	// No esta vivo.
+	if ( !IsAlive() )
+		return false;
+
+	// Es un espectador.
+	if ( GetTeamNumber() == TEAM_SPECTATOR )
+		return false;
+
+	return ::input->CAM_IsThirdPersonOverShoulder();
+}

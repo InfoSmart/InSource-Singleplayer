@@ -96,7 +96,8 @@ public:
 
 	int GetPlayerEntIndex() const;
 	IRagdoll* GetIRagdoll() const;
-
+	
+	void AddEntity();
 	void ImpactTrace( trace_t *pTrace, int iDamageType, char *pCustomImpactName );
 	void UpdateOnRemove();
 	virtual void SetupWeights( const matrix3x4_t *pBoneToWorld, int nFlexWeightCount, float *pFlexWeights, float *pFlexDelayedWeights );

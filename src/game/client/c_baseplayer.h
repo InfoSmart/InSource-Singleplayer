@@ -70,6 +70,9 @@ public:
 	C_BasePlayer();
 	virtual			~C_BasePlayer();
 
+	virtual bool IsDucked( void ) const { return m_Local.m_bDucked; };
+	virtual bool IsDucking( void ) const { return m_Local.m_bDucking; };
+
 	virtual void	Spawn( void );
 	virtual void	SharedSpawn(); // Shared between client and server.
 
@@ -364,6 +367,8 @@ public:
 
 	virtual void			OnAchievementAchieved( int iAchievement ) {}
 
+	virtual bool			AllowOvertheShoulderView();
+
 protected:
 	fogparams_t				m_CurrentFog;
 	EHANDLE					m_hOldFogController;
@@ -541,8 +546,6 @@ private:
 	float m_flAvoidanceDotRight;
 
 protected:
-	virtual bool IsDucked( void ) const { return m_Local.m_bDucked; }
-	virtual bool IsDucking( void ) const { return m_Local.m_bDucking; }
 	virtual float GetFallVelocity( void ) { return m_Local.m_flFallVelocity; }
 	void ForceSetupBonesAtTimeFakeInterpolation( matrix3x4_t *pBonesOut, float curtimeOffset );
 

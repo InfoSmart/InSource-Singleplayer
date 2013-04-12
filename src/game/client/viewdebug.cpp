@@ -31,7 +31,7 @@ static ConVar mat_framebuffercopyoverlaysize( "mat_framebuffercopyoverlaysize", 
 static ConVar mat_showcamerarendertarget( "mat_showcamerarendertarget", "0", FCVAR_CHEAT );
 static ConVar mat_camerarendertargetoverlaysize( "mat_camerarendertargetoverlaysize", "128", FCVAR_CHEAT );
 static ConVar mat_hsv( "mat_hsv", "0", FCVAR_CHEAT );
-static ConVar mat_yuv( "mat_yuv", "0", FCVAR_CHEAT );
+static ConVar mat_yuv("mat_yuv", "0", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_SERVER_CAN_EXECUTE);
 static ConVar cl_overdraw_test( "cl_overdraw_test", "0", FCVAR_CHEAT | FCVAR_NEVER_AS_STRING );
 static ConVar mat_drawTexture( "mat_drawTexture", "", 0, "Enable debug view texture" );
 static ConVar mat_drawTextureScale( "mat_drawTextureScale", "1.0", 0, "Debug view texture scale" );

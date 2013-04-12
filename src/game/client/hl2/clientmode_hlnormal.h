@@ -36,10 +36,13 @@ public:
 	~ClientModeHLNormal();
 
 	virtual void	Init();
+	virtual int		GetDeathMessageStartHeight();
 	virtual bool	ShouldDrawCrosshair( void );
 };
 
 extern IClientMode *GetClientModeNormal();
 extern vgui::HScheme g_hVGuiCombineScheme;
+
+extern ClientModeHLNormal* GetClientModeHLNormal();
 
 #endif // CLIENTMODE_HLNORMAL_H

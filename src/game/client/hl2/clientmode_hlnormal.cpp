@@ -34,6 +34,13 @@ IClientMode *GetClientModeNormal()
 	return &g_ClientModeNormal;
 }
 
+ClientModeHLNormal* GetClientModeHLNormal()
+{
+	Assert( dynamic_cast< ClientModeHLNormal* >( GetClientModeNormal() ) );
+
+	return static_cast< ClientModeHLNormal* >( GetClientModeNormal() );
+}
+
 
 //-----------------------------------------------------------------------------
 // Purpose: this is the viewport that contains all the hud elements
@@ -88,6 +95,11 @@ void ClientModeHLNormal::Init()
 	{
 		Warning( "Couldn't load combine panel scheme!\n" );
 	}
+}
+
+int ClientModeHLNormal::GetDeathMessageStartHeight()
+{
+	return m_pViewport->GetDeathMessageStartHeight();
 }
 
 bool ClientModeHLNormal::ShouldDrawCrosshair( void )

@@ -17,8 +17,12 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-ConVar crosshair( "crosshair", "1", FCVAR_ARCHIVE );
+ConVar crosshair( "crosshair", "1", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_SERVER_CAN_EXECUTE );
 ConVar cl_observercrosshair( "cl_observercrosshair", "1", FCVAR_ARCHIVE );
+
+ConVar cl_crosshaircolor( "cl_crosshaircolor", "", FCVAR_ARCHIVE );
+ConVar cl_crosshairscale( "cl_crosshairscale", "", FCVAR_ARCHIVE );
+ConVar cl_crosshair_file( "cl_crosshair_file", "", FCVAR_ARCHIVE );
 
 using namespace vgui;
 

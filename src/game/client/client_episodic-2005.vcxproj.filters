@@ -43,6 +43,12 @@
     <Filter Include="Source Files\InSource">
       <UniqueIdentifier>{8d507734-627c-47b0-ac8a-b94a738f7c94}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\InSource\HUD">
+      <UniqueIdentifier>{8f4f8236-f67d-4246-ab37-cf41958b6774}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\InSource\VGUI">
+      <UniqueIdentifier>{861db87c-c5fb-48a0-8a32-e51b2585a798}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="achievement_notification_panel.cpp">
@@ -1269,9 +1275,6 @@
     <ClCompile Include="hl2\c_basehelicopter.cpp">
       <Filter>Source Files\HL2 DLL</Filter>
     </ClCompile>
-    <ClCompile Include="hl2\c_basehlcombatweapon.cpp">
-      <Filter>Source Files\HL2 DLL</Filter>
-    </ClCompile>
     <ClCompile Include="hl2\c_basehlplayer.cpp">
       <Filter>Source Files\HL2 DLL</Filter>
     </ClCompile>
@@ -1378,9 +1381,6 @@
       <Filter>Source Files\HL2 DLL</Filter>
     </ClCompile>
     <ClCompile Include="hl2\clientmode_hlnormal.cpp">
-      <Filter>Source Files\HL2 DLL</Filter>
-    </ClCompile>
-    <ClCompile Include="death.cpp">
       <Filter>Source Files\HL2 DLL</Filter>
     </ClCompile>
     <ClCompile Include="..\shared\hl2\env_headcrabcanister_shared.cpp">
@@ -1494,23 +1494,74 @@
     <ClCompile Include="htmlview.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="in\vgui_contact.cpp">
-      <Filter>Source Files\InSource</Filter>
-    </ClCompile>
-    <ClCompile Include="in\vgui_features.cpp">
-      <Filter>Source Files\InSource</Filter>
-    </ClCompile>
     <ClCompile Include="game_controls\ImageProgressBar.cpp">
       <Filter>game_controls Header Files</Filter>
     </ClCompile>
-    <ClCompile Include="in\hud_battery.cpp">
+    <ClCompile Include="..\shared\in\inmp_gamerules.cpp">
       <Filter>Source Files\InSource</Filter>
     </ClCompile>
-    <ClCompile Include="in\hud_health.cpp">
+    <ClCompile Include="..\shared\in\insp_gamerules.cpp">
       <Filter>Source Files\InSource</Filter>
     </ClCompile>
-    <ClCompile Include="in\hud_suitpower.cpp">
+    <ClCompile Include="in\c_in_player.cpp">
       <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\weapon_357.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\weapon_alyxgun.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\weapon_ar2.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\weapon_crossbow.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\weapon_crowbar.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\weapon_frag.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\weapon_pistol.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\basebludgeonweapon.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\weapon_gauss.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\basehlcombatweapon.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\weapon_smg1.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\weapon_shotgun.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="in\HUD\hud_battery.cpp">
+      <Filter>Source Files\InSource\HUD</Filter>
+    </ClCompile>
+    <ClCompile Include="in\HUD\hud_deathnotice.cpp">
+      <Filter>Source Files\InSource\HUD</Filter>
+    </ClCompile>
+    <ClCompile Include="in\HUD\hud_health.cpp">
+      <Filter>Source Files\InSource\HUD</Filter>
+    </ClCompile>
+    <ClCompile Include="in\HUD\hud_suitpower.cpp">
+      <Filter>Source Files\InSource\HUD</Filter>
+    </ClCompile>
+    <ClCompile Include="in\VGUI\vgui_contact.cpp">
+      <Filter>Source Files\InSource\VGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="in\VGUI\vgui_features.cpp">
+      <Filter>Source Files\InSource\VGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="hud_blood.cpp">
+      <Filter>Source Files\InSource\HUD</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -1569,9 +1620,6 @@
       <Filter>Source Files\game_controls</Filter>
     </ClInclude>
     <ClInclude Include="hl2\c_basehelicopter.h">
-      <Filter>Source Files\HL2 DLL</Filter>
-    </ClInclude>
-    <ClInclude Include="hl2\c_basehlcombatweapon.h">
       <Filter>Source Files\HL2 DLL</Filter>
     </ClInclude>
     <ClInclude Include="hl2\c_basehlplayer.h">
@@ -3278,17 +3326,44 @@
     <ClInclude Include="in_vgui_contact.h">
       <Filter>Public Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="in\vgui_contact.h">
-      <Filter>Source Files\InSource</Filter>
-    </ClInclude>
-    <ClInclude Include="in\vgui_features.h">
-      <Filter>Source Files\InSource</Filter>
-    </ClInclude>
     <ClInclude Include="game_controls\ImageProgressBar.h">
       <Filter>game_controls Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="in\hud_suitpower.h">
+    <ClInclude Include="..\shared\in\inmp_gamerules.h">
       <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\in\insp_gamerules.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="in\c_in_player.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\in\weapon_alyxgun.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\in\weapon_ar2.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\in\weapon_crowbar.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\in\weapon_gauss.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\in\basebludgeonweapon.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\in\basehlcombatweapon.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="in\HUD\hud_suitpower.h">
+      <Filter>Source Files\InSource\HUD</Filter>
+    </ClInclude>
+    <ClInclude Include="in\VGUI\vgui_contact.h">
+      <Filter>Source Files\InSource\VGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="in\VGUI\vgui_features.h">
+      <Filter>Source Files\InSource\VGUI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

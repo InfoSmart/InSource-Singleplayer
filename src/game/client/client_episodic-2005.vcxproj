@@ -143,7 +143,11 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
     <CustomBuildStep>
       <Message>Copying to c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\</Message>
       <Command>if exist "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.dll" attrib -r "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.dll"
-copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin"</Command>
+del "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.dll"
+copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin"
+if exist "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.pdb" attrib -r "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.pdb"
+del "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.pdb"
+if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.pdb</Command>
       <Outputs>c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.dll;%(Outputs)</Outputs>
       <Inputs>$(TargetPath)</Inputs>
     </CustomBuildStep>
@@ -152,8 +156,8 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>.\hl2;.\hl2\elements;.\in;..\..\game\shared\hl2;..\..\game\shared\episodic;..\..\public;.\;..\..\common;..\..\public\tier0;..\..\public\tier1;..\..\vgui2\include;..\..\vgui2\controls;..\..\game\shared;.\game_controls;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;NO_STRING_T;CLIENT_DLL;VECTOR;VERSION_SAFE_STEAM_API_INTERFACES;PROTECTED_THINGS_ENABLE;fopen=dont_use_fopen;strncpy=use_Q_strncpy_instead;_snprintf=use_Q_snprintf_instead;ENABLE_HTMLWINDOW;HL2_CLIENT_DLL;HL2_EPISODIC;SP_SDK;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>.\hl2;.\hl2\elements;.\in\HUD;.\in\VGUI;.\in;..\..\game\shared\hl2;..\..\game\shared\in;..\..\game\shared\episodic;..\..\public;.\;..\..\common;..\..\public\tier0;..\..\public\tier1;..\..\vgui2\include;..\..\vgui2\controls;..\..\game\shared;.\game_controls;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;NO_STRING_T;CLIENT_DLL;VECTOR;VERSION_SAFE_STEAM_API_INTERFACES;PROTECTED_THINGS_ENABLE;fopen=dont_use_fopen;strncpy=use_Q_strncpy_instead;_snprintf=use_Q_snprintf_instead;ENABLE_HTMLWINDOW;HL2_CLIENT_DLL;HL2_EPISODIC;SP_SDK;INSOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
       </ExceptionHandling>
@@ -218,6 +222,20 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\shared\in\basebludgeonweapon.cpp" />
+    <ClCompile Include="..\shared\in\basehlcombatweapon.cpp" />
+    <ClCompile Include="..\shared\in\inmp_gamerules.cpp" />
+    <ClCompile Include="..\shared\in\insp_gamerules.cpp" />
+    <ClCompile Include="..\shared\in\weapon_357.cpp" />
+    <ClCompile Include="..\shared\in\weapon_alyxgun.cpp" />
+    <ClCompile Include="..\shared\in\weapon_ar2.cpp" />
+    <ClCompile Include="..\shared\in\weapon_crossbow.cpp" />
+    <ClCompile Include="..\shared\in\weapon_crowbar.cpp" />
+    <ClCompile Include="..\shared\in\weapon_frag.cpp" />
+    <ClCompile Include="..\shared\in\weapon_gauss.cpp" />
+    <ClCompile Include="..\shared\in\weapon_pistol.cpp" />
+    <ClCompile Include="..\shared\in\weapon_shotgun.cpp" />
+    <ClCompile Include="..\shared\in\weapon_smg1.cpp" />
     <ClCompile Include="..\shared\singleplayer_animstate.cpp" />
     <ClCompile Include="achievement_notification_panel.cpp" />
     <ClCompile Include="..\shared\achievement_saverestore.cpp" />
@@ -441,6 +459,7 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
     <ClCompile Include="hud_basechat.cpp" />
     <ClCompile Include="hud_basetimer.cpp" />
     <ClCompile Include="hud_bitmapnumericdisplay.cpp" />
+    <ClCompile Include="hud_blood.cpp" />
     <ClCompile Include="hud_chat.cpp" />
     <ClCompile Include="hud_closecaption.cpp" />
     <ClCompile Include="hud_crosshair.cpp" />
@@ -462,11 +481,13 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
     <ClCompile Include="hud_vehicle.cpp" />
     <ClCompile Include="hud_weapon.cpp" />
     <ClCompile Include="..\shared\igamesystem.cpp" />
-    <ClCompile Include="in\hud_battery.cpp" />
-    <ClCompile Include="in\hud_health.cpp" />
-    <ClCompile Include="in\hud_suitpower.cpp" />
-    <ClCompile Include="in\vgui_contact.cpp" />
-    <ClCompile Include="in\vgui_features.cpp" />
+    <ClCompile Include="in\c_in_player.cpp" />
+    <ClCompile Include="in\HUD\hud_battery.cpp" />
+    <ClCompile Include="in\HUD\hud_deathnotice.cpp" />
+    <ClCompile Include="in\HUD\hud_health.cpp" />
+    <ClCompile Include="in\HUD\hud_suitpower.cpp" />
+    <ClCompile Include="in\VGUI\vgui_contact.cpp" />
+    <ClCompile Include="in\VGUI\vgui_features.cpp" />
     <ClCompile Include="in_camera.cpp" />
     <ClCompile Include="in_joystick.cpp" />
     <ClCompile Include="in_main.cpp" />
@@ -784,7 +805,6 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
     <ClCompile Include="hl2\c_barnacle.cpp" />
     <ClCompile Include="hl2\c_barney.cpp" />
     <ClCompile Include="hl2\c_basehelicopter.cpp" />
-    <ClCompile Include="hl2\c_basehlcombatweapon.cpp" />
     <ClCompile Include="hl2\c_basehlplayer.cpp" />
     <ClCompile Include="hl2\c_citadel_effects.cpp" />
     <ClCompile Include="hl2\c_corpse.cpp" />
@@ -821,7 +841,6 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
     <ClCompile Include="hl2\c_weapon_physcannon.cpp" />
     <ClCompile Include="hl2\c_weapon_stunstick.cpp" />
     <ClCompile Include="hl2\clientmode_hlnormal.cpp" />
-    <ClCompile Include="death.cpp" />
     <ClCompile Include="..\shared\hl2\env_headcrabcanister_shared.cpp" />
     <ClCompile Include="episodic\episodic_screenspaceeffects.cpp" />
     <ClCompile Include="episodic\flesh_internal_material_proxy.cpp" />
@@ -857,6 +876,14 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
     <ClCompile Include="toolframework_client.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\shared\in\basebludgeonweapon.h" />
+    <ClInclude Include="..\shared\in\basehlcombatweapon.h" />
+    <ClInclude Include="..\shared\in\inmp_gamerules.h" />
+    <ClInclude Include="..\shared\in\insp_gamerules.h" />
+    <ClInclude Include="..\shared\in\weapon_alyxgun.h" />
+    <ClInclude Include="..\shared\in\weapon_ar2.h" />
+    <ClInclude Include="..\shared\in\weapon_crowbar.h" />
+    <ClInclude Include="..\shared\in\weapon_gauss.h" />
     <ClInclude Include="..\shared\singleplayer_animstate.h" />
     <ClInclude Include="achievement_notification_panel.h" />
     <ClInclude Include="..\shared\achievement_saverestore.h" />
@@ -873,9 +900,10 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
     <ClInclude Include="..\shared\point_bonusmaps_accessor.h" />
     <ClInclude Include="game_controls\ImageProgressBar.h" />
     <ClInclude Include="ihtmlview.h" />
-    <ClInclude Include="in\hud_suitpower.h" />
-    <ClInclude Include="in\vgui_contact.h" />
-    <ClInclude Include="in\vgui_features.h" />
+    <ClInclude Include="in\c_in_player.h" />
+    <ClInclude Include="in\HUD\hud_suitpower.h" />
+    <ClInclude Include="in\VGUI\vgui_contact.h" />
+    <ClInclude Include="in\VGUI\vgui_features.h" />
     <ClInclude Include="in_vgui_contact.h" />
     <ClInclude Include="tne_rendertargets.h" />
     <ClInclude Include="vgui_avatarimage.h" />
@@ -884,7 +912,6 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
     <ClInclude Include="game_controls\basemodel_panel.h" />
     <ClInclude Include="game_controls\basemodelpanel.h" />
     <ClInclude Include="hl2\c_basehelicopter.h" />
-    <ClInclude Include="hl2\c_basehlcombatweapon.h" />
     <ClInclude Include="hl2\c_basehlplayer.h" />
     <ClInclude Include="hl2\c_corpse.h" />
     <ClInclude Include="hl2\c_hl2_playerlocaldata.h" />

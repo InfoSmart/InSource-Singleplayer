@@ -21,6 +21,9 @@
 #include <ctype.h> // isalnum()
 #include <voice_status.h>
 
+#include "view.h"
+#include "hud_macros.h"
+
 extern ConVar in_joystick;
 extern ConVar cam_idealpitch;
 extern ConVar cam_idealyaw;
@@ -32,35 +35,34 @@ extern ConVar cam_idealyaw;
 #include "tier0/memdbgon.h"
 
 // FIXME, tie to entity state parsing for player!!!
-int g_iAlive = 1;
-
-static int s_ClearInputState = 0;
+int g_iAlive					= 1;
+static int s_ClearInputState	= 0;
 
 // Defined in pm_math.c
-float anglemod( float a );
+float anglemod(float a);
 
 // FIXME void V_Init( void );
-static int in_impulse = 0;
-static int in_cancel = 0;
+static int in_impulse	= 0;
+static int in_cancel	= 0;
 
-ConVar cl_anglespeedkey( "cl_anglespeedkey", "0.67", 0 );
-ConVar cl_yawspeed( "cl_yawspeed", "210", 0 );
-ConVar cl_pitchspeed( "cl_pitchspeed", "225", 0 );
-ConVar cl_pitchdown( "cl_pitchdown", "89", FCVAR_CHEAT );
-ConVar cl_pitchup( "cl_pitchup", "89", FCVAR_CHEAT );
-ConVar cl_sidespeed( "cl_sidespeed", "450", FCVAR_CHEAT );
-ConVar cl_upspeed( "cl_upspeed", "320", FCVAR_CHEAT );
-ConVar cl_forwardspeed( "cl_forwardspeed", "450", FCVAR_CHEAT );
-ConVar cl_backspeed( "cl_backspeed", "450", FCVAR_CHEAT );
-ConVar lookspring( "lookspring", "0", FCVAR_ARCHIVE );
-ConVar lookstrafe( "lookstrafe", "0", FCVAR_ARCHIVE );
-ConVar in_joystick( "joystick","0", FCVAR_ARCHIVE );
+ConVar cl_anglespeedkey("cl_anglespeedkey",	"0.67", 0);
+ConVar cl_yawspeed("cl_yawspeed",			"210",	0);
+ConVar cl_pitchspeed("cl_pitchspeed",		"225",	0);
+ConVar cl_pitchdown("cl_pitchdown",			"89",	FCVAR_CHEAT);
+ConVar cl_pitchup("cl_pitchup",				"89",	FCVAR_CHEAT);
+ConVar cl_sidespeed("cl_sidespeed",			"450",	FCVAR_CHEAT);
+ConVar cl_upspeed("cl_upspeed",				"320",	FCVAR_CHEAT);
+ConVar cl_forwardspeed("cl_forwardspeed",	"450",	FCVAR_CHEAT);
+ConVar cl_backspeed("cl_backspeed",			"450",	FCVAR_CHEAT);
+ConVar lookspring("lookspring",				"0",	FCVAR_ARCHIVE);
+ConVar lookstrafe("lookstrafe",				"0",	FCVAR_ARCHIVE);
+ConVar in_joystick("joystick",				"0",	FCVAR_ARCHIVE);
 
-ConVar thirdperson_platformer( "thirdperson_platformer", "0", 0, "Player will aim in the direction they are moving." );
-ConVar thirdperson_screenspace( "thirdperson_screenspace", "0", 0, "Movement will be relative to the camera, eg: left means screen-left" );
+ConVar thirdperson_platformer("thirdperson_platformer",		"0", 0, "Player will aim in the direction they are moving.");
+ConVar thirdperson_screenspace("thirdperson_screenspace",	"0", 0, "Movement will be relative to the camera, eg: left means screen-left");
 
-ConVar sv_noclipduringpause( "sv_noclipduringpause", "0", FCVAR_REPLICATED | FCVAR_CHEAT, "If cheats are enabled, then you can noclip with the game paused (for doing screenshots, etc.)." );
-static ConVar cl_lagcomp_errorcheck( "cl_lagcomp_errorcheck", "0", 0, "Player index of other player to check for position errors." );
+ConVar sv_noclipduringpause("sv_noclipduringpause",				"0", FCVAR_REPLICATED | FCVAR_CHEAT,	"If cheats are enabled, then you can noclip with the game paused (for doing screenshots, etc.)." );
+static ConVar cl_lagcomp_errorcheck("cl_lagcomp_errorcheck",	"0", 0,									"Player index of other player to check for position errors." );
 
 extern ConVar cl_mouselook;
 #define UsingMouselook() cl_mouselook.GetBool()
@@ -119,7 +121,7 @@ static	kbutton_t	in_break;
 static	kbutton_t	in_zoom;
 static  kbutton_t   in_grenade1;
 static  kbutton_t   in_grenade2;
-kbutton_t	in_ducktoggle;
+kbutton_t			in_ducktoggle;
 
 /*
 ===========
@@ -953,83 +955,83 @@ void CInput::ExtraMouseSample( float frametime, bool active )
 	if ( active )
 	{
 		// Determine view angles
-		AdjustAngles ( frametime );
+		AdjustAngles (frametime);
 
 		// Determine sideways movement
-		ComputeSideMove( cmd );
+		ComputeSideMove(cmd);
 
 		// Determine vertical movement
-		ComputeUpwardMove( cmd );
+		ComputeUpwardMove(cmd);
 
 		// Determine forward movement
-		ComputeForwardMove( cmd );
+		ComputeForwardMove(cmd);
 
 		// Scale based on holding speed key or having too fast of a velocity based on client maximum
 		//  speed.
-		ScaleMovements( cmd );
+		ScaleMovements(cmd);
 
 		// Allow mice and other controllers to add their inputs
-		ControllerMove( frametime, cmd );
+		ControllerMove(frametime, cmd);
 	}
 
+	CalcPlayerAngle(cmd);
+
 	// Retreive view angles from engine ( could have been set in IN_AdjustAngles above )
-	engine->GetViewAngles( viewangles );
+	engine->GetViewAngles(viewangles);
 
 	// Set button and flag bits, don't blow away state
-	cmd->buttons = GetButtonBits( 0 );
+	cmd->buttons = GetButtonBits(0);
 
 	// Use new view angles if alive, otherwise user last angles we stored off.
 	if ( g_iAlive )
 	{
-		VectorCopy( viewangles, cmd->viewangles );
-		VectorCopy( viewangles, m_angPreviousViewAngles );
+		VectorCopy(viewangles, cmd->viewangles);
+		VectorCopy(viewangles, m_angPreviousViewAngles);
 	}
 	else
-	{
-		VectorCopy( m_angPreviousViewAngles, cmd->viewangles );
-	}
+		VectorCopy(m_angPreviousViewAngles, cmd->viewangles);
 
 	// Let the move manager override anything it wants to.
-	if ( g_pClientMode->CreateMove( frametime, cmd ) )
+	if ( g_pClientMode->CreateMove(frametime, cmd) )
 	{
 		// Get current view angles after the client mode tweaks with it
-		engine->SetViewAngles( cmd->viewangles );
-		prediction->SetLocalViewAngles( cmd->viewangles );
+		engine->SetViewAngles(cmd->viewangles);
+		prediction->SetLocalViewAngles(cmd->viewangles);
 	}
 }
 
-void CInput::CreateMove ( int sequence_number, float input_sample_frametime, bool active )
+void CInput::CreateMove (int sequence_number, float input_sample_frametime, bool active)
 {	
-	CUserCmd *cmd = &m_pCommands[ sequence_number % MULTIPLAYER_BACKUP ];
-	CVerifiedUserCmd *pVerified = &m_pVerifiedCommands[ sequence_number % MULTIPLAYER_BACKUP ];
+	CUserCmd *cmd				= &m_pCommands[sequence_number % MULTIPLAYER_BACKUP];
+	CVerifiedUserCmd *pVerified = &m_pVerifiedCommands[sequence_number % MULTIPLAYER_BACKUP];
 
 	cmd->Reset();
 
 	cmd->command_number = sequence_number;
-	cmd->tick_count = gpGlobals->tickcount;
+	cmd->tick_count		= gpGlobals->tickcount;
 
 	QAngle viewangles;
 
 	if ( active || sv_noclipduringpause.GetInt() )
 	{
 		// Determine view angles
-		AdjustAngles ( input_sample_frametime );
+		AdjustAngles(input_sample_frametime);
 
 		// Determine sideways movement
-		ComputeSideMove( cmd );
+		ComputeSideMove(cmd);
 
 		// Determine vertical movement
-		ComputeUpwardMove( cmd );
+		ComputeUpwardMove(cmd);
 
 		// Determine forward movement
-		ComputeForwardMove( cmd );
+		ComputeForwardMove(cmd);
 
 		// Scale based on holding speed key or having too fast of a velocity based on client maximum
 		//  speed.
-		ScaleMovements( cmd );
+		ScaleMovements(cmd);
 
 		// Allow mice and other controllers to add their inputs
-		ControllerMove( input_sample_frametime, cmd );
+		ControllerMove(input_sample_frametime, cmd);
 	}
 	else
 	{
@@ -1041,6 +1043,8 @@ void CInput::CreateMove ( int sequence_number, float input_sample_frametime, boo
 			ResetMouse();
 		}
 	}
+
+	CalcPlayerAngle(cmd);
 
 	// Retreive view angles from engine ( could have been set in IN_AdjustAngles above )
 	engine->GetViewAngles( viewangles );
@@ -1465,39 +1469,114 @@ static ConCommand xboxlook("xlook", IN_XboxStub);
 
 /*
 ============
+__MsgFunc_SetThirdpersonAngle
+OverShoulder View
+============
+*/
+static void __MsgFunc_SetThirdPersonShoulderAngle(bf_read &msg)
+{
+	bool bFPOnly;
+	msg.ReadBits(&bFPOnly, 1);
+
+	if (bFPOnly && ::input->CAM_IsThirdPersonOverShoulder())
+		return;
+ 
+	QAngle angAbs;
+	msg.ReadBitAngles(angAbs);
+	::input->SetCamViewAngles(angAbs);
+}
+
+/*
+============
 Init_All
 ============
 */
-void CInput::Init_All (void)
+void CInput::Init_All ()
 {
-	Assert( !m_pCommands );
-	m_pCommands = new CUserCmd[ MULTIPLAYER_BACKUP ];
-	m_pVerifiedCommands = new CVerifiedUserCmd[ MULTIPLAYER_BACKUP ];
+	Assert(!m_pCommands);
+	m_pCommands			= new CUserCmd[MULTIPLAYER_BACKUP];
+	m_pVerifiedCommands = new CVerifiedUserCmd[MULTIPLAYER_BACKUP];
 
 	m_fMouseInitialized	= false;
 	m_fRestoreSPI		= false;
 	m_fMouseActive		= false;
+
 	Q_memset( m_rgOrigMouseParms, 0, sizeof( m_rgOrigMouseParms ) );
 	Q_memset( m_rgNewMouseParms, 0, sizeof( m_rgNewMouseParms ) );
 	Q_memset( m_rgCheckMouseParam, 0, sizeof( m_rgCheckMouseParam ) );
 
-	m_rgNewMouseParms[ MOUSE_ACCEL_THRESHHOLD1 ] = 0; // no 2x
-	m_rgNewMouseParms[ MOUSE_ACCEL_THRESHHOLD2 ] = 0; // no 4x
-	m_rgNewMouseParms[ MOUSE_SPEED_FACTOR ] = 1; // slowest (10 default, 20 max)
+	m_rgNewMouseParms[MOUSE_ACCEL_THRESHHOLD1]	= 0; // no 2x
+	m_rgNewMouseParms[MOUSE_ACCEL_THRESHHOLD2]	= 0; // no 4x
+	m_rgNewMouseParms[MOUSE_SPEED_FACTOR]		= 1; // slowest (10 default, 20 max)
 
-	m_fMouseParmsValid	= false;
+	m_fMouseParmsValid		= false;
 	m_fJoystickAdvancedInit = false;
-	m_flLastForwardMove = 0.0;
+	m_flLastForwardMove		= 0.0;
 
 	// Initialize inputs
 	if ( IsPC() )
 	{
-		Init_Mouse ();
+		Init_Mouse();
 		Init_Keyboard();
 	}
 		
 	// Initialize third person camera controls.
 	Init_Camera();
+
+	m_angViewAngle = vec3_angle;
+	HOOK_MESSAGE(SetThirdPersonShoulderAngle);
+}
+
+// Update the actual eyeangles of the player entity and translate the movement input
+void CInput::CalcPlayerAngle(CUserCmd *cmd)
+{
+	C_BasePlayer *pl = C_BasePlayer::GetLocalPlayer();
+
+	if ( !pl || !pl->AllowOvertheShoulderView() )
+	{
+		engine->SetViewAngles(m_angViewAngle);
+		return;
+	}
+ 
+	trace_t tr;
+	const Vector eyePos = pl->EyePosition();
+	UTIL_TraceLine(MainViewOrigin(), MainViewOrigin() + MainViewForward() * MAX_TRACE_LENGTH, MASK_SHOT, pl, COLLISION_GROUP_NONE, &tr);
+ 
+	// ensure that the player entity does not shoot towards the camera, get dist to plane where the player is on and add a constant
+	float flMinForward	= abs(DotProduct( MainViewForward(), eyePos - MainViewOrigin() ) ) + 32.0f;
+	Vector vecTrace		= tr.endpos - tr.startpos;
+	float flLenOld		= vecTrace.NormalizeInPlace();
+	float flLen			= max( flMinForward, flLenOld );
+	vecTrace			*= flLen;
+ 
+	Vector vecFinalDir = MainViewOrigin() + vecTrace - eyePos; //eyePos;
+ 
+	QAngle playerangles;
+	VectorAngles(vecFinalDir, playerangles);
+	engine->SetViewAngles(playerangles);
+ 
+	QAngle angCam	= m_angViewAngle;
+	playerangles.z	= angCam.z = 0;
+	playerangles.x	= angCam.x = 0;
+
+	Vector cFwd, cRight, pFwd, pRight;
+	AngleVectors(angCam, &cFwd, &cRight, NULL);
+	AngleVectors(playerangles, &pFwd, &pRight, NULL);
+ 
+	float flMove[2]		= { cmd->forwardmove, cmd->sidemove };
+	cmd->forwardmove	= DotProduct( cFwd, pFwd ) * flMove[ 0 ] + DotProduct( cRight, pFwd ) * flMove[ 1 ];
+	cmd->sidemove		= DotProduct( cRight, pRight ) * flMove[ 1 ] + DotProduct( cFwd, pRight ) * flMove[ 0 ];
+}
+
+void CInput::SetCamViewAngles(QAngle const &view)
+{
+	m_angViewAngle = view;
+ 
+	if ( m_angViewAngle.x > 180.0f )
+		m_angViewAngle.x -= 360.0f;
+
+	if ( m_angViewAngle.x < -180.0f )
+		m_angViewAngle.x += 360.0f;
 }
 
 /*

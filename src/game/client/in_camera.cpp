@@ -65,16 +65,27 @@ CAM_ToThirdPerson
 
 ==============================
 */
-void CAM_ToThirdPerson(void)
+void CAM_ToThirdPerson()
 {
 	input->CAM_ToThirdPerson();
 
 	// Let the local player know
 	C_BasePlayer *localPlayer = C_BasePlayer::GetLocalPlayer();
+
 	if ( localPlayer )
-	{
 		localPlayer->ThirdPersonSwitch( true );
-	}
+}
+
+/*
+==============================
+CAM_ToThirdPerson
+
+==============================
+*/
+void CAM_ToThirdPersonOverShoulder()
+{
+	CAM_ToThirdPerson();
+	input->CAM_ToThirdPersonOverShoulder();
 }
 
 /*
@@ -234,44 +245,33 @@ void CInput::CAM_Think( void )
 	VPROF("CAM_Think");
 	//
 	if ( m_pCameraThirdData )
-	{
 		return CAM_CameraThirdThink();
-	}
 
 	Vector idealAngles;
 	Vector camOffset;
 	float flSensitivity;
 	QAngle viewangles;
 	
-	switch( cam_command.GetInt() )
+	switch ( cam_command.GetInt() )
 	{
-	case CAM_COMMAND_TOTHIRDPERSON:
-		CAM_ToThirdPerson();
-		break;
+		case CAM_COMMAND_TOTHIRDPERSON:
+			CAM_ToThirdPerson();
+			break;
 		
-	case CAM_COMMAND_TOFIRSTPERSON:
-		CAM_ToFirstPerson();
-		break;
+		case CAM_COMMAND_TOFIRSTPERSON:
+			CAM_ToFirstPerson();
+			break;
 		
-	case CAM_COMMAND_NONE:
-	default:
-		break;
+		case CAM_COMMAND_NONE:
+		default:
+			break;
 	}
 	
-	if( !m_fCameraInThirdPerson )
+	if( !m_fCameraInThirdPerson && !m_fCameraInThirdPersonShoulder )
 		return;
 
 	if ( !sv_cheats )
-	{
-		sv_cheats = cvar->FindVar( "sv_cheats" );
-	}
-
-	// If cheats have been disabled, pull us back out of third-person view.
-	if ( sv_cheats && !sv_cheats->GetBool() )
-	{
-		CAM_ToFirstPerson();
-		return;
-	}
+		sv_cheats = cvar->FindVar("sv_cheats");
 
 	// In Maya-mode
 	if ( Is_CAM_ThirdPerson_MayaMode() )
@@ -279,6 +279,7 @@ void CInput::CAM_Think( void )
 		// Unless explicitly moving the camera, don't move it
 		m_fCameraInterceptingMouse = m_fCameraMovingWithMouse =
 			vgui::input()->IsKeyDown( KEY_LALT ) || vgui::input()->IsKeyDown( KEY_RALT );
+
 		if ( !m_fCameraMovingWithMouse )
 			return;
 
@@ -713,22 +714,35 @@ CAM_ToThirdPerson
 
 ==============================
 */
-void CInput::CAM_ToThirdPerson(void)
+void CInput::CAM_ToThirdPerson()
 { 
 	QAngle viewangles;
+	engine->GetViewAngles(viewangles);
 
-	engine->GetViewAngles( viewangles );
-
-	if( !m_fCameraInThirdPerson )
+	if ( !m_fCameraInThirdPerson )
 	{
 		m_fCameraInThirdPerson = true; 
 		
-		m_vecCameraOffset[ YAW ] = viewangles[ YAW ]; 
-		m_vecCameraOffset[ PITCH ] = viewangles[ PITCH ]; 
-		m_vecCameraOffset[ DIST ] = CAM_MIN_DIST; 
+		m_vecCameraOffset[ YAW ]	= viewangles[ YAW ]; 
+		m_vecCameraOffset[ PITCH ]	= viewangles[ PITCH ]; 
+		m_vecCameraOffset[ DIST ]	= CAM_MIN_DIST; 
 	}
 
-	cam_command.SetValue( 0 );
+	cam_command.SetValue(0);
+}
+
+/*
+==============================
+CAM_ToThirdPerson
+
+==============================
+*/
+void CInput::CAM_ToThirdPersonOverShoulder()
+{ 
+	if ( !m_fCameraInThirdPerson )
+		CAM_ToThirdPerson();
+
+	m_fCameraInThirdPersonShoulder = true;
 }
 
 /*
@@ -739,8 +753,10 @@ CAM_ToFirstPerson
 */
 void CInput::CAM_ToFirstPerson(void)
 {
-	m_fCameraInThirdPerson = false;
-	cam_command.SetValue( 0 );
+	m_fCameraInThirdPerson			= false;
+	m_fCameraInThirdPersonShoulder	= false;
+
+	cam_command.SetValue(0);
 }
 
 /*
@@ -775,9 +791,11 @@ CAM_ToFirstPerson
 */
 void CInput::CAM_ToOrthographic(void)
 {
-	m_fCameraInThirdPerson = false;
-	m_CameraIsOrthographic = true;
-	cam_command.SetValue( 0 );
+	m_fCameraInThirdPerson			= false;
+	m_fCameraInThirdPersonShoulder	= false;
+	m_CameraIsOrthographic			= true;
+
+	cam_command.SetValue(0);
 }
 
 /*
@@ -786,27 +804,29 @@ CAM_StartMouseMove
 
 ==============================
 */
-void CInput::CAM_StartMouseMove(void)
+void CInput::CAM_StartMouseMove()
 {
 	float flSensitivity;
 		
 	//only move the cam with mouse if we are in third person.
-	if ( m_fCameraInThirdPerson )
+	if ( m_fCameraInThirdPerson || m_fCameraInThirdPersonShoulder )
 	{
 		//set appropriate flags and initialize the old mouse position
 		//variables for mouse camera movement
-		if (!m_fCameraMovingWithMouse)
+		if ( !m_fCameraMovingWithMouse )
 		{
 			int cpx, cpy;
 
-			m_fCameraMovingWithMouse=true;
-			m_fCameraInterceptingMouse=true;
-#ifndef _XBOX			
-			GetMousePos(cpx, cpy);
-#else
+			m_fCameraMovingWithMouse	= true;
+			m_fCameraInterceptingMouse	= true;
+
+			#ifndef _XBOX			
+				GetMousePos(cpx, cpy);
+			#else
 			// xboxfixme
 			cpx = cpy = 0;
-#endif
+			#endif
+
 			m_nCameraX = cpx;
 			m_nCameraY = cpy;
 
@@ -825,8 +845,8 @@ void CInput::CAM_StartMouseMove(void)
 	//we are not in 3rd person view..therefore do not allow camera movement
 	else
 	{   
-		m_fCameraMovingWithMouse=false;
-		m_fCameraInterceptingMouse=false;
+		m_fCameraMovingWithMouse	= false;
+		m_fCameraInterceptingMouse	= false;
 	}
 }
 
@@ -855,23 +875,24 @@ using the mouse
 void CInput::CAM_StartDistance(void)
 {
 	//only move the cam with mouse if we are in third person.
-	if ( m_fCameraInThirdPerson )
+	if ( m_fCameraInThirdPerson || m_fCameraInThirdPersonShoulder )
 	{
 	  //set appropriate flags and initialize the old mouse position
 	  //variables for mouse camera movement
-	  if (!m_fCameraDistanceMove)
+	  if ( !m_fCameraDistanceMove )
 	  {
-		  int cpx, cpy;
+		int cpx, cpy;
 
-		  m_fCameraDistanceMove=true;
-		  m_fCameraMovingWithMouse=true;
-		  m_fCameraInterceptingMouse=true;
-#ifndef _XBOX
-		  GetMousePos(cpx, cpy);
-#else
+		m_fCameraDistanceMove		= true;
+		m_fCameraMovingWithMouse	= true;
+		m_fCameraInterceptingMouse	= true;
+
+		#ifndef _XBOX
+			GetMousePos(cpx, cpy);
+		#else
 		  // xboxfixme
 		  cpx = cpy = 0;
-#endif
+		#endif
 
 		  m_nCameraX = cpx;
 		  m_nCameraY = cpy;
@@ -883,9 +904,9 @@ void CInput::CAM_StartDistance(void)
 	//we are not in 3rd person view..therefore do not allow camera movement
 	else
 	{   
-		m_fCameraDistanceMove=false;
-		m_fCameraMovingWithMouse=false;
-		m_fCameraInterceptingMouse=false;
+		m_fCameraDistanceMove		= false;
+		m_fCameraMovingWithMouse	= false;
+		m_fCameraInterceptingMouse	= false;
 	}
 }
 
@@ -910,9 +931,20 @@ CAM_IsThirdPerson
 
 ==============================
 */
-int CInput::CAM_IsThirdPerson( void )
+int CInput::CAM_IsThirdPerson()
 {
 	return m_fCameraInThirdPerson;
+}
+
+/*
+==============================
+CAM_IsThirdPersonOverShoulder
+
+==============================
+*/
+int CInput::CAM_IsThirdPersonOverShoulder()
+{
+	return m_fCameraInThirdPersonShoulder;
 }
 
 /*
@@ -937,34 +969,39 @@ int CInput::CAM_InterceptingMouse( void )
 	return m_fCameraInterceptingMouse;
 }
 
-static ConCommand startpitchup( "+campitchup", CAM_PitchUpDown );
-static ConCommand endpitcup( "-campitchup", CAM_PitchUpUp );
-static ConCommand startpitchdown( "+campitchdown", CAM_PitchDownDown );
-static ConCommand endpitchdown( "-campitchdown", CAM_PitchDownUp );
-static ConCommand startcamyawleft( "+camyawleft", CAM_YawLeftDown );
-static ConCommand endcamyawleft( "-camyawleft", CAM_YawLeftUp );
-static ConCommand startcamyawright( "+camyawright", CAM_YawRightDown );
-static ConCommand endcamyawright( "-camyawright", CAM_YawRightUp );
-static ConCommand startcamin( "+camin", CAM_InDown );
-static ConCommand endcamin( "-camin", CAM_InUp );
-static ConCommand startcamout( "+camout", CAM_OutDown );
-static ConCommand camout( "-camout", CAM_OutUp );
-static ConCommand thirdperson( "thirdperson", ::CAM_ToThirdPerson, "Switch to thirdperson camera.", FCVAR_CHEAT );
-static ConCommand thirdperson_mayamode( "thirdperson_mayamode", ::CAM_ToThirdPerson_MayaMode, "Switch to thirdperson Maya-like camera controls.", FCVAR_CHEAT );
-static ConCommand firstperson( "firstperson", ::CAM_ToFirstPerson, "Switch to firstperson camera." );
-static ConCommand camortho( "camortho", ::CAM_ToOrthographic, "Switch to orthographic camera.", FCVAR_CHEAT );
-static ConCommand startcammousemove( "+cammousemove",::CAM_StartMouseMove);
-static ConCommand endcammousemove( "-cammousemove",::CAM_EndMouseMove);
-static ConCommand startcamdistance( "+camdistance", ::CAM_StartDistance );
-static ConCommand endcamdistance( "-camdistance", ::CAM_EndDistance );
-static ConCommand snapto( "snapto", CAM_ToggleSnapto );
+static ConCommand startpitchup("+campitchup",		CAM_PitchUpDown);
+static ConCommand endpitcup("-campitchup",			CAM_PitchUpUp);
+static ConCommand startpitchdown("+campitchdown",	CAM_PitchDownDown);
+static ConCommand endpitchdown("-campitchdown",		CAM_PitchDownUp);
+static ConCommand startcamyawleft("+camyawleft",	CAM_YawLeftDown);
+static ConCommand endcamyawleft("-camyawleft",		CAM_YawLeftUp);
+static ConCommand startcamyawright("+camyawright",	CAM_YawRightDown);
+static ConCommand endcamyawright("-camyawright",	CAM_YawRightUp);
+static ConCommand startcamin("+camin",				CAM_InDown);
+static ConCommand endcamin("-camin",				CAM_InUp);
+static ConCommand startcamout("+camout",			CAM_OutDown);
+static ConCommand camout("-camout",					CAM_OutUp);
+
+static ConCommand thirdperson("thirdperson",					::CAM_ToThirdPerson, "Cambia a la cámara en tercera persona.");
+static ConCommand thirdperson_shoulder("thirdperson_shoulder",	::CAM_ToThirdPersonOverShoulder, "Cambia a la cámara en la espalda.");
+static ConCommand thirdperson_mayamode("thirdperson_mayamode",	::CAM_ToThirdPerson_MayaMode, "Switch to thirdperson Maya-like camera controls.", FCVAR_CHEAT);
+static ConCommand firstperson("firstperson",					::CAM_ToFirstPerson, "Cambia a la cámara en primera persona..");
+
+static ConCommand camortho("camortho",				::CAM_ToOrthographic, "Switch to orthographic camera.", FCVAR_CHEAT);
+static ConCommand startcammousemove("+cammousemove",::CAM_StartMouseMove);
+static ConCommand endcammousemove("-cammousemove",	::CAM_EndMouseMove);
+static ConCommand startcamdistance("+camdistance",	::CAM_StartDistance);
+static ConCommand endcamdistance("-camdistance",	::CAM_EndDistance);
+static ConCommand snapto("snapto",					CAM_ToggleSnapto);
 /*
 ==============================
 Init_Camera
 
 ==============================
 */
-void CInput::Init_Camera( void )
+void CInput::Init_Camera()
 {
-	m_CameraIsOrthographic = false;
+	m_CameraIsOrthographic			= false;
+	m_fCameraInThirdPerson			= false;
+	m_fCameraInThirdPersonShoulder	= false;
 }

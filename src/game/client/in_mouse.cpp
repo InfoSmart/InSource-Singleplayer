@@ -41,9 +41,9 @@
 	bool g_bUpsideDown = false; // Set when the player is upside down in Portal to invert the mouse.
 #endif //#ifdef PORTAL
 
-extern ConVar lookstrafe;
-extern ConVar cl_pitchdown;
-extern ConVar cl_pitchup;
+extern ConVar		lookstrafe;
+extern ConVar		cl_pitchdown;
+extern ConVar		cl_pitchup;
 extern const ConVar *sv_cheats;
 
 class ConVar_m_pitch : public ConVar_ServerBounded
@@ -555,14 +555,14 @@ void CInput::SetMousePos(int x, int y)
 // Purpose: MouseMove -- main entry point for applying mouse
 // Input  : *cmd - 
 //-----------------------------------------------------------------------------
-void CInput::MouseMove( CUserCmd *cmd )
+void CInput::MouseMove(CUserCmd *cmd)
 {
 	float	mouse_x, mouse_y;
 	float	mx, my;
-	QAngle	viewangles;
+	//QAngle	viewangles;
 
 	// Get view angles from engine
-	engine->GetViewAngles( viewangles );
+	//engine->GetViewAngles( viewangles );
 
 	// Validate mouse speed/acceleration settings
 	CheckMouseAcclerationVars();
@@ -579,26 +579,27 @@ void CInput::MouseMove( CUserCmd *cmd )
 		AccumulateMouse();
 
 		// Latch accumulated mouse movements and reset accumulators
-		GetAccumulatedMouseDeltasAndResetAccumulators( &mx, &my );
+		GetAccumulatedMouseDeltasAndResetAccumulators(&mx, &my);
 
 		// Filter, etc. the delta values and place into mouse_x and mouse_y
-		GetMouseDelta( mx, my, &mouse_x, &mouse_y );
+		GetMouseDelta(mx, my, &mouse_x, &mouse_y);
 
 		// Apply scaling factor
-		ScaleMouse( &mouse_x, &mouse_y );
+		ScaleMouse(&mouse_x, &mouse_y);
 
 		// Let the client mode at the mouse input before it's used
-		g_pClientMode->OverrideMouseInput( &mouse_x, &mouse_y );
+		g_pClientMode->OverrideMouseInput(&mouse_x, &mouse_y);
 
 		// Add mouse X/Y movement to cmd
-		ApplyMouse( viewangles, cmd, mouse_x, mouse_y );
+		//ApplyMouse( viewangles, cmd, mouse_x, mouse_y );
+		ApplyMouse(m_angViewAngle, cmd, mouse_x, mouse_y);
 
 		// Re-center the mouse.
 		ResetMouse();
 	}
 
 	// Store out the new viewangles.
-	engine->SetViewAngles( viewangles );
+	//engine->SetViewAngles( viewangles );
 }
 
 //-----------------------------------------------------------------------------

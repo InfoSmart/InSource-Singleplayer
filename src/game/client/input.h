@@ -40,11 +40,11 @@ class CInput : public IInput
 {
 // Interface
 public:
-							CInput( void );
-							~CInput( void );
+							CInput();
+							~CInput();
 
-	virtual		void		Init_All( void );
-	virtual		void		Shutdown_All( void );
+	virtual		void		Init_All();
+	virtual		void		Shutdown_All();
 	virtual		int			GetButtonBits( int );
 	virtual		void		CreateMove ( int sequence_number, float input_sample_frametime, bool active );
 	virtual		void		ExtraMouseSample( float frametime, bool active );
@@ -60,36 +60,38 @@ public:
 	virtual		int			KeyEvent( int down, ButtonCode_t keynum, const char *pszCurrentBinding );
 	virtual		kbutton_t	*FindKey( const char *name );
 
-	virtual		void		ControllerCommands( void );
-	virtual		void		Joystick_Advanced( void );
+	virtual		void		ControllerCommands();
+	virtual		void		Joystick_Advanced();
 	virtual		void		Joystick_SetSampleTime(float frametime);
 	virtual		void		IN_SetSampleTime( float frametime );
 
-	virtual		void		AccumulateMouse( void );
-	virtual		void		ActivateMouse( void );
-	virtual		void		DeactivateMouse( void );
+	virtual		void		AccumulateMouse();
+	virtual		void		ActivateMouse();
+	virtual		void		DeactivateMouse();
 
-	virtual		void		ClearStates( void );
-	virtual		float		GetLookSpring( void );
+	virtual		void		ClearStates();
+	virtual		float		GetLookSpring();
 
 	virtual		void		GetFullscreenMousePos( int *mx, int *my, int *unclampedx = NULL, int *unclampedy = NULL );
 	virtual		void		SetFullscreenMousePos( int mx, int my );
-	virtual		void		ResetMouse( void );
+	virtual		void		ResetMouse();
 
-//	virtual		bool		IsNoClipping( void );
-	virtual		float		GetLastForwardMove( void );
+//	virtual		bool		IsNoClipping();
+	virtual		float		GetLastForwardMove();
 	virtual		void		ClearInputButton( int bits );
 
-	virtual		void		CAM_Think( void );
-	virtual		int			CAM_IsThirdPerson( void );
+	virtual		void		CAM_Think();
+	virtual		int			CAM_IsThirdPerson();
+	virtual		int			CAM_IsThirdPersonOverShoulder();
 	virtual		void		CAM_GetCameraOffset( Vector& ofs );
 	virtual		void		CAM_ToThirdPerson(void);
+	virtual		void		CAM_ToThirdPersonOverShoulder();
 	virtual		void		CAM_ToFirstPerson(void);
 	virtual		void		CAM_StartMouseMove(void);
 	virtual		void		CAM_EndMouseMove(void);
 	virtual		void		CAM_StartDistance(void);
 	virtual		void		CAM_EndDistance(void);
-	virtual		int			CAM_InterceptingMouse( void );
+	virtual		int			CAM_InterceptingMouse();
 
 	// orthographic camera info
 	virtual		void		CAM_ToOrthographic();
@@ -100,18 +102,22 @@ public:
 	// IK back channel info
 	virtual		void		AddIKGroundContactInfo( int entindex, float minheight, float maxheight );
 #endif
-	virtual		void		LevelInit( void );
+	virtual		void		LevelInit();
 
 	virtual		void		CAM_SetCameraThirdData( CameraThirdData_t *pCameraData, const QAngle &vecCameraOffset );
-	virtual		void		CAM_CameraThirdThink( void );	
+	virtual		void		CAM_CameraThirdThink();	
+
+	// InSource - Over shoulder view
+	virtual		void		const GetCamViewAngles(QAngle &view) { view = m_angViewAngle; };
+	virtual		void		SetCamViewAngles(QAngle const &view);
 
 // Private Implementation
 private:
 	// Implementation specific initialization
-	void		Init_Camera( void );
-	void		Init_Keyboard( void );
-	void		Init_Mouse( void );
-	void		Shutdown_Keyboard( void );
+	void		Init_Camera();
+	void		Init_Keyboard();
+	void		Init_Mouse();
+	void		Shutdown_Keyboard();
 	// Add a named key to the list queryable by the engine
 	void		AddKeyButton( const char *name, kbutton_t *pkb );
 	// Mouse/keyboard movement input helpers
@@ -214,6 +220,8 @@ private:
 	bool		m_fCameraInterceptingMouse;
 	// Are we in 3rd person view?
 	bool		m_fCameraInThirdPerson;
+	// ¿Estamos en vista desde la espalda?
+	bool		m_fCameraInThirdPersonShoulder;
 	// Should we move view along with mouse?
 	bool		m_fCameraMovingWithMouse;
 	// What is the current camera offset from the view origin?
@@ -232,6 +240,10 @@ private:
 	QAngle		m_angPreviousViewAngles;
 
 	float		m_flLastForwardMove;
+
+	// InSource - Over shoulder view
+	QAngle		m_angViewAngle;
+	void		CalcPlayerAngle(CUserCmd *cmd);
 
 
 	class CVerifiedUserCmd

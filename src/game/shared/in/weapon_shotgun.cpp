@@ -510,6 +510,7 @@ void CWeaponShotgun::PrimaryDisorient()
 	if ( !pPlayer )
 		return;
 
+#ifndef CLIENT_DLL
 	// Desorientar al jugador
 	ConVarRef sk_plr_dmg_buckshot("sk_plr_dmg_buckshot");
 
@@ -526,13 +527,12 @@ void CWeaponShotgun::PrimaryDisorient()
 
 		pPlayer->ViewPunch(viewPunch);
 
-	#ifndef CLIENT_DLL
+	
 		// Efecto de empuje (Camara hacia atras)
 		Vector recoilForce = pPlayer->BodyDirection2D() * - (sk_plr_dmg_buckshot.GetFloat() * 20.0f);
 		recoilForce[2] += random->RandomFloat(100.0f, 150.0f);
 
 		pPlayer->ApplyAbsVelocityImpulse(recoilForce);
-	#endif
 	}
 
 	// ¡No es noob! Efectos minimos
@@ -546,6 +546,7 @@ void CWeaponShotgun::PrimaryDisorient()
 
 		pPlayer->ViewPunch(viewPunch);
 	}
+#endif
 }
 
 //=========================================================
@@ -559,6 +560,7 @@ void CWeaponShotgun::SecondaryDisorient()
 	if ( !pPlayer )
 		return;
 
+#ifndef CLIENT_DLL
 	// Desorientar al jugador
 	ConVarRef sk_plr_dmg_buckshot("sk_plr_dmg_buckshot");
 
@@ -575,14 +577,13 @@ void CWeaponShotgun::SecondaryDisorient()
 
 		pPlayer->ViewPunch(viewPunch);
 
-	#ifndef CLIENT_DLL
+	
 
 		// Efecto de empuje (Camara hacia atras)
 		Vector recoilForce = pPlayer->BodyDirection2D() * - ((sk_plr_dmg_buckshot.GetFloat() * 2) * 30.0f);
 		recoilForce[2] += random->RandomFloat(100.0f, 150.0f);
 
 		pPlayer->ApplyAbsVelocityImpulse(recoilForce);
-	#endif
 	}
 
 	// ¡No es noob! Efectos minimos
@@ -596,6 +597,7 @@ void CWeaponShotgun::SecondaryDisorient()
 
 		pPlayer->ViewPunch(viewPunch);
 	}
+#endif
 }
 
 //=========================================================

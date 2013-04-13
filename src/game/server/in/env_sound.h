@@ -32,7 +32,7 @@ public:
 
 	void Play();
 	void PlayManual(float Volume, int Pitch);
-	void Stop();
+	void Stop(bool destroy = false);
 	void Volume(float volume);
 	void Pitch(float pitch);
 	//void FadeIn();

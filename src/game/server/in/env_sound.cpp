@@ -250,8 +250,6 @@ void CEnvSound::Play()
 {
 	char *pName = (char *)STRING(SoundName);
 
-	Msg("[1] SE INTENTA REPRODUCIR: %s - Volume: %f - Pitch: %i - Level: %i - Radio: %i \r\n", pName, SoundVolume, SoundPitch, (int)SoundLevel, Radius);
-
 	if ( SoundVolume > 1 || !SoundVolume )
 		SoundVolume = 1;
 
@@ -263,8 +261,6 @@ void CEnvSound::Play()
 
 	if ( SoundPitch < 0 )
 		SoundPitch = 0;
-
-	Msg("[2] SE INTENTA REPRODUCIR: %s - Volume: %f - Pitch: %i - Level: %i - Radio: %i \r\n", pName, SoundVolume, SoundPitch, (int)SoundLevel, Radius);
 
 	// El audio es la ruta a un .wav o .mp3
 	if ( strstr(STRING(SoundName), "mp3") || strstr(STRING(SoundName), "wav") )
@@ -305,8 +301,6 @@ void CEnvSound::PlayManual(float Volume, int Pitch)
 {
 	char *pName = (char *)STRING(SoundName);
 
-	Msg("[1] SE INTENTA REPRODUCIR: %s - Volume: %f - Pitch: %i - Level: %i - Radio: %f \r\n", pName, Volume, Pitch, (int)SoundLevel, Radius);
-
 	// El audio es la ruta a un .wav o .mp3
 	if ( strstr(STRING(SoundName), "mp3") || strstr(STRING(SoundName), "wav") )
 	{
@@ -345,13 +339,19 @@ void CEnvSound::PlayManual(float Volume, int Pitch)
 //=========================================================
 // Para el sonido.
 //=========================================================
-void CEnvSound::Stop()
+void CEnvSound::Stop(bool destroy)
 {
 	if ( !pSound )
 		return;
 
 	ENVELOPE_CONTROLLER.Shutdown(pSound);
 	PlayingSound = false;
+
+	if ( destroy )
+	{
+		ENVELOPE_CONTROLLER.SoundDestroy(pSound);
+		pSound = NULL;
+	}
 }
 
 //=========================================================

@@ -8,29 +8,37 @@
 
 #define ENVELOPE_CONTROLLER (CSoundEnvelopeController::GetController())
 
-class CIn_Player : public CHL2_Player
+class CIN_Player : public CHL2_Player
 {
 public:
-	DECLARE_CLASS(CIn_Player, CHL2_Player);
+	DECLARE_CLASS(CIN_Player, CHL2_Player);
 
-	CIn_Player();
-	~CIn_Player();
+	CIN_Player();
+	~CIN_Player();
 
-	static CIn_Player *CreatePlayer( const char *className, edict_t *ed )
+	static CIN_Player *CreatePlayer( const char *className, edict_t *ed )
 	{
-		CIn_Player::s_PlayerEdict = ed;
-		return (CIn_Player*)CreateEntityByName( className );
+		CIN_Player::s_PlayerEdict = ed;
+		return (CIN_Player*)CreateEntityByName( className );
 	}
 
 	DECLARE_DATADESC();
 
+	const char *GetConVar(const char *pConVar);
+	void ExecCommand(const char *pCommand);
+
+	float		GetBlood()		{ return m_iBlood; }
+
 	void Precache();
 	void Spawn();
 	void StartDirector();
+	CBaseEntity *EntSelectSpawnPoint();
 
 	void PreThink();
 	void PostThink();
 	void PlayerDeathThink();
+
+	void BloodThink();
 
 	void HandleSpeedChanges();
 	void StartSprinting();
@@ -43,10 +51,12 @@ public:
 	bool Weapon_CanSwitchTo(CBaseCombatWeapon *pWeapon);
 
 	int OnTakeDamage(const CTakeDamageInfo &inputInfo);
-
+	int TakeBlood(float flBlood);
 	virtual void CreateRagdollEntity();
 
-	// Sonido
+	virtual int PlayerGender();
+
+	// Música
 	// [FIXME] Mover a un mejor lugar.
 	CSoundPatch *EmitMusic(const char *pName);
 	void StopMusic(CSoundPatch *pMusic);
@@ -57,23 +67,38 @@ private:
 	// Variables
 
 	CInDirector		Director;
+	CBaseEntity		*LastSpawn;
 
+	float			NextPainSound;
 	float			NextHealthRegeneration;
 	float			BodyHurt;
 	float			TasksTimer;
+	int				StressLevel;
+
+	bool			m_bBloodWound;
+	int				m_iBloodTime;
+	float			m_iBlood;
 };
 
-inline CIn_Player *GetInPlayer(CBasePlayer *pEntity)
+inline CIN_Player *GetInPlayer(CBasePlayer *pEntity)
 {
 	if ( !pEntity )
 		return NULL;
 
 	#if _DEBUG
-		return dynamic_cast<CIn_Player *>(pEntity);
+		return dynamic_cast<CIN_Player *>(pEntity);
 	#else
-		return static_cast<CIn_Player *>(pEntity);
+		return static_cast<CIN_Player *>(pEntity);
 	#endif
 
+}
+
+inline CIN_Player *ToInPlayer(CBaseEntity *pEntity)
+{
+	if ( !pEntity || !pEntity->IsPlayer() )
+		return NULL;
+
+	return dynamic_cast<CIN_Player *>(pEntity);
 }
 
 #endif // IN_PLAYER_H

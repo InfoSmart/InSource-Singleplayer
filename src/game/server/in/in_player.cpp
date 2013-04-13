@@ -19,36 +19,47 @@
 // Necesario para la música de fondo.
 extern ISoundEmitterSystemBase *soundemitterbase;
 
+enum
+{
+	PLAYER_MALE = 1,
+	PLAYER_FEMALE
+};
+
+#define DMG_BLOODLOST  (1<<30)
+
 //=========================================================
 // Definición de variables de configuración.
 //=========================================================
 
-ConVar in_player_model		("in_player_model",		"models/abigail.mdl",	FCVAR_REPLICATED,	"Define el modelo del jugador");
-ConVar in_beginner_weapon	("in_beginner_weapon",	"0",					0,					"Al estar activado se hacen los efectos de ser principante manejando un arma.");
-
-// Linterna
-ConVar in_flashlight				("in_flashlight",				"1", 0, "Activa o desactiva el uso de la linterna.");
-ConVar in_flashlight_require_suit	("in_flashlight_require_suit",	"0", 0, "Activa o desactiva el requerimiento del traje de protección para la linterna.");
-
-// Regeneración de salud.
-ConVar in_regeneration("in_regeneration",						"1",	FCVAR_REPLICATED | FCVAR_ARCHIVE,	"Estado de la regeneracion de salud");
-ConVar in_regeneration_wait_time("in_regeneration_wait_time",	"5.0",  FCVAR_REPLICATED,	"Tiempo de espera en segundos al regenerar salud. (Aumenta según el nivel de dificultad)");
-ConVar in_regeneration_rate("in_regeneration_rate",				"3",	FCVAR_REPLICATED,	"Cantidad de salud a regenerar (Disminuye según el nivel de dificultad)");
+// Modelo
+ConVar cl_sp_playermodel		("cl_sp_playermodel",		"models/abigail.mdl",	FCVAR_ARCHIVE,						"Define el modelo del jugador en Singleplayer");
+ConVar in_beginner_weapon		("in_beginner_weapon",		"0",					FCVAR_NOTIFY | FCVAR_REPLICATED,	"Al estar activado se hacen los efectos de ser principante manejando un arma.");
 
 // Efecto de cansancio.
-ConVar in_tired_effect("in_tired_effect",						"1",	FCVAR_REPLICATED | FCVAR_ARCHIVE, "Activa o desactiva el efecto de cansancio al perder salud.");
+ConVar in_tired_effect("in_tired_effect",				"1",	FCVAR_NOTIFY | FCVAR_ARCHIVE | FCVAR_REPLICATED, "Activa o desactiva el efecto de cansancio al perder salud.");
 
 // Camara lenta.
-ConVar in_timescale_effect("in_timescale_effect",				"1",	 FCVAR_REPLICATED | FCVAR_ARCHIVE, "Activa o desactiva el efecto de camara lenta al perder salud.");
+ConVar in_timescale_effect("in_timescale_effect",		"1",	FCVAR_ARCHIVE, "Activa o desactiva el efecto de camara lenta al perder salud.");
+
+// Linterna
+ConVar in_flashlight				("in_flashlight",				"1", FCVAR_NOTIFY | FCVAR_REPLICATED, "Activa o desactiva el uso de la linterna.");
+ConVar in_flashlight_require_suit	("in_flashlight_require_suit",	"0", FCVAR_ARCHIVE, "Activa o desactiva el requerimiento del traje de protección para la linterna.");
+
+// Regeneración de salud.
+ConVar in_regeneration("in_regeneration",						"1",	FCVAR_NOTIFY | FCVAR_REPLICATED | FCVAR_ARCHIVE,	"Estado de la regeneracion de salud");
+ConVar in_regeneration_wait_time("in_regeneration_wait_time",	"10",	FCVAR_NOTIFY | FCVAR_REPLICATED,	"Tiempo de espera en segundos al regenerar salud. (Aumenta según el nivel de dificultad)");
+ConVar in_regeneration_rate("in_regeneration_rate",				"3",	FCVAR_NOTIFY | FCVAR_REPLICATED,	"Cantidad de salud a regenerar (Disminuye según el nivel de dificultad)");
+
+ConVar sv_in_maxblood("sv_in_maxblood", "5600",		FCVAR_NOTIFY | FCVAR_REPLICATED, "Máxima sangre.");
 
 //=========================================================
 // Configuración
 //=========================================================
 
-#define HEALTH_REGENERATION_MEDIUM_WAITTIME 2.0		// Dificultad Medio: Tardara 2 segundos más.
+#define HEALTH_REGENERATION_MEDIUM_WAITTIME 2		// Dificultad Medio: Tardara 2 segundos más.
 #define HEALTH_REGENERATION_MEDIUM_RATE		1		// Dificultad Medio: 1% salud menos.
 
-#define HEALTH_REGENERATION_HARD_WAITTIME	5.0		// Dificultad Dificil: Tardara 5 segundos más.
+#define HEALTH_REGENERATION_HARD_WAITTIME	5		// Dificultad Dificil: Tardara 5 segundos más.
 #define HEALTH_REGENERATION_HARD_RATE		2		// Dificultad Dificil: 2% salud menos.
 
 #define INCLUDE_DIRECTOR	true					// ¿Incluir a InDirector? (Solo para juegos de zombis)
@@ -57,62 +68,165 @@ ConVar in_timescale_effect("in_timescale_effect",				"1",	 FCVAR_REPLICATED | FC
 // Guardado y definición de datos
 //=========================================================
 
-LINK_ENTITY_TO_CLASS( player, CIn_Player );
+LINK_ENTITY_TO_CLASS( player, CIN_Player );
 
 PRECACHE_REGISTER( player );
 
-BEGIN_DATADESC( CIn_Player )
+BEGIN_DATADESC( CIN_Player )
 	DEFINE_FIELD( NextHealthRegeneration,	FIELD_INTEGER ),
 	DEFINE_FIELD( BodyHurt,					FIELD_INTEGER ),
 	DEFINE_FIELD( TasksTimer,				FIELD_INTEGER ),
+	DEFINE_FIELD( m_bBloodWound,			FIELD_BOOLEAN ),
+	DEFINE_FIELD( m_iBlood,					FIELD_FLOAT ),
 END_DATADESC()
+
+const char *PlayerModels[] = 
+{
+	"models/humans/group03/male_01.mdl",
+	"models/humans/group03/male_02.mdl",
+	"models/abigail.mdl",
+	"models/humans/group03/male_03.mdl",
+	"models/humans/group03/female_02.mdl",
+	"models/humans/group03/male_04.mdl",
+	"models/humans/group03/female_03.mdl",
+	"models/humans/group03/male_05.mdl",
+	"models/humans/group03/female_04.mdl",
+	"models/humans/group03/male_06.mdl",
+	"models/humans/group03/female_06.mdl",
+	"models/humans/group03/male_07.mdl",
+	"models/humans/group03/female_07.mdl",
+	"models/humans/group03/male_08.mdl",
+	"models/humans/group03/male_09.mdl",
+};
 
 //=========================================================
 // Constructor
 //=========================================================
-CIn_Player::CIn_Player()
+CIN_Player::CIN_Player()
 {
+	NextPainSound			= gpGlobals->curtime;	// Sonido de dolor.
 	NextHealthRegeneration	= gpGlobals->curtime;	// Regeneración de salud
 	BodyHurt				= 0;					// Efecto de muerte.
 	TasksTimer				= 0;					// Tareas.
+
+	// Esto solo aplicado al modo supervivencia.
+	if ( g_pGameRules->IsMultiplayer() )
+	{
+		m_bBloodWound		= false;
+		m_HL2Local.m_iBlood	= m_iBlood = sv_in_maxblood.GetFloat();
+	}
 }
 
 //=========================================================
 // Destructor
 //=========================================================
-CIn_Player::~CIn_Player()
+CIN_Player::~CIN_Player()
 {
 }
 
 //=========================================================
+// Forma más fácil y corta de acceder a un comando del
+// lado del cliente.
+//=========================================================
+const char *CIN_Player::GetConVar(const char *pConVar)
+{
+	if ( strncmp(pConVar, "cl_", 3) == 0 || pConVar == "crosshair" )
+		return engine->GetClientConVarValue(engine->IndexOfEdict(edict()), pConVar);
+
+	ConVarRef pVar(pConVar);
+	
+	if ( pVar.IsValid() )
+		return pVar.GetString();
+	else
+		return engine->GetClientConVarValue(engine->IndexOfEdict(edict()), pConVar);
+}
+
+//=========================================================
+// Forma más fácil y corta de ejecutar un comando.
+//=========================================================
+void CIN_Player::ExecCommand(const char *pCommand)
+{
+	// @TODO: ¿Que pasa con los comandos de servidor?
+	engine->ClientCommand(edict(), pCommand);
+}
+
+
+//=========================================================
 // Guardar los objetos necesarios en caché.
 //=========================================================
-void CIn_Player::Precache()
+void CIN_Player::Precache()
 {
 	BaseClass::Precache();
 
-	PrecacheScriptSound("Player.Pain");
+	PrecacheScriptSound("Player.Pain.Female");
+	PrecacheScriptSound("Player.Pain.Male");
 	PrecacheScriptSound("Player.Music.Dying");
 	PrecacheScriptSound("Player.Music.Dead");
 	PrecacheScriptSound("Player.Music.Puddle");
 
-	PrecacheModel(in_player_model.GetString());
+	// En Multiplayer guardamos en caché todos los modelos para los jugadores.
+	if ( g_pGameRules->IsMultiplayer() )
+	{
+		int pModels = ARRAYSIZE(PlayerModels);
+		int i;
+
+		for ( i = 0; i < pModels; ++i )
+			PrecacheModel(PlayerModels[i]);
+	}
+
+	// En Singleplayer Abigaíl es la que debe sufrir.
+	else
+		PrecacheModel(cl_sp_playermodel.GetString());
 }
 
 //=========================================================
 // Crear al jugador.
 //=========================================================
-void CIn_Player::Spawn()
+void CIN_Player::Spawn()
 {
-	// Establecemos el modelo del jugador.
-	SetModel(in_player_model.GetString());
+	// En Multiplayer no podemos cambiar el tiempo solo por salud.
+	if ( !g_pGameRules->IsMultiplayer() )
+	{
+		const char *host_timescale = GetConVar("host_timescale");
 
-	ConVarRef host_timescale("host_timescale");
-	ConVarRef indirector_enabled("indirector_enabled");
+		// Resetear el tiempo.
+		if ( host_timescale != "1" )
+			ExecCommand("host_timescale 1");
 
-	// Resetear el tiempo.
-	if ( host_timescale.GetInt() != 1 )
-		engine->ClientCommand(edict(), "host_timescale 1");
+		// Establecemos el modelo para SinglePlayer
+		SetModel(cl_sp_playermodel.GetString());
+	}
+	else
+	{
+		// Obtenemos el modelo del jugador.
+		const char *pPlayerModel = GetConVar("cl_playermodel");
+
+		// Por alguna razón el modelo esta vacio, usar el de Abigaíl (¿Hacker?)
+		if ( pPlayerModel == "" || pPlayerModel == NULL )
+			pPlayerModel = "models/abigail.mdl";
+
+		// Establecemos el modelo del jugador.
+		SetModel(pPlayerModel);
+
+		//if ( !IsObserver() )
+		//{
+			pl.deadflag = false;
+			RemoveSolidFlags(FSOLID_NOT_SOLID);
+			RemoveEffects(EF_NODRAW);
+		//}
+
+		RemoveEffects(EF_NOINTERP);
+		m_nRenderFX			= kRenderNormal;
+		m_Local.m_iHideHUD	= 0;
+
+		AddFlag(FL_ONGROUND);
+		m_Local.m_bDucked = false;
+		SetPlayerUnderwater(false);
+
+		// Reseteamos la sangre.
+		m_bBloodWound		= false;
+		m_HL2Local.m_iBlood	= m_iBlood = sv_in_maxblood.GetFloat();
+	}
 
 	BaseClass::Spawn();
 }
@@ -120,8 +234,9 @@ void CIn_Player::Spawn()
 //=========================================================
 // Crear y empieza el InDirector.
 //=========================================================
-void CIn_Player::StartDirector()
+void CIN_Player::StartDirector()
 {
+	// @TODO: ¡Mover a un lugar más apropiado!
 	ConVarRef indirector_enabled("indirector_enabled");
 	CInDirector *pDirector	= (CInDirector *)gEntList.FindEntityByClassname(NULL, "info_director");
 
@@ -141,25 +256,114 @@ void CIn_Player::StartDirector()
 }
 
 //=========================================================
+// Selecciona un info_player_start donde aparecer.
+//=========================================================
+CBaseEntity* CIN_Player::EntSelectSpawnPoint()
+{
+	// El siguiente código solo es válido en Multiplayer, si estamos en Singleplayer
+	// usar el código original.
+	if ( !g_pGameRules->IsMultiplayer() )
+		return BaseClass::EntSelectSpawnPoint();
+
+	CBaseEntity *pSpot				= NULL;
+	CBaseEntity *pLastSpawnPoint	= LastSpawn;
+	edict_t	*player					= edict();
+	const char *pSpawnPointName		= "info_player_start";
+
+	for ( int i = random->RandomInt(1, 5); i > 0; i-- )
+		pSpot = gEntList.FindEntityByClassname(pSpot, pSpawnPointName);
+
+	if ( !pSpot )
+		pSpot = gEntList.FindEntityByClassname(pSpot, pSpawnPointName);
+
+	CBaseEntity *pFirstSpot = pSpot;
+
+	do
+	{
+		 if ( pSpot )
+		 {
+			 if ( g_pGameRules->IsSpawnPointValid(pSpot, this) )
+			 {
+				 if ( pSpot->GetLocalOrigin() == vec3_origin )
+				 {
+					 pSpot = gEntList.FindEntityByClassname(pSpot, pSpawnPointName);
+					 continue;
+				 }
+
+				 goto ReturnSpot;
+			 }
+		 }
+
+		 pSpot = gEntList.FindEntityByClassname(pSpot, pSpawnPointName);
+	} while ( pSpot != pFirstSpot );
+
+	if ( pSpot )
+	{
+		CBaseEntity *Ent = NULL;
+
+		for ( CEntitySphereQuery sphere(pSpot->GetAbsOrigin(), 128); (Ent = sphere.GetCurrentEntity()) != NULL; sphere.NextEntity() )
+		{
+			if ( Ent->IsPlayer() && !(Ent->edict() == player) )
+				Ent->TakeDamage(CTakeDamageInfo(GetContainingEntity(INDEXENT(0)), GetContainingEntity(INDEXENT(0)), 300, DMG_GENERIC));
+
+			goto ReturnSpot;
+		}
+	}
+
+	if ( !pSpot )
+	{
+		pSpot = gEntList.FindEntityByClassname(pSpot, "info_player_start");
+
+		if ( pSpot )
+			goto ReturnSpot;
+	}
+
+ReturnSpot:
+
+	LastSpawn = pSpot;
+	return pSpot;
+}
+
+//=========================================================
+// Dependiendo del modelo, devuelve si el jugador es hombre
+// o mujer. (Util para las voces de dolor)
+//=========================================================
+int CIN_Player::PlayerGender()
+{
+	if ( !g_pGameRules->IsMultiplayer() )
+		return PLAYER_FEMALE;
+
+	// Obtenemos el modelo del jugador.
+	const char *pPlayerModel = GetConVar("cl_playermodel");
+
+	if ( pPlayerModel == "" || pPlayerModel == NULL )
+		return PLAYER_FEMALE;
+
+	if ( Q_stristr(pPlayerModel, "female") || Q_stristr(pPlayerModel, "abigail") )
+		return PLAYER_FEMALE;
+
+	return PLAYER_MALE;
+}
+
+//=========================================================
 // Bucle de ejecución de tareas. "Pre"
 //=========================================================
-void CIn_Player::PreThink()
+void CIN_Player::PreThink()
 {
 	HandleSpeedChanges();
+	BloodThink();
+
 	BaseClass::PreThink();
 }
 
 //=========================================================
 // Bucle de ejecución de tareas. "Post"
 //=========================================================
-void CIn_Player::PostThink()
+void CIN_Player::PostThink()
 {
 	// Si seguimos vivos.
 	if ( IsAlive() )
 	{
-		ConVarRef mat_yuv("mat_yuv");
-		ConVarRef host_timescale("host_timescale");
-
 		/*
 			Regeneración de salud
 		*/
@@ -200,15 +404,33 @@ void CIn_Player::PostThink()
 		/*
 			Efectos - Cansancio y muerte.
 		*/
-		if ( in_tired_effect.GetBool() )
+		if ( GetConVar("in_tired_effect") == "1" )
 		{
-			// Desactivar escala de grises y parar el sonido de corazon latiendo.
-			// Si, me estoy reponiendo.
-			if ( m_iHealth > 10 && mat_yuv.GetInt() == 1 )
-			{
-				mat_yuv.SetValue(0);
-				StopSound("Player.Music.Dying");
-			}
+			//if ( !g_pGameRules->IsMultiplayer() )
+			//{
+				const char *mat_yuv	= GetConVar("mat_yuv");
+
+				// Salud menor a 10% y escala de grises desactivado.
+				if ( m_iHealth < 10 && mat_yuv == "0" )
+				{
+					// Activamos escala de grises.
+					ExecCommand("mat_yuv 1");
+
+					// ¡Estamos muriendo!
+					if ( !g_pGameRules->IsMultiplayer() )
+						EmitSound("Player.Music.Dying");
+				}
+
+				// Desactivar escala de grises y parar el sonido de corazon latiendo.
+				// Si, me estoy reponiendo.
+				if ( m_iHealth >= 10 && mat_yuv == "1" )
+				{
+					ExecCommand("mat_yuv 0");
+
+					if ( !g_pGameRules->IsMultiplayer() )
+						StopSound("Player.Music.Dying");
+				}
+			//}
 
 			// Tornamos la pantalla oscura.
 			// Oh, me duele tanto que no veo bien.
@@ -222,8 +444,8 @@ void CIn_Player::PostThink()
 
 			// Hacemos que la camara tiemble.
 			// Encerio, me duele tanto que no puedo agarrar bien mi arma.
-			if ( m_iHealth < 10 )
-				UTIL_ScreenShake(GetAbsOrigin(), 1.0, 1.0, 1.0, 750, SHAKE_START, true);
+			if ( m_iHealth < 15 )
+				UTIL_ScreenShakePlayer(this, 1.0, 1.0, 1.0, SHAKE_START, true);
 
 			// Efectos - Dolor del cuerpo.
 			if ( m_iHealth < 60 && gpGlobals->curtime > BodyHurt )
@@ -237,22 +459,24 @@ void CIn_Player::PostThink()
 		}
 
 		// Efectos - Camara lenta.
-		if ( in_timescale_effect.GetBool() )
+		if ( GetConVar("in_timescale_effect") == "1" && !g_pGameRules->IsMultiplayer() )
 		{
+			const char *host_timescale	= GetConVar("host_timescale");
+
 			// Salud menor a 10%
 			// Escala de tiempo: 0.6
-			if ( m_iHealth < 10 && host_timescale.GetFloat() != 0.6 )
-				engine->ClientCommand(edict(), "host_timescale 0.6");
+			if ( m_iHealth < 10 && host_timescale != "0.7" )
+				ExecCommand("host_timescale 0.7");
 
 			// Salud menor a 15%
 			// Escala de tiempo: 0.8
-			else if ( m_iHealth < 15 && host_timescale.GetFloat() != 0.8 )
-				engine->ClientCommand(edict(), "host_timescale 0.8");
+			else if ( m_iHealth < 15 && host_timescale != "0.9" )
+				ExecCommand("host_timescale 0.9");
 
 			// Salud mayor a 15%
 			// Escala de tiempo: 1 (Real)
-			else if ( m_iHealth > 15 && host_timescale.GetFloat() != 1 )
-				host_timescale.SetValue(1);
+			else if ( m_iHealth > 15 && host_timescale != "1" )
+				ExecCommand("host_timescale 1");
 		}
 	}
 
@@ -262,20 +486,117 @@ void CIn_Player::PostThink()
 //=========================================================
 // Bucle de ejecución de tareas al morir.
 //=========================================================
-void CIn_Player::PlayerDeathThink()
+void CIN_Player::PlayerDeathThink()
 {
 	SetNextThink(gpGlobals->curtime + 0.1f);
 
 	// Efectos - Camara lenta.
-	if ( in_timescale_effect.GetBool() )
+	if ( GetConVar("in_timescale_effect") == "1" && !g_pGameRules->IsMultiplayer() )
 	{
-		ConVarRef host_timescale("host_timescale");
+		const char *host_timescale = GetConVar("host_timescale");
 
-		if( host_timescale.GetFloat() != 0.5 )
-			engine->ClientCommand(edict(), "host_timescale 0.5");
+		if( host_timescale != "0.5" )
+			ExecCommand("host_timescale 0.5");
 	}
 
+	// Perdida de luz.
+	color32 black = {0, 0, 0, 210};
+	UTIL_ScreenFade(this, black, 1.0f, 0.1f, FFADE_IN | FFADE_STAYOUT);
+
 	BaseClass::PlayerDeathThink();
+}
+
+//=========================================================
+// Bucle de ejecución de tareas para la sangre del jugador.
+//=========================================================
+void CIN_Player::BloodThink()
+{
+	// La sangre solo existe en el modo supervivencia.
+	if ( !g_pGameRules->IsMultiplayer() )
+		return;
+
+	// Tenemos una "herida de sangre"
+	if ( m_bBloodWound && m_iBlood > 0 )
+	{
+		m_iBlood	= m_iBlood - 0.3;
+		int pRand	= random->RandomInt(1, 900);
+
+		for ( int i = 0 ; i < 1000 ; i++ )
+		{
+			Vector vecSpot = WorldSpaceCenter();
+			vecSpot.x += random->RandomFloat( -30, 30 ); 
+			vecSpot.y += random->RandomFloat( -30, 30 ); 
+			vecSpot.z += random->RandomFloat( -10, 10 ); 
+
+			UTIL_BloodDrips(vecSpot, vec3_origin, BLOOD_COLOR_RED, 50);
+			UTIL_BloodDrips(vecSpot, vec3_origin, BLOOD_COLOR_RED, 50);
+			UTIL_BloodDrips(vecSpot, vec3_origin, BLOOD_COLOR_RED, 50);
+			UTIL_BloodDrips(vecSpot, vec3_origin, BLOOD_COLOR_RED, 50);
+			UTIL_BloodDrips(vecSpot, vec3_origin, BLOOD_COLOR_RED, 50);
+		}
+
+		for ( int i = 0 ; i < 500 ; i++ ) //5
+		{
+			Vector vecSpot = WorldSpaceCenter();
+			vecSpot.x += random->RandomFloat( -15, 15 ); 
+			vecSpot.y += random->RandomFloat( -15, 15 ); 
+			vecSpot.z += random->RandomFloat( -8, 8 );
+
+			Vector vecDir;
+			vecDir.x = random->RandomFloat(-1, 1);
+			vecDir.y = random->RandomFloat(-1, 1);
+			vecDir.z = 0;
+
+			UTIL_BloodSpray(vecSpot, vecDir, BLOOD_COLOR_RED, 4, FX_BLOODSPRAY_DROPS | FX_BLOODSPRAY_CLOUD);
+		}
+
+		UTIL_BloodSpray(WorldSpaceCenter(), Vector(0, 0, 1), BLOOD_COLOR_RED, 4, FX_BLOODSPRAY_DROPS | FX_BLOODSPRAY_CLOUD);
+
+		// ¡Ha cicatrizado! Suertudo.
+		if ( pRand == 843 && m_iBloodTime < (gpGlobals->curtime - 60) )
+			m_bBloodWound = false;
+	}
+	else
+	{
+		if ( random->RandomInt(1, 100) == 2 && m_iBlood < sv_in_maxblood.GetFloat() )
+			m_iBlood = m_iBlood + 0.1;
+	}
+
+	// Ha perdido más del 45% de sangre.
+	if ( m_iBlood < 2520 && GetLastDamageTime() < (gpGlobals->curtime - 5) )
+	{
+		CTakeDamageInfo damage;
+
+		damage.SetAttacker(this);
+		damage.SetInflictor(this);
+		damage.SetDamageType(DMG_BLOODLOST);
+
+		// ¿100 de sangre? De aquí no pasas.
+		if ( m_iBlood < 100 )
+			damage.SetDamage(GetHealth() + 5);
+
+		else if ( m_iBlood < 500 )
+			damage.SetDamage(5);
+		
+		else if ( m_iBlood < 1100 )
+			damage.SetDamage(4);
+
+		else if ( m_iBlood < 1400 )
+			damage.SetDamage(3);
+
+		else if ( m_iBlood < 1700 )
+			damage.SetDamage(3);
+
+		else if ( m_iBlood < 1900 )
+			damage.SetDamage(2);
+
+		else
+			damage.SetDamage(1);
+
+		TakeDamage(damage);
+	}
+
+	m_HL2Local.m_iBlood = GetBlood();
 }
 
 //=========================================================
@@ -288,34 +609,32 @@ void CIn_Player::PlayerDeathThink()
 // HandleSpeedChanges()
 // Controlar los cambios de velocidad.
 //=========================================================
-void CIn_Player::HandleSpeedChanges()
+void CIN_Player::HandleSpeedChanges()
 {
 	int buttonsChanged	= m_afButtonPressed | m_afButtonReleased;
 	bool bCanSprint		= CanSprint();
 	bool bIsSprinting	= IsSprinting();
 	bool bWantSprint	= (bCanSprint && IsSuitEquipped() && (m_nButtons & IN_SPEED));
 
-	ConVarRef sv_stickysprint("sv_stickysprint");
-
 	// Al parecer el jugador desea correr.
-	if (bIsSprinting != bWantSprint && (buttonsChanged & IN_SPEED))
+	if ( bIsSprinting != bWantSprint && (buttonsChanged & IN_SPEED) )
 	{
 		// En esta sección se verifica que el jugador realmente esta presionando el boton indicado para correr.
 		// Ten en cuenta que el comando "sv_stickysprint" sirve para activar el modo de "correr sin mantener presionado el boton"
 		// Por lo tanto tambien hay que verificar que el usuario disminuya su velocidad para detectar que desea desactivar este modo.
 
-		if (bWantSprint)
+		if ( bWantSprint )
 		{
 			// Correr sin mantener presionado el boton.
-			if (sv_stickysprint.GetBool())
-				StartAutoSprint();
-			else
+			//if ( sv_stickysprint.GetBool() )
+			//	StartAutoSprint();
+			//else
 				StartSprinting();
 		}
 		else
 		{
-			if (!sv_stickysprint.GetBool())
-				StopSprinting();
+			//if ( sv_stickysprint.GetBool() )
+			StopSprinting();
 			
 			// Quitar el estado de "presionado" a la tecla de correr.
 			m_nButtons &= ~IN_SPEED;
@@ -326,15 +645,15 @@ void CIn_Player::HandleSpeedChanges()
 	bool bWantWalking;	
 	
 	// Tenemos el traje de protección y no estamos ni corriendo ni agachados.
-	if(IsSuitEquipped())
+	if ( IsSuitEquipped() )
 		bWantWalking = (m_nButtons & IN_WALK) && !IsSprinting() && !(m_nButtons & IN_DUCK);
 	else
 		bWantWalking = true;
 	
 	// Iván: Creo que esto no funciona... StartWalking() jamas es llamado ¿Solución?
-	if(bIsWalking != bWantWalking)
+	if ( bIsWalking != bWantWalking )
 	{
-		if (bWantWalking)
+		if ( bWantWalking )
 			StartWalking();
 		else
 			StopWalking();
@@ -346,7 +665,7 @@ void CIn_Player::HandleSpeedChanges()
 //=========================================================
 // Empezar a correr
 //=========================================================
-void CIn_Player::StartSprinting()
+void CIN_Player::StartSprinting()
 {
 	BaseClass::StartSprinting();
 	SetMaxSpeed(CalcWeaponSpeed());
@@ -355,7 +674,7 @@ void CIn_Player::StartSprinting()
 //=========================================================
 // Paramos de correr
 //=========================================================
-void CIn_Player::StopSprinting()
+void CIN_Player::StopSprinting()
 {
 	ConVarRef hl2_walkspeed("hl2_walkspeed");
 	ConVarRef hl2_normspeed("hl2_normspeed");
@@ -372,7 +691,7 @@ void CIn_Player::StopSprinting()
 //=========================================================
 // Empezar a caminar
 //=========================================================
-void CIn_Player::StartWalking()
+void CIN_Player::StartWalking()
 {
 	SetMaxSpeed(CalcWeaponSpeed());
 	BaseClass::StartWalking();
@@ -381,7 +700,7 @@ void CIn_Player::StartWalking()
 //=========================================================
 // Paramos de caminar
 //=========================================================
-void CIn_Player::StopWalking()
+void CIN_Player::StopWalking()
 {
 	SetMaxSpeed(CalcWeaponSpeed());
 	BaseClass::StopWalking();
@@ -396,7 +715,7 @@ void CIn_Player::StopWalking()
 //=========================================================
 // Encender nuestra linterna.
 //=========================================================
-void CIn_Player::FlashlightTurnOn()
+void CIN_Player::FlashlightTurnOn()
 {
 	// Linterna desactivada.
 	if ( in_flashlight.GetInt() == 0 )
@@ -413,7 +732,7 @@ void CIn_Player::FlashlightTurnOn()
 // Calcula la nueva velocidad del jugador dependiendo del
 // peso de la arma.
 //=========================================================
-float CIn_Player::CalcWeaponSpeed(CBaseCombatWeapon *pWeapon, float speed)
+float CIN_Player::CalcWeaponSpeed(CBaseCombatWeapon *pWeapon, float speed)
 {
 	if (pWeapon == NULL)
 		pWeapon = dynamic_cast<CBaseCombatWeapon *>(GetActiveWeapon());
@@ -444,21 +763,37 @@ float CIn_Player::CalcWeaponSpeed(CBaseCombatWeapon *pWeapon, float speed)
 //=========================================================
 // Verifica si es posible cambiar a determinada arma.
 //=========================================================
-bool CIn_Player::Weapon_CanSwitchTo(CBaseCombatWeapon *pWeapon)
+bool CIN_Player::Weapon_CanSwitchTo(CBaseCombatWeapon *pWeapon)
 {
 	// Cuando el arma cambia también hay que actualizar la velocidad del jugador con el peso de la misma.
 	// Puedes cambiar el peso en los scripts de las armas, variable: "slow_speed"
 	// TODO: Cambiar a un lugar más apropiado	
 
-	if (IsSprinting())
+	if ( IsSprinting() )
 		SetMaxSpeed(CalcWeaponSpeed(pWeapon));
 
 	// Debido a que StartWalking() jamas es llamado (ver la función HandleSpeedChanges())
 	// una solución temporal es verificar que no estemos corriendo...
-	if (!IsSprinting())
+	if ( !IsSprinting() )
 		SetMaxSpeed(CalcWeaponSpeed(pWeapon));
 
-	return BaseClass::Weapon_CanSwitchTo(pWeapon);
+	bool Result = BaseClass::Weapon_CanSwitchTo(pWeapon);
+
+	if ( Result )
+	{
+		if ( pWeapon->GetWpnData().m_expOffset.x == 0 && pWeapon->GetWpnData().m_expOffset.y == 0 )
+			ExecCommand("crosshair 1");
+		else
+		{
+			// @TODO: Hacer funcionar
+			CBaseViewModel *pVm = GetViewModel();
+
+			if ( pVm->m_bExpSighted == true )
+				ExecCommand("crosshair 0");
+		}
+	}
+
+	return Result;
 }
 
 //=========================================================
@@ -470,7 +805,7 @@ bool CIn_Player::Weapon_CanSwitchTo(CBaseCombatWeapon *pWeapon)
 //=========================================================
 // Al sufrir daño.
 //=========================================================
-int CIn_Player::OnTakeDamage(const CTakeDamageInfo &inputInfo)
+int CIN_Player::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 {
 	int fTookDamage		= BaseClass::OnTakeDamage(inputInfo);
 	int fmajor			= (m_lastDamageAmount > 25);
@@ -480,7 +815,7 @@ int CIn_Player::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 
 	CTakeDamageInfo info = inputInfo;
 
-	if (!fTookDamage)
+	if ( !fTookDamage )
 		return 0;
 
 	/*
@@ -526,28 +861,49 @@ int CIn_Player::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 			SetSuitUpdate("!HEV_HLTH1", false, SUIT_NEXT_IN_10MIN);		// Signos vitales debilitandose.
 	}
 
-	// Si seguimos vivos y los efectos estan activados.
-	if ( IsAlive() && in_tired_effect.GetBool() )
+	// Ouch!
+	if ( gpGlobals->curtime >= NextPainSound && info.GetDamageType() != DMG_BLOODLOST )
 	{
-		ConVarRef mat_yuv("mat_yuv");
+		if ( PlayerGender() == PLAYER_FEMALE )
+			EmitSound("Player.Pain.Female");
+		else
+			EmitSound("Player.Pain.Male");
 
-		// Salud menor a 10% y escala de grises desactivado.
-		if ( m_iHealth < 10 && mat_yuv.GetInt() == 0 )
-		{
-			// Activamos escala de grises.
-			mat_yuv.SetValue(1);
-
-			// ¡Estamos muriendo!
-			EmitSound("Player.Music.Dying");
-		}
-
-		// Salud menor a 5%
-		// Oh man... pobre de ti.
-		//if(m_iHealth < 5)
-		//	EmitSound("Player.Music.Puddle");
+		NextPainSound = gpGlobals->curtime + random->RandomFloat(0.5, 3.0);
 	}
 
+	// Solo en Survival.
+	if ( g_pGameRules->IsMultiplayer() )
+	{
+		// ¡Herido!
+		if ( info.GetInflictor()->Classify() == CLASS_ZOMBIE && m_lastDamageAmount > 1 || m_lastDamageAmount > 10 || info.GetInflictor()->Classify() == CLASS_GRUNT )
+		{
+			m_bBloodWound	= true;
+			m_iBloodTime	= gpGlobals->curtime; 
+		}
+	}
+
+	// Efectos
+	color32 white = {255, 255, 255, 64};
+	UTIL_ScreenFade(this, white, 0.2, 0, FFADE_IN);
+
 	return fTookDamage;
+}
+
+int CIN_Player::TakeBlood(float flBlood)
+{
+	int iMax = sv_in_maxblood.GetInt();
+
+	if ( m_iBlood >= iMax )
+		return 0;
+
+	const int oldBlood = m_iBlood;
+	m_iBlood += flBlood;
+
+	if ( m_iBlood > iMax )
+		m_iBlood = iMax;
+
+	return m_iBlood - oldBlood;
 }
 
 //=========================================================
@@ -559,7 +915,7 @@ int CIn_Player::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 //=========================================================
 // Crea un cadaver
 //=========================================================
-void CIn_Player::CreateRagdollEntity()
+void CIN_Player::CreateRagdollEntity()
 {
 	// Ya hay un cadaver.
 	if ( m_hRagdoll )
@@ -570,7 +926,7 @@ void CIn_Player::CreateRagdollEntity()
 	}
 
 	// Obtenemos el cadaver.
-	CHL2Ragdoll *pRagdoll = dynamic_cast< CHL2Ragdoll* >(m_hRagdoll.Get());
+	CHL2Ragdoll *pRagdoll = dynamic_cast<CHL2Ragdoll* >(m_hRagdoll.Get());
 	
 	// Al parecer no hay ninguno, crearlo.
 	if ( !pRagdoll )
@@ -583,6 +939,7 @@ void CIn_Player::CreateRagdollEntity()
 		pRagdoll->m_vecRagdollVelocity	= GetAbsVelocity();
 		pRagdoll->m_nModelIndex			= m_nModelIndex;
 		pRagdoll->m_nForceBone			= m_nForceBone;
+
 		pRagdoll->SetAbsOrigin(GetAbsOrigin());
 	}
 
@@ -591,14 +948,14 @@ void CIn_Player::CreateRagdollEntity()
 
 //=========================================================
 //=========================================================
-// FUNCIONES RELACIONADAS AL SONIDO/MUSICA
+// FUNCIONES RELACIONADAS A LA MUSICA
 //=========================================================
 //=========================================================
 
 //=========================================================
 // Inicia una música de fondo
 //=========================================================
-CSoundPatch *CIn_Player::EmitMusic(const char *pName)
+CSoundPatch *CIN_Player::EmitMusic(const char *pName)
 {
 	CSoundParameters params;
 
@@ -615,7 +972,7 @@ CSoundPatch *CIn_Player::EmitMusic(const char *pName)
 //=========================================================
 // Parar una música de fondo
 //=========================================================
-void CIn_Player::StopMusic(CSoundPatch *pMusic)
+void CIN_Player::StopMusic(CSoundPatch *pMusic)
 {
 	if ( !pMusic )
 		return;
@@ -626,7 +983,7 @@ void CIn_Player::StopMusic(CSoundPatch *pMusic)
 //=========================================================
 // Cambia el volumen de una música de fondo
 //=========================================================
-void CIn_Player::VolumeMusic(CSoundPatch *pMusic, float newVolume)
+void CIN_Player::VolumeMusic(CSoundPatch *pMusic, float newVolume)
 {
 	if ( !pMusic )
 		return;
@@ -641,10 +998,10 @@ void CIn_Player::VolumeMusic(CSoundPatch *pMusic, float newVolume)
 // Realiza el efecto de "desaparecer poco a poco" en una
 // música de fondo. Aceptando un rango de desaparición.
 //=========================================================
-void CIn_Player::FadeoutMusic(CSoundPatch *pMusic, float range)
+void CIN_Player::FadeoutMusic(CSoundPatch *pMusic, float range)
 {
 	if ( !pMusic )
 		return;
 
-	ENVELOPE_CONTROLLER.SoundFadeOut(pMusic, range, true);
+	ENVELOPE_CONTROLLER.SoundFadeOut(pMusic, range, false);
 }

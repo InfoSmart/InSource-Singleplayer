@@ -30,7 +30,7 @@ public:
 	int CalculateAngryLevel();
 
 	void Relaxed();
-	void Horde(bool super = false);
+	void Horde(bool super = false, bool triggered = false);
 	void Climax(bool mini = false);
 
 	const char *MS();
@@ -41,9 +41,14 @@ public:
 	void InputForceRelax(inputdata_t &inputdata);
 	void InputForceExalted(inputdata_t &inputdata);
 	void InputForceHorde(inputdata_t &inputdata);
+	void InputForceTriggeredHorde(inputdata_t &inputdata);
 	void InputForceGrunt(inputdata_t &inputdata);
 	void InputForceClimax(inputdata_t &inputdata);
 	void InputForceSpawnGrunt(inputdata_t &inputdata);
+
+	void InputDisclosePlayer(inputdata_t &inputdata);
+	void InputKillZombies(inputdata_t &inputdata);
+	void InputKillNoVisibleZombies(inputdata_t &inputdata);
 
 	void InputSetDisabledFor(inputdata_t &inputdata);
 	void InputSetMakerDistance(inputdata_t &inputdata);
@@ -53,22 +58,24 @@ public:
 	void InputDisable(inputdata_t &inputdata);
 	void InputToggle(inputdata_t &inputdata);
 
-	/* FUNCIONES RELACIONADAS AL IA DEL DIRECTOR */
-	bool MayQueueZombies();
-	bool MayQueueHordeZombies();
-	bool MayQueueGrunt();
-
-	/* FUNCIONES RELACIONADAS AL DIRECTOR ZOMBIE MAKER */
+	/* FUNCIONES RELACIONADAS A LOS ZOMBIS */
 	int GetMaxZombiesScale();
 	int CountZombies();
+	bool MayQueueZombies();
+	bool MayQueueHordeZombies();
 	void CheckZombies();
 	void SpawnZombies();
-	void SpawnGrunt();
 	void ZombieKilled() { ZombiesKilled++; };
+	void KillZombies(bool onlyNoVisible = false);
+
+	/* FUNCIONES RELACIONADAS AL IA DEL DIRECTOR */
+	void DisclosePlayer();
 
 	/* FUNCIONES RELACIONADAS AL GRUNT */
+	bool MayQueueGrunt();
 	int CountGrunts();
 	void CheckGrunts();
+	void SpawnGrunt();
 	void GruntKilled() { GruntsKilled++; };
 
 	/* FUNCIONES RELACIONADAS AL SONIDO/MUSICA */
@@ -112,6 +119,7 @@ private:
 	int		AngryLevel;
 	int		Left4Exalted;
 	int		Left4Horde;
+	bool	TriggerHorde;
 	bool	Disabled;
 	int		SpawnBlocked;
 	int		DirectorDisabled;
@@ -129,6 +137,7 @@ private:
 	bool		PlayingHorde_B_Music;
 	CSoundPatch *Sound_Horde_B_Music;
 
+	int MaxZombiesAlive;
 	int	LastSpawnZombies;
 	int HordeQueue;
 	int HordesPassed;
@@ -139,6 +148,7 @@ private:
 	int SpawnQueue;
 	int ZombiesSpawned;
 	int ZombiesExaltedSpawned;
+	bool ZombieChoir;
 
 	int ZombiesClassicAlive;
 	int ZombinesAlive;

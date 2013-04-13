@@ -43,6 +43,7 @@ void CHealthKit::Spawn( void )
 {
 	Precache();
 	SetModel( "models/items/healthkit.mdl" );
+	m_nSkin = 1;
 
 	BaseClass::Spawn();
 }

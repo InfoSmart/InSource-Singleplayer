@@ -43,6 +43,8 @@ public:
 	CNetworkVar( float, m_flFlashBattery );
 	CNetworkVar( Vector, m_vecLocatorOrigin );
 
+	CNetworkVar( Vector, m_iBlood ); // InSource - Sangre
+
 	// Ladder related data
 	CNetworkVar( EHANDLE, m_hLadder );
 	LadderMove_t			m_LadderMove;

@@ -34,6 +34,42 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+//=========================================================
+// Definición de variables de configuración.
+//=========================================================
+
+ConVar sk_fastzombie_health("sk_fastzombie_health",	"3", 0, "Salud del zombi rápido.");
+
+//=========================================================
+// Configuración del NPC
+//=========================================================
+
+#define MODEL			"models/zombie/fast.mdl"
+#define MODEL_HEADCRAB	"models/headcrabclassic.mdl"
+#define MODEL_LEGS		"models/gibs/fast_zombie_legs.mdl"
+#define MODEL_TORSO		"models/zombie/Fast_torso.mdl"
+
+#define MODEL_GIBS_TORSO	"models/gibs/fast_zombie_torso.mdl"
+#define MODEL_GIBS_LEGS		"models/gibs/fast_zombie_legs.mdl"
+
+#define CLASS_NAME_HEADCRAB	"npc_headcrab"
+
+// Color de la sangre.
+#define BLOOD			BLOOD_COLOR_RED
+
+// Color de renderizado
+#define RENDER_COLOR	255, 255, 255, 255
+
+// Campo de visión
+#define FOV				0.2
+
+// ¿Qué capacidades tendrá?
+#define CAPABILITIES	bits_CAP_MOVE_CLIMB | bits_CAP_MOVE_JUMP | bits_CAP_MOVE_GROUND | bits_CAP_INNATE_RANGE_ATTACK1
+
+//=========================================================
+// Configuración del NPC
+//=========================================================
+
 #define FASTZOMBIE_IDLE_PITCH			35
 #define FASTZOMBIE_MIN_PITCH			70
 #define FASTZOMBIE_MAX_PITCH			130
@@ -46,6 +82,10 @@
 // If flying at an enemy, and this close or closer, start playing the maul animation!!
 #define FASTZOMBIE_MAUL_RANGE	300
 
+//=========================================================
+// Actividades
+//=========================================================
+
 #ifdef HL2_EPISODIC
 
 int AE_PASSENGER_PHYSICS_PUSH;
@@ -54,10 +94,24 @@ int AE_FASTZOMBIE_VEHICLE_SS_DIE;	// Killed while doing scripted sequence on veh
 
 #endif // HL2_EPISODIC
 
+int AE_FASTZOMBIE_LEAP;
+int AE_FASTZOMBIE_GALLOP_LEFT;
+int AE_FASTZOMBIE_GALLOP_RIGHT;
+int AE_FASTZOMBIE_CLIMB_LEFT;
+int AE_FASTZOMBIE_CLIMB_RIGHT;
+
+//=========================================================
+// Condiciones
+//=========================================================
+
 enum
 {
 	COND_FASTZOMBIE_CLIMB_TOUCH	= LAST_BASE_ZOMBIE_CONDITION,
 };
+
+//=========================================================
+// Sonidos y su volumen.
+//=========================================================
 
 envelopePoint_t envFastZombieVolumeJump[] =
 {
@@ -152,19 +206,10 @@ envelopePoint_t envFastZombieVolumeFrenzy[] =
 	},
 };
 
+//=========================================================
+// Tareas
+//=========================================================
 
-//=========================================================
-// animation events
-//=========================================================
-int AE_FASTZOMBIE_LEAP;
-int AE_FASTZOMBIE_GALLOP_LEFT;
-int AE_FASTZOMBIE_GALLOP_RIGHT;
-int AE_FASTZOMBIE_CLIMB_LEFT;
-int AE_FASTZOMBIE_CLIMB_RIGHT;
-
-//=========================================================
-// tasks
-//=========================================================
 enum 
 {
 	TASK_FASTZOMBIE_DO_ATTACK = LAST_SHARED_TASK + 100,	// again, my !!!HACKHACK
@@ -175,8 +220,9 @@ enum
 };
 
 //=========================================================
-// activities
+// Actividades
 //=========================================================
+
 int ACT_FASTZOMBIE_LEAP_SOAR;
 int ACT_FASTZOMBIE_LEAP_STRIKE;
 int ACT_FASTZOMBIE_LAND_RIGHT;
@@ -185,8 +231,9 @@ int ACT_FASTZOMBIE_FRENZY;
 int ACT_FASTZOMBIE_BIG_SLASH;
 
 //=========================================================
-// schedules
+// Eventos
 //=========================================================
+
 enum
 {
 	SCHED_FASTZOMBIE_RANGE_ATTACK1 = LAST_SHARED_SCHEDULE + 100, // hack to get past the base zombie's schedules
@@ -196,119 +243,117 @@ enum
 	SCHED_FASTZOMBIE_TORSO_MELEE_ATTACK1,
 };
 
-
-
 //=========================================================
+// Clase del Zombie rápido
 //=========================================================
+
 class CFastZombie : public CNPC_BaseZombie
 {
 	DECLARE_CLASS( CFastZombie, CNPC_BaseZombie );
 
 public:
-	void Spawn( void );
-	void Precache( void );
+	void Spawn();
+	void Precache();
 
-	void SetZombieModel( void );
-	bool CanSwatPhysicsObjects( void ) { return false; }
+	void SetZombieModel();
+	bool CanSwatPhysicsObjects() { return false; }
 
-	int	TranslateSchedule( int scheduleType );
+	int	TranslateSchedule(int scheduleType);
 
-	Activity NPC_TranslateActivity( Activity baseAct );
+	Activity NPC_TranslateActivity(Activity baseAct);
 
-	void LeapAttackTouch( CBaseEntity *pOther );
-	void ClimbTouch( CBaseEntity *pOther );
+	void LeapAttackTouch(CBaseEntity *pOther);
+	void ClimbTouch(CBaseEntity *pOther);
 
-	void StartTask( const Task_t *pTask );
-	void RunTask( const Task_t *pTask );
-	int SelectSchedule( void );
-	void OnScheduleChange( void );
+	void StartTask(const Task_t *pTask );
+	void RunTask(const Task_t *pTask);
+	int SelectSchedule();
+	void OnScheduleChange();
 
-	void PrescheduleThink( void );
+	void PrescheduleThink();
 
-	float InnateRange1MaxRange( void );
-	int RangeAttack1Conditions( float flDot, float flDist );
-	int MeleeAttack1Conditions( float flDot, float flDist );
+	float InnateRange1MaxRange();
+	int RangeAttack1Conditions(float flDot, float flDist);
+	int MeleeAttack1Conditions(float flDot, float flDist);
 
 	virtual float GetClawAttackRange() const { return 50; }
 
-	bool ShouldPlayFootstepMoan( void ) { return false; }
+	bool ShouldPlayFootstepMoan() { return false; }
+	void HandleAnimEvent(animevent_t *pEvent);
 
-	void HandleAnimEvent( animevent_t *pEvent );
+	void PostNPCInit();
 
-	void PostNPCInit( void );
+	void LeapAttack();
+	void LeapAttackSound();
 
-	void LeapAttack( void );
-	void LeapAttackSound( void );
-
-	void BecomeTorso( const Vector &vecTorsoForce, const Vector &vecLegsForce );
+	void BecomeTorso(const Vector &vecTorsoForce, const Vector &vecLegsForce);
 
 	bool IsJumpLegal(const Vector &startPos, const Vector &apex, const Vector &endPos) const;
-	bool MovementCost( int moveType, const Vector &vecStart, const Vector &vecEnd, float *pCost );
-	bool ShouldFailNav( bool bMovementFailed );
+	bool MovementCost(int moveType, const Vector &vecStart, const Vector &vecEnd, float *pCost);
+	bool ShouldFailNav(bool bMovementFailed);
 
-	int	SelectFailSchedule( int failedSchedule, int failedTask, AI_TaskFailureCode_t taskFailCode );
+	int	SelectFailSchedule(int failedSchedule, int failedTask, AI_TaskFailureCode_t taskFailCode);
 
-	const char *GetMoanSound( int nSound );
+	const char *GetMoanSound(int nSound);
 
-	void OnChangeActivity( Activity NewActivity );
-	void OnStateChange( NPC_STATE OldState, NPC_STATE NewState );
-	void Event_Killed( const CTakeDamageInfo &info );
-	bool ShouldBecomeTorso( const CTakeDamageInfo &info, float flDamageThreshold );
+	void OnChangeActivity(Activity NewActivity);
+	void OnStateChange(NPC_STATE OldState, NPC_STATE NewState);
+	void Event_Killed(const CTakeDamageInfo &info);
+	bool ShouldBecomeTorso(const CTakeDamageInfo &info, float flDamageThreshold);
 
 	virtual Vector GetAutoAimCenter() { return WorldSpaceCenter() - Vector( 0, 0, 12.0f ); }
 
-	void PainSound( const CTakeDamageInfo &info );
-	void DeathSound( const CTakeDamageInfo &info ); 
-	void AlertSound( void );
-	void IdleSound( void );
-	void AttackSound( void );
-	void AttackHitSound( void );
-	void AttackMissSound( void );
-	void FootstepSound( bool fRightFoot );
-	void FootscuffSound( bool fRightFoot ) {}; // fast guy doesn't scuff
-	void StopLoopingSounds( void );
+	void PainSound(const CTakeDamageInfo &info);
+	void DeathSound(const CTakeDamageInfo &info); 
+	void AlertSound();
+	void IdleSound();
+	void AttackSound();
+	void AttackHitSound();
+	void AttackMissSound();
+	void FootstepSound(bool fRightFoot);
+	void FootscuffSound(bool fRightFoot) { };
+	void StopLoopingSounds();
 
-	void SoundInit( void );
-	void SetIdleSoundState( void );
-	void SetAngrySoundState( void );
+	void SoundInit();
+	void SetIdleSoundState();
+	void SetAngrySoundState();
 
-	void BuildScheduleTestBits( void );
+	void BuildScheduleTestBits();
 
-	void BeginNavJump( void );
-	void EndNavJump( void );
+	void BeginNavJump();
+	void EndNavJump();
 
-	bool IsNavJumping( void ) { return m_fIsNavJumping; }
-	void OnNavJumpHitApex( void );
+	bool IsNavJumping() { return m_fIsNavJumping; }
+	void OnNavJumpHitApex();
 
-	void BeginAttackJump( void );
-	void EndAttackJump( void );
+	void BeginAttackJump();
+	void EndAttackJump();
 
-	float		MaxYawSpeed( void );
+	float		MaxYawSpeed();
 
-	virtual const char *GetHeadcrabClassname( void );
-	virtual const char *GetHeadcrabModel( void );
-	virtual const char *GetLegsModel( void );
-	virtual const char *GetTorsoModel( void );
+	virtual const char *GetHeadcrabClassname();
+	virtual const char *GetHeadcrabModel();
+	virtual const char *GetLegsModel();
+	virtual const char *GetTorsoModel();
 
-//=============================================================================
+
 #ifdef HL2_EPISODIC
 
 public:
-	virtual bool	CreateBehaviors( void );
-	virtual void	VPhysicsCollision( int index, gamevcollisionevent_t *pEvent );
-	virtual	void	UpdateEfficiency( bool bInPVS );
-	virtual bool	IsInAVehicle( void );
+	virtual bool	CreateBehaviors();
+	virtual void	VPhysicsCollision(int index, gamevcollisionevent_t *pEvent);
+	virtual	void	UpdateEfficiency(bool bInPVS);
+	virtual bool	IsInAVehicle();
 	void			InputAttachToVehicle( inputdata_t &inputdata );
 	void			VehicleLeapAttackTouch( CBaseEntity *pOther );
 
 private:
-	void			VehicleLeapAttack( void );
-	bool			CanEnterVehicle( CPropJeepEpisodic *pVehicle );
+	void			VehicleLeapAttack();
+	bool			CanEnterVehicle(CPropJeepEpisodic *pVehicle);
 
 	CAI_PassengerBehaviorZombie		m_PassengerBehavior;
 
 #endif	// HL2_EPISODIC
-//=============================================================================
 
 protected:
 
@@ -340,20 +385,23 @@ public:
 LINK_ENTITY_TO_CLASS( npc_fastzombie, CFastZombie );
 LINK_ENTITY_TO_CLASS( npc_fastzombie_torso, CFastZombie );
 
+//=========================================================
+// Definición de datos.
+//=========================================================
 
 BEGIN_DATADESC( CFastZombie )
 
-	DEFINE_FIELD( m_flDistFactor, FIELD_FLOAT ),
-	DEFINE_FIELD( m_iClimbCount, FIELD_CHARACTER ),
-	DEFINE_FIELD( m_fIsNavJumping, FIELD_BOOLEAN ),
-	DEFINE_FIELD( m_fIsAttackJumping, FIELD_BOOLEAN ),
-	DEFINE_FIELD( m_fHitApex, FIELD_BOOLEAN ),
-	DEFINE_FIELD( m_flJumpDist, FIELD_FLOAT ),
-	DEFINE_FIELD( m_fHasScreamed, FIELD_BOOLEAN ),
-	DEFINE_FIELD( m_flNextMeleeAttack, FIELD_TIME ),
-	DEFINE_FIELD( m_fJustJumped, FIELD_BOOLEAN ),
-	DEFINE_FIELD( m_flJumpStartAltitude, FIELD_FLOAT ),
-	DEFINE_FIELD( m_flTimeUpdateSound, FIELD_TIME ),
+	DEFINE_FIELD( m_flDistFactor,			FIELD_FLOAT ),
+	DEFINE_FIELD( m_iClimbCount,			FIELD_CHARACTER ),
+	DEFINE_FIELD( m_fIsNavJumping,			FIELD_BOOLEAN ),
+	DEFINE_FIELD( m_fIsAttackJumping,		FIELD_BOOLEAN ),
+	DEFINE_FIELD( m_fHitApex,				FIELD_BOOLEAN ),
+	DEFINE_FIELD( m_flJumpDist,				FIELD_FLOAT ),
+	DEFINE_FIELD( m_fHasScreamed,			FIELD_BOOLEAN ),
+	DEFINE_FIELD( m_flNextMeleeAttack,		FIELD_TIME ),
+	DEFINE_FIELD( m_fJustJumped,			FIELD_BOOLEAN ),
+	DEFINE_FIELD( m_flJumpStartAltitude,	FIELD_FLOAT ),
+	DEFINE_FIELD( m_flTimeUpdateSound,		FIELD_TIME ),
 
 	// Function Pointers
 	DEFINE_ENTITYFUNC( LeapAttackTouch ),
@@ -367,130 +415,167 @@ BEGIN_DATADESC( CFastZombie )
 
 END_DATADESC()
 
+//=========================================================
+// Sonidos de los gemidos del zombi
+//=========================================================
 
 const char *CFastZombie::pMoanSounds[] =
 {
 	"NPC_FastZombie.Moan1",
 };
 
-//-----------------------------------------------------------------------------
-// The model we use for our legs when we get blowed up.
-//-----------------------------------------------------------------------------
-static const char *s_pLegsModel = "models/gibs/fast_zombie_legs.mdl";
+//=========================================================
+// Crear un nuevo zombi.
+//=========================================================
+void CFastZombie::Spawn()
+{
+	ConVarRef zombie_attach_headcrab("zombie_attach_headcrab");
+	Precache();
 
+	m_fJustJumped	= false;
+	IsTorso			= ( FClassnameIs(this, "npc_fastzombie") ) ? false : true;
+	IsHeadless		= zombie_attach_headcrab.GetBool();
+
+	// Color de la sangre.
+	SetBloodColor(BLOOD);
+
+	// Reseteo de variables.
+	// Salud, estado del NPC y vista.
+	m_iHealth			= sk_fastzombie_health.GetInt();
+	m_flFieldOfView		= FOV;
+
+	SetRenderColor(RENDER_COLOR);
+
+	// Capacidades
+	CapabilitiesClear();
+	CapabilitiesAdd(CAPABILITIES);
+
+	if ( IsTorso == true )
+		CapabilitiesRemove( bits_CAP_MOVE_JUMP | bits_CAP_INNATE_RANGE_ATTACK1 );
+
+	m_flNextAttack = gpGlobals->curtime;
+
+	m_pLayer2		= NULL;
+	m_iClimbCount	= 0;
+
+	EndNavJump();
+	m_flDistFactor = 1.0;
+
+	BaseClass::Spawn();
+}
+
+//=========================================================
+// Inicializa el NPC.
+//=========================================================
+void CFastZombie::PostNPCInit()
+{
+	SoundInit();
+	m_flTimeUpdateSound = gpGlobals->curtime;
+}
 
 //-----------------------------------------------------------------------------
 // Purpose: 
 //
 //
 //-----------------------------------------------------------------------------
-void CFastZombie::Precache( void )
+void CFastZombie::Precache()
 {
-	PrecacheModel("models/zombie/fast.mdl");
+	PrecacheModel(MODEL);
+
 #ifdef HL2_EPISODIC
-	PrecacheModel("models/zombie/Fast_torso.mdl");
-	PrecacheScriptSound( "NPC_FastZombie.CarEnter1" );
-	PrecacheScriptSound( "NPC_FastZombie.CarEnter2" );
-	PrecacheScriptSound( "NPC_FastZombie.CarEnter3" );
-	PrecacheScriptSound( "NPC_FastZombie.CarEnter4" );
-	PrecacheScriptSound( "NPC_FastZombie.CarScream" );
+	PrecacheModel(MODEL_TORSO);
+	PrecacheScriptSound("NPC_FastZombie.CarEnter1");
+	PrecacheScriptSound("NPC_FastZombie.CarEnter2");
+	PrecacheScriptSound("NPC_FastZombie.CarEnter3");
+	PrecacheScriptSound("NPC_FastZombie.CarEnter4");
+	PrecacheScriptSound("NPC_FastZombie.CarScream");
 #endif
-	PrecacheModel( "models/gibs/fast_zombie_torso.mdl" );
-	PrecacheModel( "models/gibs/fast_zombie_legs.mdl" );
+
+	PrecacheModel(MODEL_GIBS_TORSO);
+	PrecacheModel(MODEL_GIBS_LEGS);
 	
-	PrecacheScriptSound( "NPC_FastZombie.LeapAttack" );
-	PrecacheScriptSound( "NPC_FastZombie.FootstepRight" );
-	PrecacheScriptSound( "NPC_FastZombie.FootstepLeft" );
-	PrecacheScriptSound( "NPC_FastZombie.AttackHit" );
-	PrecacheScriptSound( "NPC_FastZombie.AttackMiss" );
-	PrecacheScriptSound( "NPC_FastZombie.LeapAttack" );
-	PrecacheScriptSound( "NPC_FastZombie.Attack" );
-	PrecacheScriptSound( "NPC_FastZombie.Idle" );
-	PrecacheScriptSound( "NPC_FastZombie.AlertFar" );
-	PrecacheScriptSound( "NPC_FastZombie.AlertNear" );
-	PrecacheScriptSound( "NPC_FastZombie.GallopLeft" );
-	PrecacheScriptSound( "NPC_FastZombie.GallopRight" );
-	PrecacheScriptSound( "NPC_FastZombie.Scream" );
-	PrecacheScriptSound( "NPC_FastZombie.RangeAttack" );
-	PrecacheScriptSound( "NPC_FastZombie.Frenzy" );
-	PrecacheScriptSound( "NPC_FastZombie.NoSound" );
-	PrecacheScriptSound( "NPC_FastZombie.Die" );
+	PrecacheScriptSound("NPC_FastZombie.LeapAttack");
+	PrecacheScriptSound("NPC_FastZombie.FootstepRight");
+	PrecacheScriptSound("NPC_FastZombie.FootstepLeft");
+	PrecacheScriptSound("NPC_FastZombie.AttackHit");
+	PrecacheScriptSound("NPC_FastZombie.AttackMiss");
+	PrecacheScriptSound("NPC_FastZombie.LeapAttack");
+	PrecacheScriptSound("NPC_FastZombie.Attack");
+	PrecacheScriptSound("NPC_FastZombie.Idle");
+	PrecacheScriptSound("NPC_FastZombie.AlertFar");
+	PrecacheScriptSound("NPC_FastZombie.AlertNear");
+	PrecacheScriptSound("NPC_FastZombie.GallopLeft");
+	PrecacheScriptSound("NPC_FastZombie.GallopRight");
+	PrecacheScriptSound("NPC_FastZombie.Scream");
+	PrecacheScriptSound("NPC_FastZombie.RangeAttack");
+	PrecacheScriptSound("NPC_FastZombie.Frenzy");
+	PrecacheScriptSound("NPC_FastZombie.NoSound");
+	PrecacheScriptSound("NPC_FastZombie.Die");
 
-	PrecacheScriptSound( "NPC_FastZombie.Gurgle" );
-
-	PrecacheScriptSound( "NPC_FastZombie.Moan1" );
+	PrecacheScriptSound("NPC_FastZombie.Gurgle");
+	PrecacheScriptSound("NPC_FastZombie.Moan1");
 
 	BaseClass::Precache();
 }
 
-//---------------------------------------------------------
-//---------------------------------------------------------
-void CFastZombie::OnScheduleChange( void )
+//=========================================================
+// Cuando una tarea cambia.
+//=========================================================
+void CFastZombie::OnScheduleChange()
 {
+	// Atacar nuevamente.
 	if ( m_flNextMeleeAttack > gpGlobals->curtime + 1 )
-	{
-		// Allow melee attacks again.
 		m_flNextMeleeAttack = gpGlobals->curtime + 0.5;
-	}
 
 	BaseClass::OnScheduleChange();
 }
 
-//---------------------------------------------------------
-//---------------------------------------------------------
-int CFastZombie::SelectSchedule ( void )
+//=========================================================
+// Selecciona una tarea programada dependiendo del estado
+//=========================================================
+int CFastZombie::SelectSchedule ()
 {
 
-// ========================================================
-#ifdef HL2_EPISODIC
+	#ifdef HL2_EPISODIC
 
-	// Defer all decisions to the behavior if it's running
-	if ( m_PassengerBehavior.CanSelectSchedule() )
-	{
-		DeferSchedulingToBehavior( &m_PassengerBehavior );
-		return BaseClass::SelectSchedule();
-	}
+		// Defer all decisions to the behavior if it's running
+		if ( m_PassengerBehavior.CanSelectSchedule() )
+		{
+			DeferSchedulingToBehavior( &m_PassengerBehavior );
+			return BaseClass::SelectSchedule();
+		}
 
-#endif //HL2_EPISODIC
-// ========================================================
+	#endif //HL2_EPISODIC
 
+	// La muerte no espera a ningún hombre. O zombi. O lo que sea...
 	if ( HasCondition( COND_ZOMBIE_RELEASECRAB ) )
-	{
-		// Death waits for no man. Or zombie. Or something.
 		return SCHED_ZOMBIE_RELEASECRAB;
-	}
 
 	if ( HasCondition( COND_FASTZOMBIE_CLIMB_TOUCH ) )
-	{
 		return SCHED_FASTZOMBIE_UNSTICK_JUMP;
-	}
 
 	switch ( m_NPCState )
 	{
-	case NPC_STATE_COMBAT:
-		if ( HasCondition( COND_LOST_ENEMY ) || ( HasCondition( COND_ENEMY_UNREACHABLE ) && MustCloseToAttack() ) )
-		{
-			// Set state to alert and recurse!
-			SetState( NPC_STATE_ALERT );
-			return SelectSchedule();
-		}
+		case NPC_STATE_COMBAT:
+			if ( HasCondition( COND_LOST_ENEMY ) || ( HasCondition( COND_ENEMY_UNREACHABLE ) && MustCloseToAttack() ) )
+			{
+				// Set state to alert and recurse!
+				SetState(NPC_STATE_ALERT);
+				return SelectSchedule();
+			}
 		break;
 
-	case NPC_STATE_ALERT:
-		if ( HasCondition( COND_LOST_ENEMY ) || ( HasCondition( COND_ENEMY_UNREACHABLE ) && MustCloseToAttack() ) )
-		{
-			ClearCondition( COND_LOST_ENEMY );
-			ClearCondition( COND_ENEMY_UNREACHABLE );
-			SetEnemy( NULL );
+		case NPC_STATE_ALERT:
+			if ( HasCondition( COND_LOST_ENEMY ) || ( HasCondition( COND_ENEMY_UNREACHABLE ) && MustCloseToAttack() ) )
+			{
+				ClearCondition(COND_LOST_ENEMY);
+				ClearCondition(COND_ENEMY_UNREACHABLE);
+				SetEnemy(NULL);
 
-#ifdef DEBUG_ZOMBIES
-			DevMsg("Wandering\n");
-#endif
-
-			// Just lost track of our enemy. 
-			// Wander around a bit so we don't look like a dingus.
-			return SCHED_ZOMBIE_WANDER_MEDIUM;
-		}
+				// Just lost track of our enemy. 
+				// Wander around a bit so we don't look like a dingus.
+				return SCHED_ZOMBIE_WANDER_MEDIUM;
+			}
 		break;
 	}
 
@@ -498,32 +583,35 @@ int CFastZombie::SelectSchedule ( void )
 }
 
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-void CFastZombie::PrescheduleThink( void )
+//=========================================================
+// Pre-Pensamiento: Bucle de ejecución de tareas.
+//=========================================================
+void CFastZombie::PrescheduleThink()
 {
 	BaseClass::PrescheduleThink();
 
-	if( GetGroundEntity() && GetGroundEntity()->Classify() == CLASS_HEADCRAB )
+	// Al parecer terminamos sobre un headcrab.
+	if ( GetGroundEntity() && GetGroundEntity()->Classify() == CLASS_HEADCRAB )
 	{
-		// Kill!
+		// ¡Lo matamos!
 		CTakeDamageInfo info;
-		info.SetDamage( GetGroundEntity()->GetHealth() );
-		info.SetAttacker( this );
-		info.SetInflictor( this );
-		info.SetDamageType( DMG_GENERIC );
-		GetGroundEntity()->TakeDamage( info );
+		info.SetDamage(GetGroundEntity()->GetHealth());
+		info.SetAttacker(this);
+		info.SetInflictor(this);
+		info.SetDamageType(DMG_GENERIC);
+		GetGroundEntity()->TakeDamage(info);
 	}
 
+	// Hora de gemir.
  	if( sMoanSound && gpGlobals->curtime > m_flTimeUpdateSound )
 	{
 		// Manage the snorting sound, pitch up for closer.
 		float flDistNoBBox;
 
-		if( GetEnemy() && m_NPCState == NPC_STATE_COMBAT )
+		if ( GetEnemy() && m_NPCState == NPC_STATE_COMBAT )
 		{
-			flDistNoBBox = ( GetEnemy()->WorldSpaceCenter() - WorldSpaceCenter() ).Length();
-			flDistNoBBox -= WorldAlignSize().x;
+			flDistNoBBox	= ( GetEnemy()->WorldSpaceCenter() - WorldSpaceCenter() ).Length();
+			flDistNoBBox	-= WorldAlignSize().x;
 		}
 		else
 		{
@@ -536,7 +624,6 @@ void CFastZombie::PrescheduleThink( void )
 		{
 			// Go back to normal pitch.
 			m_flDistFactor = 1.0;
-
 			ENVELOPE_CONTROLLER.SoundChangePitch( sMoanSound, FASTZOMBIE_IDLE_PITCH, FASTZOMBIE_SOUND_UPDATE_FREQ );
 		}
 		else if( flDistNoBBox < FASTZOMBIE_EXCITE_DIST )
@@ -553,10 +640,8 @@ void CFastZombie::PrescheduleThink( void )
 	}
 
 	// Crudely detect the apex of our jump
-	if( IsNavJumping() && !m_fHitApex && GetAbsVelocity().z <= 0.0 )
-	{
+	if ( IsNavJumping() && !m_fHitApex && GetAbsVelocity().z <= 0.0 )
 		OnNavJumpHitApex();
-	}
 
 	if( IsCurSchedule(SCHED_FASTZOMBIE_RANGE_ATTACK1, false) )
 	{
@@ -566,41 +651,38 @@ void CFastZombie::PrescheduleThink( void )
 	}
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: Startup all of the sound patches that the fast zombie uses.
-//
-//
-//-----------------------------------------------------------------------------
-void CFastZombie::SoundInit( void )
+//=========================================================
+// Inicia todos los sonidos.
+//=========================================================
+void CFastZombie::SoundInit()
 {
-	if( !sMoanSound )
+	if ( !sMoanSound )
 	{
 		// !!!HACKHACK - kickstart the moan sound. (sjb)
-		MoanSound( envFastZombieMoanVolume, ARRAYSIZE( envFastZombieMoanVolume ) );
+		MoanSound(envFastZombieMoanVolume, ARRAYSIZE(envFastZombieMoanVolume));
 
 		// Clear the commands that the base class gave the moaning sound channel.
 		ENVELOPE_CONTROLLER.CommandClear( sMoanSound );
 	}
 
-	CPASAttenuationFilter filter( this );
+	CPASAttenuationFilter filter(this);
 
-	if( !m_pLayer2 )
+	if ( !m_pLayer2 )
 	{
 		// Set up layer2
-		m_pLayer2 = ENVELOPE_CONTROLLER.SoundCreate( filter, entindex(), CHAN_VOICE, "NPC_FastZombie.Gurgle", ATTN_NORM );
+		m_pLayer2 = ENVELOPE_CONTROLLER.SoundCreate(filter, entindex(), CHAN_VOICE, "NPC_FastZombie.Gurgle", ATTN_NORM);
 
 		// Start silent.
-		ENVELOPE_CONTROLLER.Play( m_pLayer2, 0.0, 100 );
+		ENVELOPE_CONTROLLER.Play(m_pLayer2, 0.0, 100);
 	}
 
 	SetIdleSoundState();
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Make the zombie sound calm.
-//-----------------------------------------------------------------------------
-void CFastZombie::SetIdleSoundState( void )
+//=========================================================
+// Calma el gemido al estar inactivo.
+//=========================================================
+void CFastZombie::SetIdleSoundState()
 {
 	// Main looping sound
 	if ( sMoanSound )
@@ -618,15 +700,13 @@ void CFastZombie::SetIdleSoundState( void )
 }
 
 
-//-----------------------------------------------------------------------------
+//=========================================================
 // Purpose: Make the zombie sound pizzled
-//-----------------------------------------------------------------------------
-void CFastZombie::SetAngrySoundState( void )
+//=========================================================
+void CFastZombie::SetAngrySoundState()
 {
 	if (( !sMoanSound ) || ( !m_pLayer2 ))
-	{
 		return;
-	}
 
 	EmitSound( "NPC_FastZombie.LeapAttack" );
 
@@ -639,284 +719,218 @@ void CFastZombie::SetAngrySoundState( void )
 	ENVELOPE_CONTROLLER.SoundChangeVolume( m_pLayer2, 0.0, 1.0 );
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//
-//
-//-----------------------------------------------------------------------------
-void CFastZombie::Spawn( void )
+//=========================================================
+// Nombre de la clase de NPC del headcrab de este zombi.
+// Es el mismo que se "desprenderá" del zombi al morir.
+//=========================================================
+const char *CFastZombie::GetHeadcrabClassname()
 {
-	Precache();
-
-	m_fJustJumped = false;
-
-	IsTorso = IsHeadless = false;
-
-	if( FClassnameIs( this, "npc_fastzombie" ) )
-	{
-		IsTorso = false;
-	}
-	else
-	{
-		// This was placed as an npc_fastzombie_torso
-		IsTorso = true;
-	}
-
-#ifdef HL2_EPISODIC
-	SetBloodColor( BLOOD_COLOR_ZOMBIE );
-#else
-	SetBloodColor( BLOOD_COLOR_YELLOW );
-#endif // HL2_EPISODIC
-
-	ConVarRef sk_zombie_health("sk_zombie_health");
-
-	m_iHealth			= sk_zombie_health.GetInt() + 5;
-	m_flFieldOfView		= 0.2;
-
-	CapabilitiesClear();
-	CapabilitiesAdd( bits_CAP_MOVE_CLIMB | bits_CAP_MOVE_JUMP | bits_CAP_MOVE_GROUND | bits_CAP_INNATE_RANGE_ATTACK1 /* | bits_CAP_INNATE_MELEE_ATTACK1 */);
-
-	if ( IsTorso == true )
-	{
-		CapabilitiesRemove( bits_CAP_MOVE_JUMP | bits_CAP_INNATE_RANGE_ATTACK1 );
-	}
-
-	m_flNextAttack = gpGlobals->curtime;
-
-	m_pLayer2 = NULL;
-	m_iClimbCount = 0;
-
-	EndNavJump();
-
-	m_flDistFactor = 1.0;
-
-	BaseClass::Spawn();
+	return CLASS_NAME_HEADCRAB;
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
-void CFastZombie::PostNPCInit( void )
+//=========================================================
+// Ubicación del modelo del headcrab de este zombi.
+// Es el mismo que se "desprenderá" del zombi al morir.
+//=========================================================
+const char *CFastZombie::GetHeadcrabModel()
 {
-	SoundInit();
-
-	m_flTimeUpdateSound = gpGlobals->curtime;
+	return MODEL_HEADCRAB;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Returns the classname (ie "npc_headcrab") to spawn when our headcrab bails.
-//-----------------------------------------------------------------------------
-const char *CFastZombie::GetHeadcrabClassname( void )
+//=========================================================
+// Devuelve la velocidad máxima del yaw dependiendo de la
+// actividad actual.
+//=========================================================
+float CFastZombie::MaxYawSpeed()
 {
-	return "npc_headcrab_fast";
-}
-
-const char *CFastZombie::GetHeadcrabModel( void )
-{
-	return "models/headcrab.mdl";
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-float CFastZombie::MaxYawSpeed( void )
-{
-	switch( GetActivity() )
+	switch ( GetActivity() )
 	{
-	case ACT_TURN_LEFT:
-	case ACT_TURN_RIGHT:
-		return 120;
+		case ACT_TURN_LEFT:
+		case ACT_TURN_RIGHT:
+			return 120;
 		break;
 
-	case ACT_RUN:
-		return 160;
+		case ACT_RUN:
+			return 160;
 		break;
 
-	case ACT_WALK:
-	case ACT_IDLE:
-		return 25;
+		case ACT_WALK:
+		case ACT_IDLE:
+			return 25;
 		break;
 		
-	default:
-		return 20;
+		default:
+			return 20;
 		break;
 	}
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//
-//
-//-----------------------------------------------------------------------------
-void CFastZombie::SetZombieModel( void )
+//=========================================================
+// Establece el modelo de este zombi.
+//=========================================================
+void CFastZombie::SetZombieModel()
 {
-	Hull_t lastHull = GetHullType();
+	Hull_t LastHull = GetHullType();
 
+	// ¡Me han partido a la mitad!
 	if ( IsTorso )
 	{
-		SetModel( "models/zombie/fast_torso.mdl" );
+		SetModel(MODEL_TORSO);
 		SetHullType(HULL_TINY);
 	}
 	else
 	{
-		SetModel( "models/zombie/fast.mdl" );
+		SetModel(MODEL);
 		SetHullType(HULL_HUMAN);
 	}
 
 	SetBodygroup( ZOMBIE_BODYGROUP_HEADCRAB, !IsHeadless );
 
-	SetHullSizeNormal( true );
+	SetHullSizeNormal(true);
 	SetDefaultEyeOffset();
-	SetActivity( ACT_IDLE );
+	SetActivity(ACT_IDLE);
 
-	// hull changed size, notify vphysics
-	// UNDONE: Solve this generally, systematically so other
-	// NPCs can change size
-	if ( lastHull != GetHullType() )
+	// El tamaño del zombi ha cambiado.
+	if ( LastHull != GetHullType() )
 	{
 		if ( VPhysicsGetObject() )
-		{
 			SetupVPhysicsHull();
-		}
 	}
 }
 
 
-//-----------------------------------------------------------------------------
-// Purpose: Returns the model to use for our legs ragdoll when we are blown in twain.
-//-----------------------------------------------------------------------------
-const char *CFastZombie::GetLegsModel( void )
+//=========================================================
+// Ubicación del modelo de las piernas de este zombi.
+// Usado en caso de que el zombi se parta a la mitad.
+//=========================================================
+const char *CFastZombie::GetLegsModel()
 {
-	return s_pLegsModel;
+	return MODEL_GIBS_LEGS;
 }
 
-const char *CFastZombie::GetTorsoModel( void )
+//=========================================================
+// Ubicación del modelo del torso de este zombi.
+// Usado en caso de que el zombi se parta a la mitad.
+//=========================================================
+const char *CFastZombie::GetTorsoModel()
 {
-	return "models/gibs/fast_zombie_torso.mdl";
+	return MODEL_GIBS_TORSO;
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: See if I can swat the player
-//
-//
-//-----------------------------------------------------------------------------
+//=========================================================
+// Verifica si es conveniente hacer un ataque cuerpo a cuerpo.
+// En este caso: Golpe
+//=========================================================
 int CFastZombie::MeleeAttack1Conditions( float flDot, float flDist )
 {
+	// No hay ningún enemigo.
 	if ( !GetEnemy() )
-	{
 		return COND_NONE;
-	}
 
-	if( !(GetFlags() & FL_ONGROUND) )
-	{
-		// Have to be on the ground!
+	// No estamos en el suelo.
+	if ( !(GetFlags() & FL_ONGROUND) )
 		return COND_NONE;
-	}
 
-	if( gpGlobals->curtime < m_flNextMeleeAttack )
-	{
+	// 
+	if ( gpGlobals->curtime < m_flNextMeleeAttack )
 		return COND_NONE;
-	}
 	
-	int baseResult = BaseClass::MeleeAttack1Conditions( flDot, flDist );
+	int baseResult = BaseClass::MeleeAttack1Conditions(flDot, flDist);
 
 	// @TODO (toml 07-21-04): follow up with Steve to find out why fz was explicitly not using these conditions
 	if ( baseResult == COND_TOO_FAR_TO_ATTACK || baseResult == COND_NOT_FACING_ATTACK )
-	{
 		return COND_NONE;
-	}
 
 	return baseResult;
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Returns a moan sound for this class of zombie.
-//-----------------------------------------------------------------------------
-const char *CFastZombie::GetMoanSound( int nSound )
+//=========================================================
+// Obtener los sonidos de "gemido" para esta clase de zombi.
+//=========================================================
+const char *CFastZombie::GetMoanSound(int nSound)
 {
-	return pMoanSounds[ nSound % ARRAYSIZE( pMoanSounds ) ];
+	return pMoanSounds[nSound % ARRAYSIZE(pMoanSounds)];
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Sound of a footstep
-//-----------------------------------------------------------------------------
-void CFastZombie::FootstepSound( bool fRightFoot )
+//=========================================================
+// Reproducir los sonidos de mis pasos.
+//=========================================================
+void CFastZombie::FootstepSound(bool fRightFoot)
 {
-	if( fRightFoot )
-	{
-		EmitSound( "NPC_FastZombie.FootstepRight" );
-	}
+	// Pie derecho
+	if ( fRightFoot )
+		EmitSound("NPC_FastZombie.FootstepRight");
+
+	// Pie izquierdo
 	else
-	{
-		EmitSound( "NPC_FastZombie.FootstepLeft" );
-	}
+		EmitSound("NPC_FastZombie.FootstepLeft");
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play a random attack hit sound
-//-----------------------------------------------------------------------------
-void CFastZombie::AttackHitSound( void )
+//=========================================================
+// Reproducir sonido al azar de ataque.
+//=========================================================
+void CFastZombie::AttackHitSound()
 {
-	EmitSound( "NPC_FastZombie.AttackHit" );
+	EmitSound("NPC_FastZombie.AttackHit");
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play a random attack miss sound
-//-----------------------------------------------------------------------------
-void CFastZombie::AttackMissSound( void )
+//=========================================================
+// Reproducir sonido al azar de ataque fallido.
+//=========================================================
+void CFastZombie::AttackMissSound()
 {
-	// Play a random attack miss sound
-	EmitSound( "NPC_FastZombie.AttackMiss" );
+	EmitSound("NPC_FastZombie.AttackMiss");
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play a random attack sound.
-//-----------------------------------------------------------------------------
-void CFastZombie::LeapAttackSound( void )
+//=========================================================
+// Reproducir sonido al azar de ataque.
+//=========================================================
+void CFastZombie::LeapAttackSound()
 {
-	EmitSound( "NPC_FastZombie.LeapAttack" );
+	EmitSound("NPC_FastZombie.LeapAttack");
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play a random attack sound.
-//-----------------------------------------------------------------------------
-void CFastZombie::AttackSound( void )
+//=========================================================
+// Reproducir sonido al azar de ataque.
+//=========================================================
+void CFastZombie::AttackSound()
 {
-	EmitSound( "NPC_FastZombie.Attack" );
+	EmitSound("NPC_FastZombie.Attack");
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play a random idle sound.
-//-----------------------------------------------------------------------------
-void CFastZombie::IdleSound( void )
+//=========================================================
+// Reproducir sonido al azar de descanso.
+//=========================================================
+void CFastZombie::IdleSound()
 {
-	EmitSound( "NPC_FastZombie.Idle" );
+	EmitSound("NPC_FastZombie.Idle");
 	MakeAISpookySound( 360.0f );
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play a random pain sound.
-//-----------------------------------------------------------------------------
+//=========================================================
+// Reproducir sonido de dolor.
+//=========================================================
 void CFastZombie::PainSound( const CTakeDamageInfo &info )
 {
 	if ( m_pLayer2 )
-		ENVELOPE_CONTROLLER.SoundPlayEnvelope( m_pLayer2, SOUNDCTRL_CHANGE_VOLUME, envFastZombieVolumePain, ARRAYSIZE(envFastZombieVolumePain) );
+		ENVELOPE_CONTROLLER.SoundPlayEnvelope(m_pLayer2, SOUNDCTRL_CHANGE_VOLUME, envFastZombieVolumePain, ARRAYSIZE(envFastZombieVolumePain));
+
 	if ( sMoanSound )
-		ENVELOPE_CONTROLLER.SoundPlayEnvelope( sMoanSound, SOUNDCTRL_CHANGE_VOLUME, envFastZombieInverseVolumePain, ARRAYSIZE(envFastZombieInverseVolumePain) );
+		ENVELOPE_CONTROLLER.SoundPlayEnvelope(sMoanSound, SOUNDCTRL_CHANGE_VOLUME, envFastZombieInverseVolumePain, ARRAYSIZE(envFastZombieInverseVolumePain));
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+// Reproducir sonido de muerte.
+//=========================================================
 void CFastZombie::DeathSound( const CTakeDamageInfo &info ) 
 {
-	EmitSound( "NPC_FastZombie.Die" );
+	EmitSound("NPC_FastZombie.Die");
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play a random alert sound.
-//-----------------------------------------------------------------------------
-void CFastZombie::AlertSound( void )
+//=========================================================
+// Reproducir sonido de alerta.
+//=========================================================
+void CFastZombie::AlertSound()
 {
 	CBaseEntity *pPlayer = AI_GetSinglePlayer();
 
@@ -927,16 +941,12 @@ void CFastZombie::AlertSound( void )
 		// one that hears the sound.
 		float flDist;
 
-		flDist = ( GetAbsOrigin() - pPlayer->GetAbsOrigin() ).Length();
+		flDist = (GetAbsOrigin() - pPlayer->GetAbsOrigin() ).Length();
 
 		if( flDist > 512 )
-		{
-			EmitSound( "NPC_FastZombie.AlertFar" );
-		}
+			EmitSound("NPC_FastZombie.AlertFar");
 		else
-		{
-			EmitSound( "NPC_FastZombie.AlertNear" );
-		}
+			EmitSound("NPC_FastZombie.AlertNear");
 	}
 
 }
@@ -946,7 +956,7 @@ void CFastZombie::AlertSound( void )
 //-----------------------------------------------------------------------------
 #define FASTZOMBIE_MINLEAP			200
 #define FASTZOMBIE_MAXLEAP			300
-float CFastZombie::InnateRange1MaxRange( void ) 
+float CFastZombie::InnateRange1MaxRange() 
 { 
 	return FASTZOMBIE_MAXLEAP; 
 }
@@ -1147,7 +1157,7 @@ void CFastZombie::HandleAnimEvent( animevent_t *pEvent )
 //
 //
 //-----------------------------------------------------------------------------
-void CFastZombie::LeapAttack( void )
+void CFastZombie::LeapAttack()
 {
 	SetGroundEntity( NULL );
 
@@ -1444,6 +1454,12 @@ int CFastZombie::TranslateSchedule( int scheduleType )
 			break;
 		}
 
+		case SCHED_IDLE_STAND:
+		case SCHED_ALERT_STAND:
+			return SCHED_ZOMBIE_WANDER_MEDIUM;
+		break;
+
+
 	default:
 		return BaseClass::TranslateSchedule( scheduleType );
 	}
@@ -1525,7 +1541,7 @@ void CFastZombie::ClimbTouch( CBaseEntity *pOther )
 //-----------------------------------------------------------------------------
 // Purpose: Shuts down our looping sounds.
 //-----------------------------------------------------------------------------
-void CFastZombie::StopLoopingSounds( void )
+void CFastZombie::StopLoopingSounds()
 {
 	if ( sMoanSound )
 	{
@@ -1624,7 +1640,7 @@ bool CFastZombie::ShouldFailNav( bool bMovementFailed )
 // Purpose: Notifier that lets us know when the fast
 //			zombie has hit the apex of a navigational jump.
 //---------------------------------------------------------
-void CFastZombie::OnNavJumpHitApex( void )
+void CFastZombie::OnNavJumpHitApex()
 {
 	m_fHitApex = true;	// stop subsequent notifications
 }
@@ -1711,7 +1727,7 @@ int CFastZombie::SelectFailSchedule( int failedSchedule, int failedTask, AI_Task
 // Purpose: Do some record keeping for jumps made for 
 //			navigational purposes (i.e., not attack jumps)
 //=========================================================
-void CFastZombie::BeginNavJump( void )
+void CFastZombie::BeginNavJump()
 {
 	m_fIsNavJumping = true;
 	m_fHitApex = false;
@@ -1722,7 +1738,7 @@ void CFastZombie::BeginNavJump( void )
 //=========================================================
 // 
 //=========================================================
-void CFastZombie::EndNavJump( void )
+void CFastZombie::EndNavJump()
 {
 	m_fIsNavJumping = false;
 	m_fHitApex = false;
@@ -1731,7 +1747,7 @@ void CFastZombie::EndNavJump( void )
 //=========================================================
 // 
 //=========================================================
-void CFastZombie::BeginAttackJump( void )
+void CFastZombie::BeginAttackJump()
 {
 	// Set this to true. A little bit later if we fail to pathfind, we check
 	// this value to see if we just jumped. If so, we assume we've jumped 
@@ -1744,14 +1760,14 @@ void CFastZombie::BeginAttackJump( void )
 //=========================================================
 // 
 //=========================================================
-void CFastZombie::EndAttackJump( void )
+void CFastZombie::EndAttackJump()
 {
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CFastZombie::BuildScheduleTestBits( void )
+void CFastZombie::BuildScheduleTestBits()
 {
 	// FIXME: This is probably the desired call to make, but it opts into an untested base class path, we'll need to
 	//		  revisit this and figure out if we want that. -- jdw
@@ -1872,7 +1888,7 @@ bool CFastZombie::ShouldBecomeTorso( const CTakeDamageInfo &info, float flDamage
 //-----------------------------------------------------------------------------
 // Purpose: Add the passenger behavior to our repertoire
 //-----------------------------------------------------------------------------
-bool CFastZombie::CreateBehaviors( void )
+bool CFastZombie::CreateBehaviors()
 {
 	AddBehavior( &m_PassengerBehavior );
 
@@ -1930,7 +1946,7 @@ void CFastZombie::VPhysicsCollision( int index, gamevcollisionevent_t *pEvent )
 //-----------------------------------------------------------------------------
 // Purpose: FIXME: Fold this into LeapAttack using different jump targets!
 //-----------------------------------------------------------------------------
-void CFastZombie::VehicleLeapAttack( void )
+void CFastZombie::VehicleLeapAttack()
 {
 	CBaseEntity *pEnemy = GetEnemy();
 	if ( pEnemy == NULL )
@@ -1990,7 +2006,7 @@ void CFastZombie::VehicleLeapAttackTouch( CBaseEntity *pOther )
 // Purpose: Determine whether we're in a vehicle or not
 // Output : Returns true on success, false on failure.
 //-----------------------------------------------------------------------------
-bool CFastZombie::IsInAVehicle( void )
+bool CFastZombie::IsInAVehicle()
 {
 	// Must be active and getting in/out of vehicle
 	if ( m_PassengerBehavior.IsEnabled() && m_PassengerBehavior.GetPassengerState() != PASSENGER_STATE_OUTSIDE )

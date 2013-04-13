@@ -73,8 +73,10 @@ ConVar	zombie_decaymin("zombie_decaymin", "0.1");
 ConVar	zombie_decaymax("zombie_decaymax", "0.4");
 
 ConVar	zombie_ambushdist		("zombie_ambushdist",		"16000");
-ConVar	zombie_fool				("zombie_fool",				"1",	0, "¿Los zombis son tontos? Desactivarlo evitara que los zombis hagan acciones sin pensarlo.");
-ConVar	zombie_release_headcrab	("zombie_release_headcrab", "1",	0, "¿Liberar los headcrabs cuando sea posible? Desactivarlo evitara que los headcrabs sean liberados.");
+
+ConVar	zombie_fool				("zombie_fool",					"1",	0, "¿Los zombis son tontos? Desactivarlo evitara que los zombis hagan acciones sin pensarlo.");
+ConVar	zombie_release_headcrab	("zombie_release_headcrab",		"1",	0, "¿Liberar los headcrabs cuando sea posible? Desactivarlo evitara que los headcrabs sean liberados.");
+ConVar  zombie_attach_headcrab	("zombie_attach_headcrab",		"1",	0, "¿Debe tener el headcrab en su cabeza? 0 = Si, 1 = No");
 
 //=========================================================
 // Información de daño
@@ -1517,7 +1519,7 @@ void CNPC_BaseZombie::HandleAnimEvent( animevent_t *pEvent )
 		AngleVectors(GetLocalAngles(), &forward);
 
 		forward = forward * 200;
-		ClawAttack(GetClawAttackRange(), sk_zombie_dmg_one_slash.GetFloat(), qaPunch, forward, ZOMBIE_BLOOD_BOTH_HANDS);
+		ClawAttack(GetClawAttackRange(), sk_zombie_dmg_both_slash.GetFloat(), qaPunch, forward, ZOMBIE_BLOOD_BOTH_HANDS);
 		return;
 	}
 

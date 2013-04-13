@@ -65,9 +65,9 @@ extern ConVar autoaim_max_dist;
 
 ConVar sv_autojump							("sv_autojump", "0");
 
-ConVar hl2_walkspeed						("hl2_walkspeed", "170", 0, "Velocidad al caminar (Teniendo el traje de protección)");
-ConVar hl2_normspeed						("hl2_normspeed", "210", 0, "Velocidad al caminar");
-ConVar hl2_sprintspeed						("hl2_sprintspeed", "320", 0, "Velocidad al correr");
+ConVar hl2_walkspeed						("hl2_walkspeed", "170", FCVAR_REPLICATED, "Velocidad al caminar (Teniendo el traje de protección)");
+ConVar hl2_normspeed						("hl2_normspeed", "210", FCVAR_REPLICATED, "Velocidad al caminar");
+ConVar hl2_sprintspeed						("hl2_sprintspeed", "320", FCVAR_REPLICATED, "Velocidad al correr");
 ConVar hl2_darkness_flashlight_factor		("hl2_darkness_flashlight_factor", "1", 0, "");
 
 ConVar player_showpredictedposition			("player_showpredictedposition", "0");

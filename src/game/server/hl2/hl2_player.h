@@ -299,6 +299,10 @@ public:
 	// Tracks our ragdoll entity.
 	CNetworkHandle( CBaseEntity, m_hRagdoll );	// networked entity handle 
 
+	// This player's HL2 specific data that should only be replicated to 
+	//  the player and not to other players.
+	CNetworkVarEmbedded( CHL2PlayerLocalData, m_HL2Local );
+
 protected:
 	virtual void		PreThink();
 	virtual	void		PostThink();
@@ -318,9 +322,6 @@ private:
 	void				OnSquadMemberKilled( inputdata_t &data );
 
 	Class_T				m_nControlClass;			// Class when player is controlling another entity
-	// This player's HL2 specific data that should only be replicated to 
-	//  the player and not to other players.
-	CNetworkVarEmbedded( CHL2PlayerLocalData, m_HL2Local );
 
 	float				m_flTimeAllSuitDevicesOff;
 

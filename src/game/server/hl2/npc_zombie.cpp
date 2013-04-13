@@ -24,10 +24,10 @@
 // Definición de variables de configuración.
 //=========================================================
 
-ConVar sk_zombie_health				("sk_zombie_health",			"0",	0, "Salud del zombi clasico.");
-ConVar sk_zombie_add_speed			("sk_zombie_add_speed",			"50",	0, "Aumento de velocidad.");
-ConVar sk_zombie_add_accel			("sk_zombie_add_accel",			"20",	0, "Aumento de aceleración.");
-ConVar sk_zombie_attach_headcrab	("sk_zombie_attach_headcrab",	"1",	0, "¿Debe tener el headcrab en su cabeza?");
+ConVar sk_zombie_health				("sk_zombie_health",			"3",	0, "Salud del zombi clasico.");
+ConVar sk_zombie_speed				("sk_zombie_speed",				"0",	0, "Aumento de velocidad.");
+ConVar sk_zombie_accel				("sk_zombie_accel",				"0",	0, "Aumento de aceleración.");
+ConVar sk_zombie_canrun				("sk_zombie_canrun",			"1",	0, "¿El modelo del zombi puede correr?");
 
 //=========================================================
 // Configuración del NPC
@@ -40,12 +40,16 @@ ConVar sk_zombie_attach_headcrab	("sk_zombie_attach_headcrab",	"1",	0, "¿Debe te
 #define MODEL_LEGS		"models/zombie/classic_legs.mdl"
 #define MODEL_TORSO		"models/zombie/classic_torso.mdl"
 
+#define CLASS_NAME_HEADCRAB	"npc_headcrab"
+
 static const char *RandomModels[] =
 {
 	// Valve - HL2
 	"classic.mdl",
+
 	// Zombie Master
-	/*"zm_classic_01.mdl",
+	/*"zm_classic.mdl",
+	"zm_classic_01.mdl",
 	"zm_classic_02.mdl",
 	"zm_classic_03.mdl",
 	"zm_classic_04.mdl",
@@ -55,6 +59,7 @@ static const char *RandomModels[] =
 	"zm_classic_08.mdl",
 	"zm_classic_09.mdl",
 	"zm_classic_10.mdl",*/
+
 	// Black Mesa
 	"zombie_guard.mdl",
 	"zombie_sci.mdl",
@@ -119,6 +124,47 @@ envelopePoint_t envZombieMoanIgnited[] =
 	},
 };
 
+//=========================================================
+// Condiciones
+//=========================================================
+
+enum
+{
+	COND_BLOCKED_BY_DOOR = LAST_BASE_ZOMBIE_CONDITION,
+	COND_DOOR_OPENED,
+	COND_ZOMBIE_CHARGE_TARGET_MOVED,
+};
+
+//=========================================================
+// Eventos
+//=========================================================
+
+enum
+{
+	SCHED_ZOMBIE_BASH_DOOR = LAST_BASE_ZOMBIE_SCHEDULE,
+	SCHED_ZOMBIE_WANDER_ANGRILY,
+	SCHED_ZOMBIE_CHARGE_ENEMY,
+	SCHED_ZOMBIE_FAIL,
+};
+
+//=========================================================
+// Tareas
+//=========================================================
+
+enum
+{
+	TASK_ZOMBIE_EXPRESS_ANGER = LAST_BASE_ZOMBIE_TASK,
+	TASK_ZOMBIE_YAW_TO_DOOR,
+	TASK_ZOMBIE_ATTACK_DOOR,
+	TASK_ZOMBIE_CHARGE_ENEMY,
+};
+
+//=========================================================
+// Actividades
+//=========================================================
+
+int ACT_ZOMBIE_TANTRUM;
+int ACT_ZOMBIE_WALLPOUND;
 
 //=========================================================
 // Clase del Zombie clásico
@@ -137,6 +183,7 @@ public:
 	void Spawn();
 	void Precache();
 
+	bool BlackMesaModel();
 	void SetZombieModel();
 	void MoanSound(envelopePoint_t *pEnvelope, int iEnvelopeSize);
 	bool ShouldBecomeTorso(const CTakeDamageInfo &info, float flDamageThreshold);
@@ -204,58 +251,8 @@ private:
 	bool				bModel;
 };
 
-LINK_ENTITY_TO_CLASS( npc_zombie, CZombie );
+LINK_ENTITY_TO_CLASS( npc_zombie,		CZombie );
 LINK_ENTITY_TO_CLASS( npc_zombie_torso, CZombie );
-
-//=========================================================
-// Sonidos de los gemidos del zombie
-//=========================================================
-const char *CZombie::pMoanSounds[] =
-{
-	 "NPC_BaseZombie.Moan1",
-	 "NPC_BaseZombie.Moan2",
-	 "NPC_BaseZombie.Moan3",
-	 "NPC_BaseZombie.Moan4",
-};
-
-//=========================================================
-// Condiciones
-//=========================================================
-enum
-{
-	COND_BLOCKED_BY_DOOR = LAST_BASE_ZOMBIE_CONDITION,
-	COND_DOOR_OPENED,
-	COND_ZOMBIE_CHARGE_TARGET_MOVED,
-};
-
-//=========================================================
-// Eventos
-//=========================================================
-enum
-{
-	SCHED_ZOMBIE_BASH_DOOR = LAST_BASE_ZOMBIE_SCHEDULE,
-	SCHED_ZOMBIE_WANDER_ANGRILY,
-	SCHED_ZOMBIE_CHARGE_ENEMY,
-	SCHED_ZOMBIE_FAIL,
-};
-
-//=========================================================
-// Tareas
-//=========================================================
-enum
-{
-	TASK_ZOMBIE_EXPRESS_ANGER = LAST_BASE_ZOMBIE_TASK,
-	TASK_ZOMBIE_YAW_TO_DOOR,
-	TASK_ZOMBIE_ATTACK_DOOR,
-	TASK_ZOMBIE_CHARGE_ENEMY,
-};
-
-//=========================================================
-// Actividades
-//=========================================================
-
-int ACT_ZOMBIE_TANTRUM;
-int ACT_ZOMBIE_WALLPOUND;
 
 //=========================================================
 // Definición de datos.
@@ -273,16 +270,27 @@ BEGIN_DATADESC( CZombie )
 END_DATADESC()
 
 //=========================================================
-// Spawn()
+// Sonidos de los gemidos del zombi
+//=========================================================
+
+const char *CZombie::pMoanSounds[] =
+{
+	 "NPC_BaseZombie.Moan1",
+	 "NPC_BaseZombie.Moan2",
+	 "NPC_BaseZombie.Moan3",
+	 "NPC_BaseZombie.Moan4",
+};
+
+//=========================================================
 // Crear un nuevo zombi.
 //=========================================================
 void CZombie::Spawn()
 {
 	Precache();
+	ConVarRef zombie_attach_headcrab("zombie_attach_headcrab");
 
-	IsTorso			= ( FClassnameIs(this, "npc_zombie") ) ? false : true;
-	IsHeadless		= false;
-	AttachHeadcrab	= sk_zombie_attach_headcrab.GetBool();
+	IsTorso			= ( FClassnameIs(this, "npc_zombie") ) ? false : true; // ¿Es el puro torso?
+	IsHeadless		= zombie_attach_headcrab.GetBool();
 
 	// Color de la sangre.
 	SetBloodColor(BLOOD);
@@ -291,7 +299,7 @@ void CZombie::Spawn()
 	// Salud, estado del NPC y vista.
 	m_iHealth			= sk_zombie_health.GetFloat();
 	m_flFieldOfView		= FOV;
-	m_flGroundSpeed		= 500.0f;
+	//m_flGroundSpeed		= 500.0f;
 
 	CapabilitiesClear();
 	BaseClass::Spawn();
@@ -302,13 +310,12 @@ void CZombie::Spawn()
 	bModel = false;
 
 	// Aumentamos su velocidad ¡esto es un juego de zombis!
-	SetAddSpeed(sk_zombie_add_speed.GetFloat());
-	SetAddAccel(sk_zombie_add_accel.GetFloat());
+	SetAddSpeed(sk_zombie_speed.GetFloat());
+	SetAddAccel(sk_zombie_accel.GetFloat());
 }
 
 //=========================================================
-// Precache()
-// Guardar los objetos necesarios en caché.
+// Guarda los objetos necesarios en caché.
 //=========================================================
 void CZombie::Precache()
 {
@@ -323,13 +330,7 @@ void CZombie::Precache()
 	int i;
 
 	for ( i = 0; i < Models; ++i )
-	{
-		// Claro, Black Mesa le puso una s al final en su carpeta de modelos.
-		if ( RandomModels[i] == "zombie_sci.mdl" || RandomModels[i] == "zombie_guard.mdl" )
-			PrecacheModel(CFmtStr("models/zombies/%s", RandomModels[i]));
-		else
-			PrecacheModel(CFmtStr("models/zombie/%s", RandomModels[i]));
-	}
+		PrecacheModel(CFmtStr("models/zombie/%s", RandomModels[i]));
 
 	// Sonidos.
 	PrecacheScriptSound("Zombie.FootstepRight");
@@ -345,6 +346,7 @@ void CZombie::Precache()
 	PrecacheScriptSound("Zombie.Idle");
 	PrecacheScriptSound("Zombie.Attack");
 
+	// Quejidos
 	PrecacheScriptSound("NPC_BaseZombie.Moan1");
 	PrecacheScriptSound("NPC_BaseZombie.Moan2");
 	PrecacheScriptSound("NPC_BaseZombie.Moan3");
@@ -501,7 +503,7 @@ void CZombie::AttackSound()
 //=========================================================
 const char *CZombie::GetHeadcrabClassname()
 {
-	return "npc_headcrab";
+	return CLASS_NAME_HEADCRAB;
 }
 
 //=========================================================
@@ -532,7 +534,7 @@ const char *CZombie::GetTorsoModel()
 }
 
 //=========================================================
-// Establecer el modelo de este zombi.
+// Establece el modelo de este zombi.
 //=========================================================
 void CZombie::SetZombieModel()
 {
@@ -552,28 +554,18 @@ void CZombie::SetZombieModel()
 		{
 			// Obtenemos un modelo al azar.
 			int rModel	= random->RandomInt(0, (ARRAYSIZE(RandomModels) - 1));
-
-			if ( RandomModels[rModel] == "zombie_sci.mdl" || RandomModels[rModel] == "zombie_guard.mdl" )
-				ZombieModel = CFmtStr("models/zombies/%s", RandomModels[rModel]);
-			else
-				ZombieModel = CFmtStr("models/zombie/%s", RandomModels[rModel]);
+			ZombieModel = CFmtStr("models/zombie/%s", RandomModels[rModel]);
 
 			bModel = true;
 		}
 		else
-		{
-			if ( GetModelName() == MAKE_STRING("zombie_sci.mdl") || GetModelName() == MAKE_STRING("zombie_guard.mdl") )
-				ZombieModel = CFmtStr("models/zombies/%s", GetModelName());
-			else
-				ZombieModel = CFmtStr("models/zombie/%s", GetModelName());
-		}
+			ZombieModel = CFmtStr("models/zombie/%s", GetModelName());
 		
 		SetModel(ZombieModel);
 		SetHullType(HULL_HUMAN);
 	}
 
-	if ( AttachHeadcrab )
-		SetBodygroup(ZOMBIE_BODYGROUP_HEADCRAB, !IsHeadless);
+	SetBodygroup(ZOMBIE_BODYGROUP_HEADCRAB, !IsHeadless);
 
 	SetHullSizeNormal(true);
 	SetDefaultEyeOffset();
@@ -587,12 +579,20 @@ void CZombie::SetZombieModel()
 	}
 }
 
+bool CZombie::BlackMesaModel()
+{
+	if ( GetModelName() == MAKE_STRING("models/zombies/zombie_guard.mdl") || GetModelName() == MAKE_STRING("models/zombies/zombie_sci.mdl") )
+		return true;
+
+	return false;
+}
+
 //=========================================================
 // Reproducir sonido de gemido.
 //=========================================================
 void CZombie::MoanSound(envelopePoint_t *pEnvelope, int iEnvelopeSize)
 {
-	if( IsOnFire() )
+	if ( IsOnFire() )
 		BaseClass::MoanSound(pEnvelope, iEnvelopeSize);
 }
 
@@ -604,7 +604,7 @@ bool CZombie::ShouldBecomeTorso(const CTakeDamageInfo &info, float flDamageThres
 	// No partir a la mitad cuando esta "dormido".
 	// Aparte de ser poco realista, si el jugador mata al zombi con un explosivo (granada, barril)
 	// la fuerza de la explosión causara que las piernas/torso salgan disparadas a velocidades ridículas debido a su peso.
-	if( IsSlumped() )
+	if ( IsSlumped() )
 		return false;
 
 	// Dejar la desición a la clase madre. (basezombie)
@@ -695,12 +695,14 @@ int CZombie::TranslateSchedule(int scheduleType)
 	if ( !IsTorso && scheduleType == SCHED_FAIL )
 		return SCHED_ZOMBIE_FAIL;
 
+	if ( scheduleType == SCHED_IDLE_STAND || scheduleType == SCHED_ALERT_STAND )
+		return SCHED_ZOMBIE_WANDER_ANGRILY;
+
 	return BaseClass::TranslateSchedule(scheduleType);
 }
 
 //=========================================================
-// NPC_TranslateActivity()
-// Convertir actividades que este zombi no posee a
+// Convierte actividades que este zombi no posee a
 // actividades válidas.
 //=========================================================
 Activity CZombie::NPC_TranslateActivity(Activity newActivity)
@@ -708,8 +710,11 @@ Activity CZombie::NPC_TranslateActivity(Activity newActivity)
 	newActivity = BaseClass::NPC_TranslateActivity(newActivity);
 
 	// Los zombis clasicos no pueden corren (¡carajo!)
-	if ( newActivity == ACT_RUN )
-		return ACT_WALK;
+	if ( !sk_zombie_canrun.GetBool() )
+	{
+		if ( newActivity == ACT_RUN )
+			return ACT_WALK;
+	}
 
 	if ( IsTorso && (newActivity == ACT_ZOMBIE_TANTRUM) )
 		return ACT_IDLE;
@@ -962,7 +967,7 @@ void CZombie::BuildScheduleTestBits()
 {
 	BaseClass::BuildScheduleTestBits();
 
-	if( !IsTorso && !IsCurSchedule(SCHED_FLINCH_PHYSICS) && !m_ActBusyBehavior.IsActive() )
+	if ( !IsTorso && !IsCurSchedule(SCHED_FLINCH_PHYSICS) && !m_ActBusyBehavior.IsActive() )
 		SetCustomInterruptCondition(COND_PHYSICS_DAMAGE);
 }
 

@@ -36,6 +36,43 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+//=========================================================
+// Definición de variables para la configuración.
+//=========================================================
+
+ConVar g_debug_headcrab( "g_debug_headcrab", "0", FCVAR_CHEAT );
+
+ConVar	sk_headcrab_health				("sk_headcrab_health",				"0");
+ConVar	sk_headcrab_fast_health			("sk_headcrab_fast_health",			"0");
+ConVar	sk_headcrab_poison_health		("sk_headcrab_poison_health",		"0");
+ConVar	sk_headcrab_melee_dmg			("sk_headcrab_melee_dmg",			"0");
+ConVar	sk_headcrab_poison_npc_damage	("sk_headcrab_poison_npc_damage",	"0");
+
+//=========================================================
+// Configuración del NPC
+//=========================================================
+
+// Modelo
+#define MODEL_BASE		"models/xenians/agrunt.mdl"
+
+// ¿Qué capacidades tendrá?
+// Moverse en el suelo - Ataque cuerpo a cuerpo 1 - Ataque cuerpo a cuerpo 2 - Saltar (No completo) - Girar la cabeza
+#define CAPABILITIES	bits_CAP_MOVE_GROUND | bits_CAP_INNATE_RANGE_ATTACK1 | bits_CAP_SQUAD
+
+// Color de la sangre.
+#define BLOOD			BLOOD_COLOR_GREEN
+
+// Color de renderizado
+#define RENDER_COLOR	255, 255, 255, 255
+
+// Campo de visión
+#define FOV				0.2f
+
+
+//=========================================================
+// Información del NPC
+//=========================================================
+
 #define CRAB_ATTN_IDLE				(float)1.5
 #define HEADCRAB_GUTS_GIB_COUNT		1
 #define HEADCRAB_LEGS_GIB_COUNT		3
@@ -50,39 +87,38 @@
 #define HEADCRAB_RUN_MINSPEED	0.5
 #define HEADCRAB_RUN_MAXSPEED	1.0
 
+#define HEADCRAB_IGNORE_WORLD_COLLISION_TIME 0.5
+#define HEADCRAB_BURROW_POINT_SEARCH_RADIUS 256.0
+#define HEADCRAB_BURN_SOUND_FREQUENCY 10
+
 const float HEADCRAB_BURROWED_FOV = -1.0f;
 const float HEADCRAB_UNBURROWED_FOV = 0.5f;
-
-#define HEADCRAB_IGNORE_WORLD_COLLISION_TIME 0.5
 
 const int HEADCRAB_MIN_JUMP_DIST = 48;
 const int HEADCRAB_MAX_JUMP_DIST = 256;
 
-#define HEADCRAB_BURROW_POINT_SEARCH_RADIUS 256.0
-
 // Debugging
 #define	HEADCRAB_DEBUG_HIDING		1
 
-#define HEADCRAB_BURN_SOUND_FREQUENCY 10
+#define HEADCRAB_MAX_LEDGE_HEIGHT	12.0f
 
-ConVar g_debug_headcrab( "g_debug_headcrab", "0", FCVAR_CHEAT );
+//=========================================================
+// Opciones de aparición.
+//=========================================================
 
-//------------------------------------
-// Spawnflags
-//------------------------------------
 #define SF_HEADCRAB_START_HIDDEN		(1 << 16)
 #define SF_HEADCRAB_START_HANGING		(1 << 17)
 
-
-//-----------------------------------------------------------------------------
+//=========================================================
 // Think contexts.
-//-----------------------------------------------------------------------------
+//=========================================================
+
 static const char *s_pPitchContext = "PitchContext";
 
+//=========================================================
+// Animaciones
+//=========================================================
 
-//-----------------------------------------------------------------------------
-// Animation events.
-//-----------------------------------------------------------------------------
 int AE_HEADCRAB_JUMPATTACK;
 int AE_HEADCRAB_JUMP_TELEGRAPH;
 int AE_POISONHEADCRAB_FLINCH_HOP;
@@ -93,10 +129,9 @@ int AE_HEADCRAB_BURROW_IN_FINISH;
 int AE_HEADCRAB_BURROW_OUT;
 int AE_HEADCRAB_CEILING_DETACH;
 
-
-//-----------------------------------------------------------------------------
-// Custom schedules.
-//-----------------------------------------------------------------------------
+//=========================================================
+// Tareas programadas
+//=========================================================
 enum
 {
 	SCHED_HEADCRAB_RANGE_ATTACK1 = LAST_SHARED_SCHEDULE,
@@ -124,9 +159,8 @@ enum
 	SCHED_HEADCRAB_CEILING_DROP,
 };
 
-
 //=========================================================
-// tasks
+// Tareas
 //=========================================================
 enum 
 {
@@ -153,7 +187,7 @@ enum
 
 
 //=========================================================
-// conditions 
+// Condiciones
 //=========================================================
 enum
 {
@@ -164,7 +198,7 @@ enum
 };
 
 //=========================================================
-// private activities
+// Actividades
 //=========================================================
 int ACT_HEADCRAB_THREAT_DISPLAY;
 int ACT_HEADCRAB_HOP_LEFT;
@@ -181,15 +215,9 @@ int ACT_HEADCRAB_CEILING_DETACH;
 int ACT_HEADCRAB_CEILING_FALL;
 int ACT_HEADCRAB_CEILING_LAND;
 
-
-//-----------------------------------------------------------------------------
-// Skill settings.
-//-----------------------------------------------------------------------------
-ConVar	sk_headcrab_health( "sk_headcrab_health","0");
-ConVar	sk_headcrab_fast_health( "sk_headcrab_fast_health","0");
-ConVar	sk_headcrab_poison_health( "sk_headcrab_poison_health","0");
-ConVar	sk_headcrab_melee_dmg( "sk_headcrab_melee_dmg","0");
-ConVar	sk_headcrab_poison_npc_damage( "sk_headcrab_poison_npc_damage", "0" );
+//=========================================================
+// Guardado y definición de datos
+//=========================================================
 
 BEGIN_DATADESC( CBaseHeadcrab )
 
@@ -225,10 +253,10 @@ BEGIN_DATADESC( CBaseHeadcrab )
 
 END_DATADESC()
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CBaseHeadcrab::Spawn( void )
+//=========================================================
+// Crear un nuevo Headcrab
+//=========================================================
+void CBaseHeadcrab::Spawn()
 {
 	//Precache();
 	//SetModel( "models/headcrab.mdl" );
@@ -239,185 +267,169 @@ void CBaseHeadcrab::Spawn( void )
 	AddSpawnFlags( SF_NPC_FADE_CORPSE );
 #endif // _XBOX
 
+	SetBloodColor(BLOOD);
+
 	SetHullType(HULL_TINY);
 	SetHullSizeNormal();
 
-	SetSolid( SOLID_BBOX );
-	AddSolidFlags( FSOLID_NOT_STANDABLE );
-	SetMoveType( MOVETYPE_STEP );
+	// Navegación, estado físico y opciones extra.
+	SetSolid(SOLID_BBOX);
+	AddSolidFlags(FSOLID_NOT_STANDABLE);
+	SetMoveType(MOVETYPE_STEP);
 
-	SetCollisionGroup( HL2COLLISION_GROUP_HEADCRAB );
+	// Colisión y vista.
+	SetCollisionGroup(HL2COLLISION_GROUP_HEADCRAB);
+	SetViewOffset(Vector(6, 0, 11)) ;		// Position of the eyes relative to NPC's origin.
 
-	SetViewOffset( Vector(6, 0, 11) ) ;		// Position of the eyes relative to NPC's origin.
-
-	SetBloodColor( BLOOD_COLOR_GREEN );
-	m_flFieldOfView		= 0.5;
 	m_NPCState			= NPC_STATE_NONE;
 	m_nGibCount			= HEADCRAB_ALL_GIB_COUNT;
+	m_flFieldOfView		= FOV;
 
-	// Are we starting hidden?
+	// Empezaremos escondidos.
 	if ( m_spawnflags & SF_HEADCRAB_START_HIDDEN )
 	{
 		m_bHidden = true;
-		AddSolidFlags( FSOLID_NOT_SOLID );
-		SetRenderColorA( 0 );
+		AddSolidFlags(FSOLID_NOT_SOLID);
+		SetRenderColorA(0);
 		m_nRenderMode = kRenderTransTexture;
-		AddEffects( EF_NODRAW );
+		AddEffects(EF_NODRAW);
 	}
 	else
-	{
 		m_bHidden = false;
-	}
 
+	// Capacidades
 	CapabilitiesClear();
-	CapabilitiesAdd( bits_CAP_MOVE_GROUND | bits_CAP_INNATE_RANGE_ATTACK1 );
-	CapabilitiesAdd( bits_CAP_SQUAD );
+	CapabilitiesAdd(CAPABILITIES);
 
 	// headcrabs get to cheat for 5 seconds (sjb)
-	GetEnemies()->SetFreeKnowledgeDuration( 5.0 );
+	GetEnemies()->SetFreeKnowledgeDuration(5.0);
 
-	m_bHangingFromCeiling = false;
-	m_flIlluminatedTime = -1;
+	m_bHangingFromCeiling	= false;
+	m_flIlluminatedTime		= -1;
 }
 
-//-----------------------------------------------------------------------------
+//=========================================================
 // Purpose: Stuff that must happen after NPCInit is called.
-//-----------------------------------------------------------------------------
+//=========================================================
 void CBaseHeadcrab::HeadcrabInit()
 {
-	// See if we're supposed to start burrowed
+	// Al parecer empezamos enterrados
 	if ( m_bStartBurrowed )
 	{
-		SetBurrowed( true );
-		SetSchedule( SCHED_HEADCRAB_BURROW_WAIT );
+		SetBurrowed(true);
+		SetSchedule(SCHED_HEADCRAB_BURROW_WAIT);
 	}
 
 	if ( GetSpawnFlags() & SF_HEADCRAB_START_HANGING )
 	{
-		SetSchedule( SCHED_HEADCRAB_CEILING_WAIT );
+		SetSchedule(SCHED_HEADCRAB_CEILING_WAIT);
 		m_flIlluminatedTime = -1;
 	}
 }	
 
-
-//-----------------------------------------------------------------------------
-// Purpose: Precaches all resources this monster needs.
-//-----------------------------------------------------------------------------
-void CBaseHeadcrab::Precache( void )
+//=========================================================
+// Guardar los objetos necesarios en caché.
+//=========================================================
+void CBaseHeadcrab::Precache()
 {
 	BaseClass::Precache();
 }	
 
-
-//-----------------------------------------------------------------------------
+//=========================================================
 // The headcrab will crawl from the cannister, then jump to a burrow point
-//-----------------------------------------------------------------------------
+//=========================================================
 void CBaseHeadcrab::CrawlFromCanister()
 {
 	// This is necessary to prevent ground computations, etc. from happening
 	// while the crawling animation is occuring
-	AddFlag( FL_FLY );
+
+	AddFlag(FL_FLY);
 	m_bCrawlFromCanister = true;
-	SetNextThink( gpGlobals->curtime );
+	SetNextThink(gpGlobals->curtime);
 }
 
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : NewActivity - 
-//-----------------------------------------------------------------------------
-void CBaseHeadcrab::OnChangeActivity( Activity NewActivity )
+//=========================================================
+//=========================================================
+void CBaseHeadcrab::OnChangeActivity(Activity NewActivity)
 {
-	bool fRandomize = false;
+	bool fRandomize		= false;
 	float flRandomRange = 0.0;
 
 	// If this crab is starting to walk or idle, pick a random point within
 	// the animation to begin. This prevents lots of crabs being in lockstep.
 	if ( NewActivity == ACT_IDLE )
 	{
-		flRandomRange = 0.75;
-		fRandomize = true;
+		flRandomRange	= 0.75;
+		fRandomize		= true;
 	}
 	else if ( NewActivity == ACT_RUN )
 	{
-		flRandomRange = 0.25;
-		fRandomize = true;
+		flRandomRange	= 0.25;
+		fRandomize		= true;
 	}
 
-	BaseClass::OnChangeActivity( NewActivity );
+	BaseClass::OnChangeActivity(NewActivity);
 
 	if( fRandomize )
-	{
-		SetCycle( random->RandomFloat( 0.0, flRandomRange ) );
-	}
+		SetCycle(random->RandomFloat(0.0, flRandomRange));
 }
 
 
-//-----------------------------------------------------------------------------
-// Purpose: Indicates this monster's place in the relationship table.
-// Output : 
-//-----------------------------------------------------------------------------
-Class_T	CBaseHeadcrab::Classify( void )
+//=========================================================
+// Devuelve el tipo de NPC.
+// Con el fin de usarse en la tabla de relaciones.
+//=========================================================
+Class_T	CBaseHeadcrab::Classify()
 {
+	// Estamos invisibles para todos.
 	if( m_bHidden )
-	{
-		// Effectively invisible to other AI's while hidden.
-		return( CLASS_NONE ); 
-	}
+		return CLASS_NONE; 
 	else
-	{
-		return( CLASS_HEADCRAB ); 
-	}
+		return CLASS_HEADCRAB; 
 }
 
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : &posSrc - 
-// Output : Vector
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 Vector CBaseHeadcrab::BodyTarget( const Vector &posSrc, bool bNoisy ) 
 { 
 	Vector vecResult;
-	vecResult = GetAbsOrigin();
+	vecResult	= GetAbsOrigin();
 	vecResult.z += 6;
+
 	return vecResult;
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 float CBaseHeadcrab::GetAutoAimRadius()
 { 
 	if( g_pGameRules->GetAutoAimMode() == AUTOAIM_ON_CONSOLE )
-	{
 		return 24.0f;
-	}
 
 	return 12.0f;
 }
 
-
-//-----------------------------------------------------------------------------
+//=========================================================
 // Purpose: Allows each sequence to have a different turn rate associated with it.
-// Output : float
-//-----------------------------------------------------------------------------
-float CBaseHeadcrab::MaxYawSpeed( void )
+//=========================================================
+float CBaseHeadcrab::MaxYawSpeed()
 {
 	return BaseClass::MaxYawSpeed();
 }
 
-//-----------------------------------------------------------------------------
+//=========================================================
 // Because the AI code does a tracehull to find the ground under an NPC, headcrabs
 // can often be seen standing with one edge of their box perched on a ledge and
 // 80% or more of their body hanging out over nothing. This is often a case
 // where a headcrab will be unable to pathfind out of its location. This heuristic
 // very crudely tries to determine if this is the case by casting a simple ray 
 // down from the center of the headcrab.
-//-----------------------------------------------------------------------------
-#define HEADCRAB_MAX_LEDGE_HEIGHT	12.0f
+//=========================================================
 bool CBaseHeadcrab::IsFirmlyOnGround()
 {
-	if( !(GetFlags()&FL_ONGROUND) )
+	if ( !(GetFlags() & FL_ONGROUND) )
 		return false;
 
 	trace_t tr;
@@ -425,72 +437,64 @@ bool CBaseHeadcrab::IsFirmlyOnGround()
 	return tr.fraction != 1.0;
 }
 
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 void CBaseHeadcrab::MoveOrigin( const Vector &vecDelta )
 {
-	UTIL_SetOrigin( this, GetLocalOrigin() + vecDelta );
+	UTIL_SetOrigin(this, GetLocalOrigin() + vecDelta);
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : vecPos - 
-//-----------------------------------------------------------------------------
-void CBaseHeadcrab::ThrowAt( const Vector &vecPos )
+//=========================================================
+// Permite hacer un salto de ataque a la dirección indicada.
+//=========================================================
+void CBaseHeadcrab::ThrowAt(const Vector &vecPos)
 {
-	JumpAttack( false, vecPos, true );
+	JumpAttack(false, vecPos, true);
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : vecPos - 
-//-----------------------------------------------------------------------------
-void CBaseHeadcrab::JumpToBurrowHint( CAI_Hint *pHint )
+//=========================================================
+//=========================================================
+void CBaseHeadcrab::JumpToBurrowHint(CAI_Hint *pHint)
 {
-	Vector vecVel = VecCheckToss( this, GetAbsOrigin(), pHint->GetAbsOrigin(), 0.5f, 1.0f, false, NULL, NULL );
+	Vector vecVel = VecCheckToss(this, GetAbsOrigin(), pHint->GetAbsOrigin(), 0.5f, 1.0f, false, NULL, NULL);
 
 	// Undershoot by a little because it looks bad if we overshoot and turn around to burrow.
 	vecVel *= 0.9f;
-	Leap( vecVel );
+	Leap(vecVel);
 
-	GrabHintNode( pHint );
+	GrabHintNode(pHint);
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : vecVel - 
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 void CBaseHeadcrab::Leap( const Vector &vecVel )
 {
-	SetTouch( &CBaseHeadcrab::LeapTouch );
+	SetTouch(&CBaseHeadcrab::LeapTouch);
 
-	SetCondition( COND_FLOATING_OFF_GROUND );
-	SetGroundEntity( NULL );
+	SetCondition(COND_FLOATING_OFF_GROUND);
+	SetGroundEntity(NULL);
 
 	m_flIgnoreWorldCollisionTime = gpGlobals->curtime + HEADCRAB_IGNORE_WORLD_COLLISION_TIME;
 
+	// Take him off ground so engine doesn't instantly reset FL_ONGROUND.
 	if( HasHeadroom() )
-	{
-		// Take him off ground so engine doesn't instantly reset FL_ONGROUND.
-		MoveOrigin( Vector( 0, 0, 1 ) );
-	}
+		MoveOrigin(Vector( 0, 0, 1 ));
 
-	SetAbsVelocity( vecVel );
+	SetAbsVelocity(vecVel);
 
 	// Think every frame so the player sees the headcrab where he actually is...
 	m_bMidJump = true;
-	SetThink( &CBaseHeadcrab::ThrowThink );
-	SetNextThink( gpGlobals->curtime );
+
+	SetThink(&CBaseHeadcrab::ThrowThink);
+	SetNextThink(gpGlobals->curtime);
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CBaseHeadcrab::ThrowThink( void )
+//=========================================================
+// Pensar: Bucle de ejecución de tareas al saltar.
+//=========================================================
+void CBaseHeadcrab::ThrowThink()
 {
-	if (gpGlobals->curtime > m_flNextNPCThink)
+	if ( gpGlobals->curtime > m_flNextNPCThink )
 	{
 		NPCThink();
 		m_flNextNPCThink = gpGlobals->curtime + 0.1;
@@ -498,8 +502,8 @@ void CBaseHeadcrab::ThrowThink( void )
 
 	if( GetFlags() & FL_ONGROUND )
 	{
-		SetThink( &CBaseHeadcrab::CallNPCThink );
-		SetNextThink( gpGlobals->curtime + 0.1 );
+		SetThink(&CBaseHeadcrab::CallNPCThink);
+		SetNextThink(gpGlobals->curtime + 0.1);
 		return;
 	}
 
@@ -507,37 +511,35 @@ void CBaseHeadcrab::ThrowThink( void )
 }
 
 
-//-----------------------------------------------------------------------------
-// Purpose: Does a jump attack at the given position.
-// Input  : bRandomJump - Just hop in a random direction.
-//			vecPos - Position to jump at, ignored if bRandom is set to true.
-//			bThrown - 
-//-----------------------------------------------------------------------------
+//=========================================================
+// Realiza un ataque de salto.
+//=========================================================
 void CBaseHeadcrab::JumpAttack( bool bRandomJump, const Vector &vecPos, bool bThrown )
 {
 	Vector vecJumpVel;
+
+	// Iremos a una dirección especifica.
 	if ( !bRandomJump )
 	{
 		float gravity = sv_gravity.GetFloat();
+
+		// Necesitamos que la gravedad sea 1
 		if ( gravity <= 1 )
-		{
 			gravity = 1;
-		}
 
 		// How fast does the headcrab need to travel to reach the position given gravity?
-		float flActualHeight = vecPos.z - GetAbsOrigin().z;
-		float height = flActualHeight;
+		float flActualHeight	= vecPos.z - GetAbsOrigin().z;
+		float height			= flActualHeight;
+
 		if ( height < 16 )
-		{
 			height = 16;
-		}
+
 		else
 		{
 			float flMaxHeight = bThrown ? 400 : 120;
+
 			if ( height > flMaxHeight )
-			{
 				height = flMaxHeight;
-			}
 		}
 
 		// overshoot the jump by an additional 8 inches
@@ -547,19 +549,19 @@ void CBaseHeadcrab::JumpAttack( bool bRandomJump, const Vector &vecPos, bool bTh
 		// of the enemy's box.
 		
 		float additionalHeight = 0;
+
 		if ( height < 32 )
-		{
 			additionalHeight = 8;
-		}
 
 		height += additionalHeight;
 
 		// NOTE: This equation here is from vf^2 = vi^2 + 2*a*d
 		float speed = sqrt( 2 * gravity * height );
-		float time = speed / gravity;
+		float time	= speed / gravity;
 
 		// add in the time it takes to fall the additional height
 		// So the impact takes place on the downward slope at the original height
+
 		time += sqrt( (2 * additionalHeight) / gravity );
 
 		// Scale the sideways velocity to get there at the right time
@@ -570,33 +572,30 @@ void CBaseHeadcrab::JumpAttack( bool bRandomJump, const Vector &vecPos, bool bTh
 		vecJumpVel.z = speed;
 
 		// Don't jump too far/fast.
-		float flJumpSpeed = vecJumpVel.Length();
-		float flMaxSpeed = bThrown ? 1000.0f : 650.0f;
+		float flJumpSpeed	= vecJumpVel.Length();
+		float flMaxSpeed	= bThrown ? 1000.0f : 650.0f;
+
 		if ( flJumpSpeed > flMaxSpeed )
-		{
 			vecJumpVel *= flMaxSpeed / flJumpSpeed;
-		}
 	}
 	else
 	{
-		//
 		// Jump hop, don't care where.
-		//
+
 		Vector forward, up;
-		AngleVectors( GetLocalAngles(), &forward, NULL, &up );
-		vecJumpVel = Vector( forward.x, forward.y, up.z ) * 350;
+		AngleVectors(GetLocalAngles(), &forward, NULL, &up);
+		vecJumpVel = Vector(forward.x, forward.y, up.z) * 350;
 	}
 
 	AttackSound();
-	Leap( vecJumpVel );
+	Leap(vecJumpVel);
 }
 
 
-//-----------------------------------------------------------------------------
-// Purpose: Catches the monster-specific messages that occur when tagged
-//			animation frames are played.
-// Input  : *pEvent - 
-//-----------------------------------------------------------------------------
+//=========================================================
+// Ejecuta una acción al momento que el modelo hace
+// la animación correspondiente.
+//=========================================================
 void CBaseHeadcrab::HandleAnimEvent( animevent_t *pEvent )
 {
 	if ( pEvent->event == AE_HEADCRAB_JUMPATTACK )
@@ -610,36 +609,32 @@ void CBaseHeadcrab::HandleAnimEvent( animevent_t *pEvent )
 		if ( pEnemy )
 		{
 			if ( m_bCommittedToJump )
-			{
 				JumpAttack( false, m_vecCommittedJumpPos );
-			}
+
+			// Jump at my enemy's eyes.
 			else
-			{
-				// Jump at my enemy's eyes.
 				JumpAttack( false, pEnemy->EyePosition() );
-			}
 
 			m_bCommittedToJump = false;
-			
 		}
+
+		// Jump hop, don't care where.
 		else
-		{
-			// Jump hop, don't care where.
 			JumpAttack( true );
-		}
 
 		return;
 	}
 	
 	if ( pEvent->event == AE_HEADCRAB_CEILING_DETACH )
 	{
-		SetMoveType( MOVETYPE_STEP );
-		RemoveFlag( FL_ONGROUND );
-		RemoveFlag( FL_FLY );
+		SetMoveType(MOVETYPE_STEP);
+		RemoveFlag(FL_ONGROUND);
+		RemoveFlag(FL_FLY);
 
-		SetAbsVelocity( Vector ( 0, 0, -128 ) );
+		SetAbsVelocity(Vector( 0, 0, -128 ));
 		return;
 	}
+
 	if ( pEvent->event == AE_HEADCRAB_JUMP_TELEGRAPH )
 	{
 		TelegraphSound();
@@ -650,8 +645,8 @@ void CBaseHeadcrab::HandleAnimEvent( animevent_t *pEvent )
 		{
 			// Once we telegraph, we MUST jump. This is also when commit to what point
 			// we jump at. Jump at our enemy's eyes.
-			m_vecCommittedJumpPos = pEnemy->EyePosition();
-			m_bCommittedToJump = true;
+			m_vecCommittedJumpPos	= pEnemy->EyePosition();
+			m_bCommittedToJump		= true;
 		}
 
 		return;
@@ -659,7 +654,7 @@ void CBaseHeadcrab::HandleAnimEvent( animevent_t *pEvent )
 
 	if ( pEvent->event == AE_HEADCRAB_BURROW_IN )
 	{
-		EmitSound( "NPC_Headcrab.BurrowIn" );
+		EmitSound("NPC_Headcrab.BurrowIn");
 		CreateDust();
 
 		return;
@@ -667,54 +662,55 @@ void CBaseHeadcrab::HandleAnimEvent( animevent_t *pEvent )
 
 	if ( pEvent->event == AE_HEADCRAB_BURROW_IN_FINISH )
 	{
-		SetBurrowed( true );
+		SetBurrowed(true);
 		return;
 	}
 
 	if ( pEvent->event == AE_HEADCRAB_BURROW_OUT )
 	{
-		Assert( m_bBurrowed );
+		Assert(m_bBurrowed);
+
 		if ( m_bBurrowed )
 		{
-			EmitSound( "NPC_Headcrab.BurrowOut" );
+			EmitSound("NPC_Headcrab.BurrowOut");
 			CreateDust();
-			SetBurrowed( false );
+			SetBurrowed(false);
 
 			// We're done with this burrow hint node. It might be NULL here
 			// because we may have started burrowed (no hint node in that case).
-			GrabHintNode( NULL );
+			GrabHintNode(NULL);
 		}
 
 		return;
 	}
 
-	CAI_BaseNPC::HandleAnimEvent( pEvent );
+	CAI_BaseNPC::HandleAnimEvent(pEvent);
 }
 
 
-//-----------------------------------------------------------------------------
+//=========================================================
 // Purpose: Does all the fixup for going to/from the burrowed state.
-//-----------------------------------------------------------------------------
+//=========================================================
 void CBaseHeadcrab::SetBurrowed( bool bBurrowed )
 {
 	if ( bBurrowed )
 	{
-		AddEffects( EF_NODRAW );
-		AddFlag( FL_NOTARGET );
+		AddEffects(EF_NODRAW);
+		AddFlag(FL_NOTARGET);
 		m_spawnflags |= SF_NPC_GAG;
-		AddSolidFlags( FSOLID_NOT_SOLID );
+		AddSolidFlags(FSOLID_NOT_SOLID);
 		m_takedamage = DAMAGE_NO;
 		m_flFieldOfView = HEADCRAB_BURROWED_FOV;
 
-		SetState( NPC_STATE_IDLE );
-		SetActivity( (Activity) ACT_HEADCRAB_BURROW_IDLE );
+		SetState(NPC_STATE_IDLE);
+		SetActivity((Activity) ACT_HEADCRAB_BURROW_IDLE);
 	}
 	else
 	{
-		RemoveEffects( EF_NODRAW );
-		RemoveFlag( FL_NOTARGET );
+		RemoveEffects(EF_NODRAW);
+		RemoveFlag(FL_NOTARGET);
 		m_spawnflags &= ~SF_NPC_GAG;
-		RemoveSolidFlags( FSOLID_NOT_SOLID );
+		RemoveSolidFlags(FSOLID_NOT_SOLID);
 		m_takedamage = DAMAGE_YES;
 		m_flFieldOfView	= HEADCRAB_UNBURROWED_FOV;
 	}
@@ -722,58 +718,49 @@ void CBaseHeadcrab::SetBurrowed( bool bBurrowed )
 	m_bBurrowed = bBurrowed;
 }
 
-
-//-----------------------------------------------------------------------------
-// Purpose: 
-// Input  : *pTask - 
-//-----------------------------------------------------------------------------
-void CBaseHeadcrab::RunTask( const Task_t *pTask )
+//=========================================================
+//
+//=========================================================
+void CBaseHeadcrab::RunTask(const Task_t *pTask)
 {
 	switch ( pTask->iTask )
 	{
 		case TASK_HEADCRAB_CLIMB_FROM_CANISTER:
-			AutoMovement( );
+			AutoMovement();
+
 			if ( IsActivityFinished() )
-			{
 				TaskComplete();
-			}
-			break;
+		break;
 
 		case TASK_HEADCRAB_JUMP_FROM_CANISTER:
 			GetMotor()->UpdateYaw();
+
 			if ( FacingIdeal() )
-			{
 				TaskComplete();
-			}
-			break;
+		break;
 
 		case TASK_HEADCRAB_WAIT_FOR_BARNACLE_KILL:
 			if ( m_flNextFlinchTime < gpGlobals->curtime )
 			{
 				m_flNextFlinchTime = gpGlobals->curtime + random->RandomFloat( 1.0f, 2.0f );
 				CTakeDamageInfo info;
-				PainSound( info );
+				PainSound(info);
 			}
-			break;
+		break;
 
 		case TASK_HEADCRAB_HOP_OFF_NPC:
-			if( GetFlags() & FL_ONGROUND )
-			{
+			if ( GetFlags() & FL_ONGROUND )
 				TaskComplete();
-			}
+
+			// Face the direction I've been forced to jump.
 			else
-			{
-				// Face the direction I've been forced to jump.
 				GetMotor()->SetIdealYawToTargetAndUpdate( GetAbsOrigin() + GetAbsVelocity() );
-			}
-			break;
+		break;
 
 		case TASK_HEADCRAB_DROWN:
 			if( gpGlobals->curtime > m_flTimeDrown )
-			{
 				OnTakeDamage( CTakeDamageInfo( this, this, m_iHealth * 2, DMG_DROWN ) );
-			}
-			break;
+		break;
 
 		case TASK_RANGE_ATTACK1:
 		case TASK_RANGE_ATTACK2:
@@ -783,9 +770,9 @@ void CBaseHeadcrab::RunTask( const Task_t *pTask )
 			{
 				TaskComplete();
 				m_bMidJump = false;
-				SetTouch( NULL );
-				SetThink( &CBaseHeadcrab::CallNPCThink );
-				SetIdealActivity( ACT_IDLE );
+				SetTouch(NULL);
+				SetThink(&CBaseHeadcrab::CallNPCThink);
+				SetIdealActivity(ACT_IDLE);
 
 				if ( m_bAttackFailed )
 				{
@@ -793,7 +780,7 @@ void CBaseHeadcrab::RunTask( const Task_t *pTask )
 					// delay attacking for a while so we don't just repeatedly leap
 					// at the enemy from a bad location.
 					m_bAttackFailed = false;
-					m_flNextAttack = gpGlobals->curtime + 1.2f;
+					m_flNextAttack	= gpGlobals->curtime + 1.2f;
 				}
 			}
 			break;
@@ -806,10 +793,10 @@ void CBaseHeadcrab::RunTask( const Task_t *pTask )
 				return;
 
 			// See if we can pop up
-			if ( ValidBurrowPoint( GetAbsOrigin() ) )
+			if ( ValidBurrowPoint(GetAbsOrigin()) )
 			{
 				m_spawnflags &= ~SF_NPC_GAG;
-				RemoveSolidFlags( FSOLID_NOT_SOLID );
+				RemoveSolidFlags(FSOLID_NOT_SOLID);
 
 				TaskComplete();
 				return;
@@ -823,69 +810,62 @@ void CBaseHeadcrab::RunTask( const Task_t *pTask )
 
 		case TASK_HEADCRAB_BURROW_WAIT:
 		{	
-			if ( HasCondition( COND_CAN_RANGE_ATTACK1 ) || HasCondition( COND_CAN_RANGE_ATTACK2 ) )
-			{
+			if ( HasCondition(COND_CAN_RANGE_ATTACK1) || HasCondition(COND_CAN_RANGE_ATTACK2) )
 				TaskComplete();
-			}
 			
 			break;
 		}
 
 		case TASK_HEADCRAB_CEILING_WAIT:
-			{	
-#ifdef HL2_EPISODIC
-				if ( DarknessLightSourceWithinRadius( this, DARKNESS_LIGHTSOURCE_SIZE ) )
-				{
-					DropFromCeiling();
-				}
-#endif
+		{	
+			if ( DarknessLightSourceWithinRadius( this, DARKNESS_LIGHTSOURCE_SIZE ) )
+				DropFromCeiling();
 
-				if ( HasCondition( COND_CAN_RANGE_ATTACK1 ) || HasCondition( COND_CAN_RANGE_ATTACK2 ) )
-				{
-					TaskComplete();
-				}
+			if ( HasCondition(COND_CAN_RANGE_ATTACK1) || HasCondition(COND_CAN_RANGE_ATTACK2) )
+				TaskComplete();
 
-				break;
-			}
+			break;
+		}
 
 		case TASK_HEADCRAB_CEILING_DETACH:
+		{
+			if ( IsActivityFinished() )
 			{
-				if ( IsActivityFinished() )
-				{
-					ClearCondition( COND_CAN_RANGE_ATTACK1 );
-					RemoveFlag(FL_FLY);
-					TaskComplete();
-				}
+				ClearCondition(COND_CAN_RANGE_ATTACK1);
+				RemoveFlag(FL_FLY);
+				TaskComplete();
 			}
-			break;
+		}
+		break;
 
 		case TASK_HEADCRAB_CEILING_FALL:
-			{
-				Vector vecPrPos;
-				trace_t tr;
+		{
+			Vector vecPrPos;
+			trace_t tr;
 
-				//Figure out where the headcrab is going to be in quarter of a second.
-				vecPrPos = GetAbsOrigin() + ( GetAbsVelocity() * 0.25f );
-				UTIL_TraceHull( vecPrPos, vecPrPos, GetHullMins(), GetHullMaxs(), MASK_SOLID, this, COLLISION_GROUP_NONE, &tr );
+			//Figure out where the headcrab is going to be in quarter of a second.
+			vecPrPos = GetAbsOrigin() + ( GetAbsVelocity() * 0.25f );
+			UTIL_TraceHull(vecPrPos, vecPrPos, GetHullMins(), GetHullMaxs(), MASK_SOLID, this, COLLISION_GROUP_NONE, &tr);
 				
-				if ( tr.startsolid == true || GetFlags() & FL_ONGROUND )
-				{
-					RemoveSolidFlags( FSOLID_NOT_SOLID );
-					TaskComplete();
-				}
+			if ( tr.startsolid == true || GetFlags() & FL_ONGROUND )
+			{
+				RemoveSolidFlags(FSOLID_NOT_SOLID);
+				TaskComplete();
 			}
-			break;
+		}
+		break;
 
 		case TASK_HEADCRAB_CEILING_LAND:
+		{
+			if ( IsActivityFinished() )
 			{
-				if ( IsActivityFinished() )
-				{
-					RemoveSolidFlags( FSOLID_NOT_SOLID ); //double-dog verify that we're solid.
-					TaskComplete();
-					m_bHangingFromCeiling = false;
-				}
+				RemoveSolidFlags(FSOLID_NOT_SOLID); //double-dog verify that we're solid.
+				TaskComplete();
+				m_bHangingFromCeiling = false;
 			}
-			break;
+		}
+		break;
+
 		default:
 		{
 			BaseClass::RunTask( pTask );
@@ -894,76 +874,58 @@ void CBaseHeadcrab::RunTask( const Task_t *pTask )
 }
 
 
-//-----------------------------------------------------------------------------
+//=========================================================
 // Before jumping, headcrabs usually use SetOrigin() to lift themselves off the 
 // ground. If the headcrab doesn't have the clearance to so, they'll be stuck
 // in the world. So this function makes sure there's headroom first.
-//-----------------------------------------------------------------------------
+//=========================================================
 bool CBaseHeadcrab::HasHeadroom()
 {
 	trace_t tr;
-	UTIL_TraceEntity( this, GetAbsOrigin(), GetAbsOrigin() + Vector( 0, 0, 1 ), MASK_NPCSOLID, this, GetCollisionGroup(), &tr );
+	UTIL_TraceEntity(this, GetAbsOrigin(), GetAbsOrigin() + Vector( 0, 0, 1 ), MASK_NPCSOLID, this, GetCollisionGroup(), &tr);
 
-#if 0
-	if( tr.fraction == 1.0f )
-	{
-		Msg("Headroom\n");
-	}
-	else
-	{
-		Msg("NO Headroom\n");
-	}
-#endif
-
-	return (tr.fraction == 1.0);
+	return ( tr.fraction == 1.0 );
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: LeapTouch - this is the headcrab's touch function when it is in the air.
-// Input  : *pOther - 
-//-----------------------------------------------------------------------------
-void CBaseHeadcrab::LeapTouch( CBaseEntity *pOther )
+//=========================================================
+// LeapTouch - this is the headcrab's touch function when it is in the air.
+//=========================================================
+void CBaseHeadcrab::LeapTouch(CBaseEntity *pOther)
 {
 	m_bMidJump = false;
 
 	if ( IRelationType( pOther ) == D_HT )
 	{
 		// Don't hit if back on ground
-		if ( !( GetFlags() & FL_ONGROUND ) )
+		if ( !(GetFlags() & FL_ONGROUND) )
 		{
 	 		if ( pOther->m_takedamage != DAMAGE_NO )
 			{
 				BiteSound();
-				TouchDamage( pOther );
+				TouchDamage(pOther);
 
 				// attack succeeded, so don't delay our next attack if we previously thought we failed
 				m_bAttackFailed = false;
 			}
 			else
-			{
 				ImpactSound();
-			}
 		}
 		else
-		{
 			ImpactSound();
-		}
 	}
 	else if( !(GetFlags() & FL_ONGROUND) )
 	{
 		// Still in the air...
-		if( !pOther->IsSolid() )
-		{
-			// Touching a trigger or something.
+		// Touching a trigger or something.
+		if ( !pOther->IsSolid() )
 			return;
-		}
 
 		// just ran into something solid, so the attack probably failed.  make a note of it
 		// so that when the attack is done, we'll delay attacking for a while so we don't
 		// just repeatedly leap at the enemy from a bad location.
 		m_bAttackFailed = true;
 
-		if( gpGlobals->curtime < m_flIgnoreWorldCollisionTime )
+		if ( gpGlobals->curtime < m_flIgnoreWorldCollisionTime )
 		{
 			// Headcrabs try to ignore the world, static props, and friends for a 
 			// fraction of a second after they jump. This is because they often brush
@@ -976,55 +938,50 @@ void CBaseHeadcrab::LeapTouch( CBaseEntity *pOther )
 	}
 
 	// Shut off the touch function.
-	SetTouch( NULL );
-	SetThink ( &CBaseHeadcrab::CallNPCThink );
+	SetTouch(NULL);
+	SetThink(&CBaseHeadcrab::CallNPCThink);
 }
 
-
-//-----------------------------------------------------------------------------
-//-----------------------------------------------------------------------------
+//=========================================================
+//=========================================================
 int CBaseHeadcrab::CalcDamageInfo( CTakeDamageInfo *pInfo )
 {
-	pInfo->Set( this, this, sk_headcrab_melee_dmg.GetFloat(), DMG_SLASH );
-	CalculateMeleeDamageForce( pInfo, GetAbsVelocity(), GetAbsOrigin() );
+	pInfo->Set(this, this, sk_headcrab_melee_dmg.GetFloat(), DMG_SLASH);
+	CalculateMeleeDamageForce(pInfo, GetAbsVelocity(), GetAbsOrigin());
 	return pInfo->GetDamage();
 }
 
-//-----------------------------------------------------------------------------
+//=========================================================
 // Purpose: Deal the damage from the headcrab's touch attack.
-//-----------------------------------------------------------------------------
+//=========================================================
 void CBaseHeadcrab::TouchDamage( CBaseEntity *pOther )
 {
 	CTakeDamageInfo info;
-	CalcDamageInfo( &info );
-	pOther->TakeDamage( info  );
+	CalcDamageInfo(&info);
+	pOther->TakeDamage(info);
 }
 
-
-//---------------------------------------------------------
-//---------------------------------------------------------
-void CBaseHeadcrab::GatherConditions( void )
+//=========================================================
+//=========================================================
+void CBaseHeadcrab::GatherConditions()
 {
 	// If we're hidden, just check to see if we should unhide
 	if ( m_bHidden )
 	{
 		// See if there's enough room for our hull to fit here. If so, unhide.
 		trace_t tr;
-		AI_TraceHull( GetAbsOrigin(), GetAbsOrigin(),GetHullMins(), GetHullMaxs(), MASK_SHOT, this, GetCollisionGroup(), &tr );
+		AI_TraceHull(GetAbsOrigin(), GetAbsOrigin(),GetHullMins(), GetHullMaxs(), MASK_SHOT, this, GetCollisionGroup(), &tr);
+
 		if ( tr.fraction == 1.0 )
 		{
-			SetCondition( COND_PROVOKED );
-			SetCondition( COND_HEADCRAB_UNHIDE );
+			SetCondition(COND_PROVOKED);
+			SetCondition(COND_HEADCRAB_UNHIDE);
 
 			if ( g_debug_headcrab.GetInt() == HEADCRAB_DEBUG_HIDING )
-			{
 				NDebugOverlay::Box( GetAbsOrigin(), GetHullMins(), GetHullMaxs(), 0,255,0, true, 1.0 );
-			}
 		}
 		else if ( g_debug_headcrab.GetInt() == HEADCRAB_DEBUG_HIDING )
-		{
 			NDebugOverlay::Box( GetAbsOrigin(), GetHullMins(), GetHullMaxs(), 255,0,0, true, 0.1 );
-		}
 
 		// Prevent baseclass thinking, so we don't respond to enemy fire, etc.
 		return;
@@ -1032,35 +989,30 @@ void CBaseHeadcrab::GatherConditions( void )
 
 	BaseClass::GatherConditions();
 
+	// Start Drowning!
 	if( m_lifeState == LIFE_ALIVE && GetWaterLevel() > 1 )
-	{
-		// Start Drowning!
-		SetCondition( COND_HEADCRAB_IN_WATER );
-	}
+		SetCondition(COND_HEADCRAB_IN_WATER);
 
 	// See if I've landed on an NPC or player or something else illegal
-	ClearCondition( COND_HEADCRAB_ILLEGAL_GROUNDENT );
+	ClearCondition(COND_HEADCRAB_ILLEGAL_GROUNDENT);
+
 	CBaseEntity *ground = GetGroundEntity();
+
 	if( (GetFlags() & FL_ONGROUND) && ground && !ground->IsWorld() )
 	{
 		if ( IsHangingFromCeiling() == false )
 		{
 			if( ( ground->IsNPC() || ground->IsPlayer() ) )
-			{
-				SetCondition( COND_HEADCRAB_ILLEGAL_GROUNDENT );
-			}
+				SetCondition(COND_HEADCRAB_ILLEGAL_GROUNDENT);
 			else if( ground->VPhysicsGetObject() && (ground->VPhysicsGetObject()->GetGameFlags() & FVPHYSICS_PLAYER_HELD) )
-			{
-				SetCondition( COND_HEADCRAB_ILLEGAL_GROUNDENT );
-			}
+				SetCondition(COND_HEADCRAB_ILLEGAL_GROUNDENT);
 		}
 	}
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CBaseHeadcrab::PrescheduleThink( void )
+//=========================================================
+//=========================================================
+void CBaseHeadcrab::PrescheduleThink()
 {
 	BaseClass::PrescheduleThink();
 	
@@ -1302,7 +1254,7 @@ void CBaseHeadcrab::JumpFromCanister()
 
 #define HEADCRAB_ILLUMINATED_TIME 0.15f
 
-void CBaseHeadcrab::DropFromCeiling( void )
+void CBaseHeadcrab::DropFromCeiling()
 {
 	if ( HL2GameRules()->IsAlyxInDarknessMode() )
 	{
@@ -1571,12 +1523,12 @@ void CBaseHeadcrab::StartTask( const Task_t *pTask )
 // Input  :
 // Output :
 //-----------------------------------------------------------------------------
-float CBaseHeadcrab::InnateRange1MinRange( void )
+float CBaseHeadcrab::InnateRange1MinRange()
 {
 	return HEADCRAB_MIN_JUMP_DIST;
 }
 
-float CBaseHeadcrab::InnateRange1MaxRange( void )
+float CBaseHeadcrab::InnateRange1MaxRange()
 {
 	return HEADCRAB_MAX_JUMP_DIST;
 }
@@ -1852,7 +1804,7 @@ int CBaseHeadcrab::TranslateSchedule( int scheduleType )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-int CBaseHeadcrab::SelectSchedule( void )
+int CBaseHeadcrab::SelectSchedule()
 {
 	if ( m_bCrawlFromCanister )
 	{
@@ -2267,7 +2219,7 @@ bool CBaseHeadcrab::FindBurrow( const Vector &origin, float distance, bool exclu
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CBaseHeadcrab::Burrow( void )
+void CBaseHeadcrab::Burrow()
 {
 	// Stop us from taking damage and being solid
 	m_spawnflags |= SF_NPC_GAG;
@@ -2277,7 +2229,7 @@ void CBaseHeadcrab::Burrow( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CBaseHeadcrab::Unburrow( void )
+void CBaseHeadcrab::Unburrow()
 {
 	// Become solid again and visible
 	m_spawnflags &= ~SF_NPC_GAG;
@@ -2395,7 +2347,7 @@ void CBaseHeadcrab::CreateDust( bool placeDecal )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CHeadcrab::Precache( void )
+void CHeadcrab::Precache()
 {
 	PrecacheModel( "models/headcrabclassic.mdl" );
 
@@ -2416,7 +2368,7 @@ void CHeadcrab::Precache( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CHeadcrab::Spawn( void )
+void CHeadcrab::Spawn()
 {
 	Precache();
 	SetModel( "models/headcrabclassic.mdl" );
@@ -2448,7 +2400,7 @@ Activity CHeadcrab::NPC_TranslateActivity( Activity eNewActivity )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CHeadcrab::IdleSound( void )
+void CHeadcrab::IdleSound()
 {
 	EmitSound( "NPC_HeadCrab.Idle" );
 }
@@ -2457,7 +2409,7 @@ void CHeadcrab::IdleSound( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CHeadcrab::AlertSound( void )
+void CHeadcrab::AlertSound()
 {
 	EmitSound( "NPC_HeadCrab.Alert" );
 }
@@ -2490,7 +2442,7 @@ void CHeadcrab::DeathSound( const CTakeDamageInfo &info )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CHeadcrab::TelegraphSound( void )
+void CHeadcrab::TelegraphSound()
 {
 	//FIXME: Need a real one
 	EmitSound( "NPC_HeadCrab.Alert" );
@@ -2500,7 +2452,7 @@ void CHeadcrab::TelegraphSound( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CHeadcrab::AttackSound( void )
+void CHeadcrab::AttackSound()
 {
 	EmitSound( "NPC_Headcrab.Attack" );
 }
@@ -2509,7 +2461,7 @@ void CHeadcrab::AttackSound( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CHeadcrab::BiteSound( void )
+void CHeadcrab::BiteSound()
 {
 	EmitSound( "NPC_HeadCrab.Bite" );
 }
@@ -2532,7 +2484,7 @@ END_DATADESC()
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CFastHeadcrab::Precache( void )
+void CFastHeadcrab::Precache()
 {
 	PrecacheModel( "models/headcrab.mdl" );
 
@@ -2550,7 +2502,7 @@ void CFastHeadcrab::Precache( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CFastHeadcrab::Spawn( void )
+void CFastHeadcrab::Spawn()
 {
 	Precache();
 	SetModel( "models/headcrab.mdl" );
@@ -2570,14 +2522,14 @@ void CFastHeadcrab::Spawn( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CFastHeadcrab::IdleSound( void )
+void CFastHeadcrab::IdleSound()
 {
 	EmitSound( "NPC_FastHeadcrab.Idle" );
 }
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CFastHeadcrab::AlertSound( void )
+void CFastHeadcrab::AlertSound()
 {
 	EmitSound( "NPC_FastHeadcrab.Alert" );
 }
@@ -2606,7 +2558,7 @@ void CFastHeadcrab::DeathSound( const CTakeDamageInfo &info )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CFastHeadcrab::PrescheduleThink( void )
+void CFastHeadcrab::PrescheduleThink()
 {
 #if 1 // #IF 0 this to stop the accelrating/decelerating movement.
 #define HEADCRAB_ACCELERATION 0.1
@@ -2695,7 +2647,7 @@ void CFastHeadcrab::PrescheduleThink( void )
 // Purpose: 
 // Input  : scheduleType - 
 //-----------------------------------------------------------------------------
-int	CFastHeadcrab::SelectSchedule( void )
+int	CFastHeadcrab::SelectSchedule()
 {
 	if ( HasSpawnFlags(SF_NPC_WAIT_TILL_SEEN) )
 	{
@@ -2871,12 +2823,12 @@ LINK_ENTITY_TO_CLASS( npc_headcrab_fast, CFastHeadcrab );
 // Purpose: Make the sound of this headcrab chomping a target.
 // Input  : 
 //-----------------------------------------------------------------------------
-void CFastHeadcrab::BiteSound( void )
+void CFastHeadcrab::BiteSound()
 {
 	EmitSound( "NPC_FastHeadcrab.Bite" );
 }
 
-void CFastHeadcrab::AttackSound( void )
+void CFastHeadcrab::AttackSound()
 {
 	EmitSound( "NPC_FastHeadcrab.Attack" );
 }
@@ -2887,7 +2839,7 @@ void CFastHeadcrab::AttackSound( void )
 // Input  :
 // Output : 
 //-----------------------------------------------------------------------------
-float CHeadcrab::MaxYawSpeed ( void )
+float CHeadcrab::MaxYawSpeed ()
 {
 	switch ( GetActivity() )
 	{
@@ -2922,7 +2874,7 @@ float CHeadcrab::MaxYawSpeed ( void )
 // Purpose: Allows for modification of the interrupt mask for the current schedule.
 //			In the most cases the base implementation should be called first.
 //-----------------------------------------------------------------------------
-void CBaseHeadcrab::BuildScheduleTestBits( void )
+void CBaseHeadcrab::BuildScheduleTestBits()
 {
 	if ( !IsCurSchedule(SCHED_HEADCRAB_DROWN) )
 	{
@@ -2949,7 +2901,7 @@ void CBaseHeadcrab::BuildScheduleTestBits( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-float CFastHeadcrab::MaxYawSpeed( void )
+float CFastHeadcrab::MaxYawSpeed()
 {
 	switch ( GetActivity() )
 	{
@@ -3025,7 +2977,7 @@ LINK_ENTITY_TO_CLASS( npc_headcrab_poison, CBlackHeadcrab );
 //-----------------------------------------------------------------------------
 // Purpose: Make the sound of this headcrab chomping a target.
 //-----------------------------------------------------------------------------
-void CBlackHeadcrab::BiteSound( void )
+void CBlackHeadcrab::BiteSound()
 {
 	EmitSound( "NPC_BlackHeadcrab.Bite" );
 }
@@ -3034,7 +2986,7 @@ void CBlackHeadcrab::BiteSound( void )
 //-----------------------------------------------------------------------------
 // Purpose: The sound we make when leaping at our enemy.
 //-----------------------------------------------------------------------------
-void CBlackHeadcrab::AttackSound( void )
+void CBlackHeadcrab::AttackSound()
 {
 	EmitSound( "NPC_BlackHeadcrab.Attack" );
 }
@@ -3042,7 +2994,7 @@ void CBlackHeadcrab::AttackSound( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CBlackHeadcrab::TelegraphSound( void )
+void CBlackHeadcrab::TelegraphSound()
 {
 	EmitSound( "NPC_BlackHeadcrab.Telegraph" );
 }
@@ -3050,7 +3002,7 @@ void CBlackHeadcrab::TelegraphSound( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CBlackHeadcrab::Spawn( void )
+void CBlackHeadcrab::Spawn()
 {
 	Precache();
 	SetModel( "models/headcrabblack.mdl" );
@@ -3068,7 +3020,7 @@ void CBlackHeadcrab::Spawn( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CBlackHeadcrab::Precache( void )
+void CBlackHeadcrab::Precache()
 {
 	PrecacheModel( "models/headcrabblack.mdl" );
 
@@ -3095,7 +3047,7 @@ void CBlackHeadcrab::Precache( void )
 //-----------------------------------------------------------------------------
 // Purpose: Returns the max yaw speed for the current activity.
 //-----------------------------------------------------------------------------
-float CBlackHeadcrab::MaxYawSpeed( void )
+float CBlackHeadcrab::MaxYawSpeed()
 {
 	// Not a constant, can't be in a switch statement.
 	if ( GetActivity() == ACT_BLACKHEADCRAB_RUN_PANIC )
@@ -3150,7 +3102,7 @@ Activity CBlackHeadcrab::NPC_TranslateActivity( Activity eNewActivity )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CBlackHeadcrab::PrescheduleThink( void )
+void CBlackHeadcrab::PrescheduleThink()
 {
 	BaseClass::PrescheduleThink();
 }
@@ -3185,7 +3137,7 @@ int CBlackHeadcrab::TranslateSchedule( int scheduleType )
 // Purpose: Allows for modification of the interrupt mask for the current schedule.
 //			In the most cases the base implementation should be called first.
 //-----------------------------------------------------------------------------
-void CBlackHeadcrab::BuildScheduleTestBits( void )
+void CBlackHeadcrab::BuildScheduleTestBits()
 {
 	// Ignore damage if we're attacking or are fleeing and recently flinched.
 	if ( IsCurSchedule( SCHED_HEADCRAB_CRAWL_FROM_CANISTER ) || IsCurSchedule( SCHED_RANGE_ATTACK1 ) || ( IsCurSchedule( SCHED_TAKE_COVER_FROM_ENEMY ) && HasMemory( bits_MEMORY_FLINCHED ) ) )
@@ -3211,7 +3163,7 @@ void CBlackHeadcrab::BuildScheduleTestBits( void )
 // Purpose: 
 // Output : 
 //-----------------------------------------------------------------------------
-int CBlackHeadcrab::SelectSchedule( void )
+int CBlackHeadcrab::SelectSchedule()
 {
 	// don't override inherited behavior when hanging from ceiling
 	if ( !IsHangingFromCeiling() )
@@ -3495,7 +3447,7 @@ bool CBlackHeadcrab::IsHeavyDamage( const CTakeDamageInfo &info )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CBlackHeadcrab::IdleSound( void )
+void CBlackHeadcrab::IdleSound()
 {
 	// TODO: hook up "Marco" / "Polo" talking with nearby buddies
 	if ( m_NPCState == NPC_STATE_IDLE )
@@ -3512,7 +3464,7 @@ void CBlackHeadcrab::IdleSound( void )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CBlackHeadcrab::AlertSound( void )
+void CBlackHeadcrab::AlertSound()
 {
 	EmitSound( "NPC_BlackHeadcrab.AlertVoice" );
 }
@@ -3545,7 +3497,7 @@ void CBlackHeadcrab::DeathSound( const CTakeDamageInfo &info )
 //-----------------------------------------------------------------------------
 // Purpose: Played when we jump and hit something that we can't bite.
 //-----------------------------------------------------------------------------
-void CBlackHeadcrab::ImpactSound( void )
+void CBlackHeadcrab::ImpactSound()
 {
 	EmitSound( "NPC_BlackHeadcrab.Impact" );
 

@@ -12,6 +12,8 @@
 #include "c_baseplayer.h"
 #include "c_in_player.h"
 
+#include <vgui/ILocalize.h>
+
 using namespace vgui;
 
 #include "tier0/memdbgon.h"
@@ -38,7 +40,8 @@ private:
 	float m_iBlood;
 };
 
-DECLARE_HUDELEMENT(CHudBlood);
+// NOTE: Una barra no parece muy atractiva, por ahora solo con el texto. (CHudBloodText)
+//DECLARE_HUDELEMENT(CHudBlood);
 
 //=========================================================
 // Constructor
@@ -83,7 +86,7 @@ void CHudBlood::OnThink()
 {
 	float newBlood		= 0;
 
-	C_INPlayer *pPlayer = (C_INPlayer *)C_BasePlayer::GetLocalPlayer();
+	C_IN_Player *pPlayer = (C_IN_Player *)C_BasePlayer::GetLocalPlayer();
 
 	if ( !pPlayer )
 		return;
@@ -145,10 +148,17 @@ void CHudBloodText::Reset()
 {
 	m_iBlood = -1;
 
+	wchar_t *tempString = g_pVGuiLocalize->Find("#Valve_Hud_BLOOD");
+
+	if ( tempString )
+		SetLabelText(tempString);
+	else
+		SetLabelText(L"BLOOD");
+
 	SetDisplayValue(m_iBlood);
 
 	// Color de fondo transparente.
-	SetBgColor(Color(0,0,0,0));
+	//SetBgColor(Color(0,0,0,0));
 }
 
 //=========================================================
@@ -158,7 +168,7 @@ void CHudBloodText::OnThink()
 {
 	float newBlood		= 0;
 
-	C_INPlayer *pPlayer = (C_INPlayer *)C_BasePlayer::GetLocalPlayer();
+	C_IN_Player *pPlayer = (C_IN_Player *)C_BasePlayer::GetLocalPlayer();
 
 	if ( !pPlayer )
 		return;

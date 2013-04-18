@@ -78,10 +78,10 @@
 // Definición de variables de configuración.
 //----------------------------------------------------
 
-ConVar autoaim_max_dist("autoaim_max_dist", "2160");
-ConVar autoaim_max_deflect("autoaim_max_deflect", "0.99");
+ConVar autoaim_max_dist("autoaim_max_dist",			"2160");
+ConVar autoaim_max_deflect("autoaim_max_deflect",	"0.99");
 
-ConVar spec_freeze_time("spec_freeze_time", "4.0", FCVAR_CHEAT | FCVAR_REPLICATED, "Time spend frozen in observer freeze cam.");
+ConVar spec_freeze_time("spec_freeze_time",				"4.0", FCVAR_CHEAT | FCVAR_REPLICATED, "Time spend frozen in observer freeze cam.");
 ConVar spec_freeze_traveltime("spec_freeze_traveltime", "0.4", FCVAR_CHEAT | FCVAR_REPLICATED, "Time taken to zoom in to frame a target in observer freeze cam.", true, 0.01, false, 0);
 
 ConVar sv_bonus_challenge("sv_bonus_challenge", "0", FCVAR_REPLICATED, "Set to values other than 0 to select a bonus map challenge type." );
@@ -94,11 +94,11 @@ static ConVar physicsshadowupdate_render("physicsshadowupdate_render", "0");
 static ConVar sv_clockcorrection_msecs("sv_clockcorrection_msecs", "60", 0, "The server tries to keep each player's m_nTickBase withing this many msecs of the server absolute tickcount");
 static ConVar sv_playerperfhistorycount("sv_playerperfhistorycount", "20", 0, "Number of samples to maintain in player perf history", true, 1.0f, true, 128.0);
 
-bool IsInCommentaryMode( void );
-bool IsListeningToCommentary( void );
+bool IsInCommentaryMode();
+bool IsListeningToCommentary();
 
 ConVar sv_noclipduringpause("sv_noclipduringpause", "0", FCVAR_REPLICATED | FCVAR_CHEAT, "If cheats are enabled, then you can noclip with the game paused (for doing screenshots, etc.).");
-ConVar xc_crouch_debounce("xc_crouch_debounce", "0", FCVAR_NONE);
+ConVar xc_crouch_debounce("xc_crouch_debounce",		"0", FCVAR_NONE);
 
 extern ConVar sv_maxunlag;
 extern ConVar sv_turbophysics;
@@ -743,10 +743,18 @@ void CBasePlayer::SetBonusChallenge(int iBonusChallenge)
 	Ajustar cambios en los grados del ojo.
 ---------------------------------------------------
 */
-void CBasePlayer::SnapEyeAngles( const QAngle &viewAngles )
+void CBasePlayer::SnapEyeAngles( const QAngle &viewAngles, bool bFirstPersonOnly )
 {
 	pl.v_angle	= viewAngles;
 	pl.fixangle = FIXANGLE_ABSOLUTE;
+
+	CSingleUserRecipientFilter user(this);
+	user.MakeReliable();
+ 
+	UserMessageBegin(user, "SetThirdPersonShoulderAngle");
+		WRITE_BOOL(bFirstPersonOnly);
+		WRITE_ANGLES(viewAngles);
+	MessageEnd();
 }
 
 
@@ -1150,11 +1158,7 @@ int CBasePlayer::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 			{
 				SetSuitUpdate("!HEV_DMG2", false, SUIT_NEXT_IN_5MIN);	// Hemorragia interna
 				SetSuitUpdate("!HEV_HEAL1", false, SUIT_NEXT_IN_5MIN);	// Hemorragia detenida
-			}
-
-			// InSource - Ouch!
-			if(m_lastDamageAmount > 3)
-				EmitSound("Player.Pain");
+			}				
 			
 			bitsDamage &= ~DMG_BULLET;
 			ffound		= true;
@@ -3585,14 +3589,14 @@ void CBasePlayer::SetSuitUpdate(char *name, int fgroup, int iNoRepeatTime)
 	int iempty = -1;	
 	
 	// Al parecer aún no tenemos el traje de protección.
-	if (!IsSuitEquipped())
+	if ( !IsSuitEquipped() )
 		return;
 	
 	// No son muy comodas las distracciones en Multiplayer.
-	if (g_pGameRules->IsMultiplayer())
+	if ( g_pGameRules->IsMultiplayer() )
 		return;
 
-	if (!name)
+	if ( !name )
 	{
 		for (i = 0; i < CSUITPLAYLIST; i++)
 			m_rgSuitPlayList[i] = 0;
@@ -4305,9 +4309,9 @@ void CBasePlayer::InputUseDefaultBloomScale(inputdata_t &inputdata)
 	Spawn()
 	Spawn al jugador.
 ---------------------------------------------------*/
-void CBasePlayer::Spawn( void )
+void CBasePlayer::Spawn()
 {
-	if (Hints())
+	if ( Hints() )
 		Hints()->ResetHints();
 	
 	ClearTonemapParams();
@@ -4360,7 +4364,7 @@ void CBasePlayer::Spawn( void )
 	m_vecAdditionalPVSOrigin	= vec3_origin;
 	m_vecCameraPVSOrigin		= vec3_origin;
 
-	if (!m_fGameHUDInitialized)
+	if ( !m_fGameHUDInitialized )
 		g_pGameRules->SetDefaultPlayerTeam(this);
 
 	g_pGameRules->GetPlayerSpawnSpot(this);
@@ -5509,7 +5513,6 @@ void CBasePlayer::CheatImpulseCommands(int iImpulse)
 				GiveNamedItem("weapon_crossbow");
 
 				// InSource
-				GiveNamedItem("weapon_mp5");
 				GiveNamedItem("weapon_slam");
 				GiveNamedItem("weapon_gauss");
 				GiveNamedItem("weapon_alyxgun");
@@ -7689,6 +7692,11 @@ float CBasePlayer::GetFOVDistanceAdjustFactorForNetworking()
 void CBasePlayer::SetDefaultFOV( int FOV )
 {
 	m_iDefaultFOV = ( FOV == 0 ) ? g_pGameRules->DefaultFOV() : FOV;
+}
+
+int CBasePlayer::GetBattery()
+{
+	return m_iClientBattery;
 }
 
 //-----------------------------------------------------------------------------

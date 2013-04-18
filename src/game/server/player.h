@@ -5,7 +5,6 @@
 //===========================================================================//
 
 #ifndef PLAYER_H
-
 #define PLAYER_H
 
 #ifdef _WIN32
@@ -209,10 +208,10 @@ public:
 	virtual void RemoveAllItems( bool removeSuit );
 	virtual void SetActiveWeapon( const char *WeaponName );
 	virtual void SetLocalOrigin( const Vector& origin );
-	virtual const Vector GetLocalOrigin( void );
+	virtual const Vector GetLocalOrigin();
 	virtual void SetLocalAngles( const QAngle& angles );
-	virtual const QAngle GetLocalAngles( void );
-	virtual void PostClientMessagesSent( void );
+	virtual const QAngle GetLocalAngles();
+	virtual void PostClientMessagesSent();
 	virtual bool IsEFlagSet( int nEFlagMask );
 
 	virtual void RunPlayerMove( CBotCmd *ucmd );
@@ -245,25 +244,26 @@ public:
 	IBotController *GetBotController() { return &m_PlayerInfo; }
 
 	//CInDirector *GetDirector() { return &m_Director; }
+	virtual int GetBattery();
 
 	virtual void			SetModel( const char *szModelName );
 	void					SetBodyPitch( float flPitch );
 
-	virtual void			UpdateOnRemove( void );
+	virtual void			UpdateOnRemove();
 
 	static CBasePlayer		*CreatePlayer( const char *className, edict_t *ed );
 
 	virtual void			CreateViewModel( int viewmodelindex = 0 );
 	CBaseViewModel			*GetViewModel( int viewmodelindex = 0 );
-	void					HideViewModels( void );
-	void					DestroyViewModels( void );
+	void					HideViewModels();
+	void					DestroyViewModels();
 
-	CPlayerState			*PlayerData( void ) { return &pl; }
+	CPlayerState			*PlayerData() { return &pl; }
 	
-	int						RequiredEdictIndex( void ) { return ENTINDEX(edict()); } 
+	int						RequiredEdictIndex() { return ENTINDEX(edict()); } 
 
-	void					LockPlayerInPlace( void );
-	void					UnlockPlayer( void );
+	void					LockPlayerInPlace();
+	void					UnlockPlayer();
 
 	virtual void			DrawDebugGeometryOverlays(void);
 	
@@ -277,41 +277,41 @@ public:
 	// (like team members, entities out of our PVS, etc).
 	virtual bool			WantsLagCompensationOnEntity( const CBasePlayer	*pPlayer, const CUserCmd *pCmd, const CBitVec<MAX_EDICTS> *pEntityTransmitBits ) const;
 
-	virtual void			Spawn( void );
-	virtual void			Activate( void );
+	virtual void			Spawn();
+	virtual void			Activate();
 	virtual void			SharedSpawn(); // Shared between client and server.
-	virtual void			ForceRespawn( void );
+	virtual void			ForceRespawn();
 
-	virtual void			InitialSpawn( void );
-	virtual void			InitHUD( void ) {}
+	virtual void			InitialSpawn();
+	virtual void			InitHUD() {}
 	virtual void			ShowViewPortPanel( const char * name, bool bShow = true, KeyValues *data = NULL );
 
-	virtual void			PlayerDeathThink( void );
+	virtual void			PlayerDeathThink();
 
-	virtual void			Jump( void );
-	virtual void			Duck( void );
+	virtual void			Jump();
+	virtual void			Duck();
 
-	const char				*GetTracerType( void );
+	const char				*GetTracerType();
 	void					MakeTracer( const Vector &vecTracerSrc, const trace_t &tr, int iTracerType );
 	void					DoImpactEffect( trace_t &tr, int nDamageType );
 
 #if !defined( NO_ENTITY_PREDICTION )
 	void					AddToPlayerSimulationList( CBaseEntity *other );
 	void					RemoveFromPlayerSimulationList( CBaseEntity *other );
-	void					SimulatePlayerSimulatedEntities( void );
-	void					ClearPlayerSimulationList( void );
+	void					SimulatePlayerSimulatedEntities();
+	void					ClearPlayerSimulationList();
 #endif
 
 	// Physics simulation (player executes it's usercmd's here)
-	virtual void			PhysicsSimulate( void );
+	virtual void			PhysicsSimulate();
 
 	// Forces processing of usercmds (e.g., even if game is paused, etc.)
 	void					ForceSimulation();
 
-	virtual unsigned int	PhysicsSolidMaskForEntity( void ) const;
+	virtual unsigned int	PhysicsSolidMaskForEntity() const;
 
-	virtual void			PreThink( void );
-	virtual void			PostThink( void );
+	virtual void			PreThink();
+	virtual void			PostThink();
 	virtual int				TakeHealth( float flHealth, int bitsDamageType );
 	virtual void			TraceAttack( const CTakeDamageInfo &info, const Vector &vecDir, trace_t *ptr );
 	bool					ShouldTakeDamageInCommentaryMode( const CTakeDamageInfo &inputInfo );
@@ -332,14 +332,14 @@ public:
 	void					EyePositionAndVectors( Vector *pPosition, Vector *pForward, Vector *pRight, Vector *pUp );
 	virtual const QAngle	&LocalEyeAngles();		// Direction of eyes
 	void					EyeVectors( Vector *pForward, Vector *pRight = NULL, Vector *pUp = NULL );
-	void					CacheVehicleView( void );	// Calculate and cache the position of the player in the vehicle
+	void					CacheVehicleView();	// Calculate and cache the position of the player in the vehicle
 
 	// Sets the view angles
-	void					SnapEyeAngles( const QAngle &viewAngles );
+	void					SnapEyeAngles(const QAngle &viewAngles, bool bFirstPersonOnly = false);
 
 	virtual QAngle			BodyAngles();
 	virtual Vector			BodyTarget( const Vector &posSrc, bool bNoisy);
-	virtual bool			ShouldFadeOnDeath( void ) { return FALSE; }
+	virtual bool			ShouldFadeOnDeath() { return FALSE; }
 	
 	virtual const impactdamagetable_t &GetPhysicsImpactDamageTable();
 	virtual int				OnTakeDamage_Alive( const CTakeDamageInfo &info );
@@ -347,14 +347,14 @@ public:
 	// Notifier that I've killed some other entity. (called from Victim's Event_Killed).
 	virtual void			Event_KilledOther( CBaseEntity *pVictim, const CTakeDamageInfo &info );
 
-	void					Event_Dying( void );
+	void					Event_Dying();
 
-	bool					IsHLTV( void ) const { return pl.hltv; }
-	virtual	bool			IsPlayer( void ) const { return true; }			// Spectators return TRUE for this, use IsObserver to seperate cases
-	virtual bool			IsNetClient( void ) const { return true; }		// Bots should return FALSE for this, they can't receive NET messages
+	bool					IsHLTV() const { return pl.hltv; }
+	virtual	bool			IsPlayer() const { return true; }			// Spectators return TRUE for this, use IsObserver to seperate cases
+	virtual bool			IsNetClient() const { return true; }		// Bots should return FALSE for this, they can't receive NET messages
 																			// Spectators should return TRUE for this
 
-	virtual bool			IsFakeClient( void ) const;
+	virtual bool			IsFakeClient() const;
 
 	// Get the client index (entindex-1).
 	int						GetClientIndex()	{ return ENTINDEX( edict() ) - 1; }
@@ -365,8 +365,8 @@ public:
 
 	int						GetUserID() { return engine->GetPlayerUserId( edict() ); }
 	const char *			GetNetworkIDString(); 
-	virtual const Vector	GetPlayerMins( void ) const; // uses local player
-	virtual const Vector	GetPlayerMaxs( void ) const; // uses local player
+	virtual const Vector	GetPlayerMins() const; // uses local player
+	virtual const Vector	GetPlayerMaxs() const; // uses local player
 
 
 	void					VelocityPunch( const Vector &vecForce );
@@ -386,13 +386,13 @@ public:
 	virtual int				Save( ISave &save );
 	virtual int				Restore( IRestore &restore );
 	virtual bool			ShouldSavePhysics();
-	virtual void			OnRestore( void );
+	virtual void			OnRestore();
 
-	virtual void			PackDeadPlayerItems( void );
+	virtual void			PackDeadPlayerItems();
 	virtual void			RemoveAllItems( bool removeSuit );
 	bool					IsDead() const;
 #ifdef CSTRIKE_DLL
-	virtual bool			IsRunning( void ) const	{ return false; } // bot support under cstrike (AR)
+	virtual bool			IsRunning() const	{ return false; } // bot support under cstrike (AR)
 #endif
 
 	bool					HasPhysicsFlag( unsigned int flag ) { return (m_afPhysicsFlags & flag) != 0; }
@@ -407,40 +407,40 @@ public:
 	virtual bool			Weapon_ShouldSetLast( CBaseCombatWeapon *pOldWeapon, CBaseCombatWeapon *pNewWeapon ) { return true; }
 	virtual bool			Weapon_ShouldSelectItem( CBaseCombatWeapon *pWeapon );
 	void					Weapon_DropSlot( int weaponSlot );
-	CBaseCombatWeapon		*Weapon_GetLast( void ) { return m_hLastWeapon.Get(); }
+	CBaseCombatWeapon		*Weapon_GetLast() { return m_hLastWeapon.Get(); }
 
 	bool					HasAnyAmmoOfType( int nAmmoIndex );
 
 	// JOHN:  sends custom messages if player HUD data has changed  (eg health, ammo)
-	virtual void			UpdateClientData( void );
+	virtual void			UpdateClientData();
 	void					RumbleEffect( unsigned char index, unsigned char rumbleData, unsigned char rumbleFlags );
 	
 	// Player is moved across the transition by other means
-	virtual int				ObjectCaps( void ) { return BaseClass::ObjectCaps() & ~FCAP_ACROSS_TRANSITION; }
-	virtual void			Precache( void );
-	bool					IsOnLadder( void );
+	virtual int				ObjectCaps() { return BaseClass::ObjectCaps() & ~FCAP_ACROSS_TRANSITION; }
+	virtual void			Precache();
+	bool					IsOnLadder();
 	virtual void			ExitLadder() {}
 	virtual surfacedata_t	*GetLadderSurface( const Vector &origin );
 
 	virtual void			SetFlashlightEnabled( bool bState ) { };
-	virtual int				FlashlightIsOn( void ) { return false; }
-	virtual void			FlashlightTurnOn( void ) { };
-	virtual void			FlashlightTurnOff( void ) { };
+	virtual int				FlashlightIsOn() { return false; }
+	virtual void			FlashlightTurnOn() { };
+	virtual void			FlashlightTurnOff() { };
 	virtual bool			IsIlluminatedByFlashlight( CBaseEntity *pEntity, float *flReturnDot ) {return false; }
 	
-	void					UpdatePlayerSound ( void );
+	void					UpdatePlayerSound ();
 	virtual void			UpdateStepSound( surfacedata_t *psurface, const Vector &vecOrigin, const Vector &vecVelocity );
 	virtual void			PlayStepSound( Vector &vecOrigin, surfacedata_t *psurface, float fvol, bool force );
 	virtual void			GetStepSoundVelocities( float *velwalk, float *velrun );
 	virtual void			SetStepSoundTime( stepsoundtimes_t iStepSoundTime, bool bWalking );
 	virtual void			DeathSound( const CTakeDamageInfo &info );
 
-	Class_T					Classify ( void );
+	Class_T					Classify ();
 	virtual void			SetAnimation( PLAYER_ANIM playerAnim );
 	void					SetWeaponAnimType( const char *szExtention );
 
 	// custom player functions
-	virtual void			ImpulseCommands( void );
+	virtual void			ImpulseCommands();
 	virtual void			CheatImpulseCommands( int iImpulse );
 	virtual bool			ClientCommand( const CCommand &args );
 
@@ -449,13 +449,13 @@ public:
 	
 	// Observer functions
 	virtual bool			StartObserverMode(int mode); // true, if successful
-	virtual void			StopObserverMode( void );	// stop spectator mode
+	virtual void			StopObserverMode();	// stop spectator mode
 	virtual bool			ModeWantsSpectatorGUI( int iMode ) { return true; }
 	virtual bool			SetObserverMode(int mode); // sets new observer mode, returns true if successful
-	virtual int				GetObserverMode( void ); // returns observer mode or OBS_NONE
+	virtual int				GetObserverMode(); // returns observer mode or OBS_NONE
 	virtual bool			SetObserverTarget(CBaseEntity * target);
 	virtual void			ObserverUse( bool bIsPressed ); // observer pressed use
-	virtual CBaseEntity		*GetObserverTarget( void ); // returns players targer or NULL
+	virtual CBaseEntity		*GetObserverTarget(); // returns players targer or NULL
 	virtual CBaseEntity		*FindNextObserverTarget( bool bReverse ); // returns next/prev player to follow or NULL
 	virtual int				GetNextObserverSearchStartPoint( bool bReverse ); // Where we should start looping the player list in a FindNextObserverTarget call
 	virtual bool			IsValidObserverTarget(CBaseEntity * target); // true, if player is allowed to see this target
@@ -463,19 +463,19 @@ public:
 	virtual void			JumptoPosition(const Vector &origin, const QAngle &angles);
 	virtual void			ForceObserverMode(int mode); // sets a temporary mode, force because of invalid targets
 	virtual void			ResetObserverMode(); // resets all observer related settings
-	virtual void			ValidateCurrentObserverTarget( void ); // Checks the current observer target, and moves on if it's not valid anymore
-	virtual void			AttemptToExitFreezeCam( void );
+	virtual void			ValidateCurrentObserverTarget(); // Checks the current observer target, and moves on if it's not valid anymore
+	virtual void			AttemptToExitFreezeCam();
 
 	virtual bool			StartReplayMode( float fDelay, float fDuration, int iEntity );
 	virtual void			StopReplayMode();
 	virtual int				GetDelayTicks();
 	virtual int				GetReplayEntity();
 
-	virtual void			CreateCorpse( void ) { }
-	virtual CBaseEntity		*EntSelectSpawnPoint( void );
+	virtual void			CreateCorpse() { }
+	virtual CBaseEntity		*EntSelectSpawnPoint();
 
 	// Vehicles
-	virtual bool			IsInAVehicle( void ) const;
+	virtual bool			IsInAVehicle() const;
 			bool			CanEnterVehicle( IServerVehicle *pVehicle, int nRole );
 	virtual bool			GetInVehicle( IServerVehicle *pVehicle, int nRole );
 	virtual void			LeaveVehicle( const Vector &vecExitPoint = vec3_origin, const QAngle &vecExitAngles = vec3_angle );
@@ -486,41 +486,41 @@ public:
 	virtual void			OnVehicleStart() {}
 	virtual void			OnVehicleEnd( Vector &playerDestPosition ) {} 
 	IServerVehicle			*GetVehicle();
-	CBaseEntity				*GetVehicleEntity( void );
-	bool					UsingStandardWeaponsInVehicle( void );
+	CBaseEntity				*GetVehicleEntity();
+	bool					UsingStandardWeaponsInVehicle();
 	
 	void					AddPoints( int score, bool bAllowNegativeScore );
 	void					AddPointsToTeam( int score, bool bAllowNegativeScore );
 	virtual bool			BumpWeapon( CBaseCombatWeapon *pWeapon );
 	bool					RemovePlayerItem( CBaseCombatWeapon *pItem );
 	CBaseEntity				*HasNamedPlayerItem( const char *pszItemName );
-	bool 					HasWeapons( void );// do I have ANY weapons?
+	bool 					HasWeapons();// do I have ANY weapons?
 	virtual void			SelectLastItem(void);
 	virtual void 			SelectItem( const char *pstr, int iSubType = 0 );
-	void					ItemPreFrame( void );
-	virtual void			ItemPostFrame( void );
+	void					ItemPreFrame();
+	virtual void			ItemPostFrame();
 	virtual CBaseEntity		*GiveNamedItem( const char *szName, int iSubType = 0 );
 	void					EnableControl(bool fControl);
-	virtual void			CheckTrainUpdate( void );
-	void					AbortReload( void );
+	virtual void			CheckTrainUpdate();
+	void					AbortReload();
 
 	void					SendAmmoUpdate(void);
 
-	void					WaterMove( void );
+	void					WaterMove();
 	float					GetWaterJumpTime() const;
 	void					SetWaterJumpTime( float flWaterJumpTime );
-	float					GetSwimSoundTime( void ) const;
+	float					GetSwimSoundTime() const;
 	void					SetSwimSoundTime( float flSwimSoundTime );
 
 	virtual void			SetPlayerUnderwater( bool state );
-	void					UpdateUnderwaterState( void );
-	bool					IsPlayerUnderwater( void ) { return m_bPlayerUnderwater; }
+	void					UpdateUnderwaterState();
+	bool					IsPlayerUnderwater() { return m_bPlayerUnderwater; }
 
 	virtual bool			CanBreatheUnderwater() const { return false; }
-	virtual void			PlayerUse( void );
+	virtual void			PlayerUse();
 	virtual void			PlayUseDenySound() {}
 
-	virtual CBaseEntity		*FindUseEntity( void );
+	virtual CBaseEntity		*FindUseEntity();
 	virtual bool			IsUseableEntity( CBaseEntity *pEntity, unsigned int requiredCaps );
 	bool					ClearUseEntity();
 	CBaseEntity				*DoubleCheckUseNPC( CBaseEntity *pNPC, const Vector &vecSrc, const Vector &vecDir );
@@ -532,14 +532,14 @@ public:
 	virtual void			PickupObject( CBaseEntity *pObject, bool bLimitMassAndSize = true ) {}
 	virtual void			ForceDropOfCarriedPhysObjects( CBaseEntity *pOnlyIfHoldindThis = NULL ) {}
 	virtual float			GetHeldObjectMass( IPhysicsObject *pHeldObject );
-	virtual CBaseEntity		*GetHeldObject( void );
+	virtual CBaseEntity		*GetHeldObject();
 
 	virtual void			CheckSuitUpdate();
 	void					SetSuitUpdate(char *name, int fgroup, int iNoRepeat);
-	virtual void			UpdateGeigerCounter( void );
-	void					CheckTimeBasedDamage( void );
+	virtual void			UpdateGeigerCounter();
+	void					CheckTimeBasedDamage();
 
-	void					ResetAutoaim( void );
+	void					ResetAutoaim();
 	
 	virtual Vector			GetAutoaimVector( float flScale );
 	virtual Vector			GetAutoaimVector( float flScale, float flMaxDist );
@@ -547,13 +547,13 @@ public:
 
 	float					GetAutoaimScore( const Vector &eyePosition, const Vector &viewDir, const Vector &vecTarget, CBaseEntity *pTarget, float fScale, CBaseCombatWeapon *pActiveWeapon );
 	QAngle					AutoaimDeflection( Vector &vecSrc, autoaim_params_t &params );
-	virtual bool			ShouldAutoaim( void );
+	virtual bool			ShouldAutoaim();
 	void					SetTargetInfo( Vector &vecSrc, float flDist );
 
 	void					SetViewEntity( CBaseEntity *pEntity );
-	CBaseEntity				*GetViewEntity( void ) { return m_hViewEntity; }
+	CBaseEntity				*GetViewEntity() { return m_hViewEntity; }
 
-	virtual void			ForceClientDllUpdate( void );  // Forces all client .dll specific data to be resent to client.
+	virtual void			ForceClientDllUpdate();  // Forces all client .dll specific data to be resent to client.
 
 	void					DeathMessage( CBaseEntity *pKiller );
 
@@ -566,7 +566,7 @@ public:
 	// the player is in one.
 	virtual void			PlayerRunCommand(CUserCmd *ucmd, IMoveHelper *moveHelper);
 	void					RunNullCommand();
-	CUserCmd *				GetCurrentCommand( void )	{ return m_pCurrentCommand; }
+	CUserCmd *				GetCurrentCommand()	{ return m_pCurrentCommand; }
 
 	// Team Handling
 	virtual void			ChangeTeam( int iTeamNum ) { ChangeTeam(iTeamNum,false, false); }
@@ -574,7 +574,7 @@ public:
 
 	// say/sayteam allowed?
 	virtual bool		CanHearAndReadChatFrom( CBasePlayer *pPlayer ) { return true; }
-	virtual bool		CanSpeak( void ) { return true; }
+	virtual bool		CanSpeak() { return true; }
 
 	audioparams_t			&GetAudioParams() { return m_Local.m_audio; }
 
@@ -585,16 +585,16 @@ public:
 
 	virtual void DoMuzzleFlash();
 
-	CNavArea *GetLastKnownArea( void ) const		{ return m_lastNavArea; }		// return the last nav area the player occupied - NULL if unknown
-	const char *GetLastKnownPlaceName( void ) const	{ return m_szLastPlaceName; }	// return the last nav place name the player occupied
+	CNavArea *GetLastKnownArea() const		{ return m_lastNavArea; }		// return the last nav area the player occupied - NULL if unknown
+	const char *GetLastKnownPlaceName() const	{ return m_szLastPlaceName; }	// return the last nav place name the player occupied
 
 	virtual void			CheckChatText( char *p, int bufsize ) {}
 
-	virtual void			CreateRagdollEntity( void ) { return; }
+	virtual void			CreateRagdollEntity() { return; }
 
 	virtual void			HandleAnimEvent( animevent_t *pEvent );
 
-	virtual bool			ShouldAnnounceAchievement( void ){ return true; }
+	virtual bool			ShouldAnnounceAchievement(){ return true; }
 
 public:
 	// Player Physics Shadow
@@ -603,26 +603,26 @@ public:
 	virtual void			VPhysicsCollision( int index, gamevcollisionevent_t *pEvent );
 	void					VPhysicsUpdate( IPhysicsObject *pPhysics );
 	virtual void			VPhysicsShadowUpdate( IPhysicsObject *pPhysics );
-	virtual bool			IsFollowingPhysics( void ) { return false; }
+	virtual bool			IsFollowingPhysics() { return false; }
 	bool					IsRideablePhysics( IPhysicsObject *pPhysics );
 	IPhysicsObject			*GetGroundVPhysics();
 
 	virtual void			Touch( CBaseEntity *pOther );
 	void					SetTouchedPhysics( bool bTouch );
-	bool					TouchedPhysics( void );
-	Vector					GetSmoothedVelocity( void );
+	bool					TouchedPhysics();
+	Vector					GetSmoothedVelocity();
 
 	virtual void			InitVCollision( const Vector &vecAbsOrigin, const Vector &vecAbsVelocity );
 	virtual void			VPhysicsDestroyObject();
 	void					SetVCollisionState( const Vector &vecAbsOrigin, const Vector &vecAbsVelocity, int collisionState );
-	void					PostThinkVPhysics( void );
+	void					PostThinkVPhysics();
 	virtual void			UpdatePhysicsShadowToCurrentPosition();
 	void					UpdatePhysicsShadowToPosition( const Vector &vecAbsOrigin );
 	void					UpdateVPhysicsPosition( const Vector &position, const Vector &velocity, float secondsToArrival );
 
 	// Hint system
-	virtual CHintSystem		*Hints( void ) { return NULL; }
-	bool					ShouldShowHints( void ) { return Hints() ? Hints()->ShouldShowHints() : false; }
+	virtual CHintSystem		*Hints() { return NULL; }
+	bool					ShouldShowHints() { return Hints() ? Hints()->ShouldShowHints() : false; }
 	void					SetShowHints( bool bShowHints ) { if (Hints()) Hints()->SetShowHints( bShowHints ); }
 	bool 					HintMessage( int hint, bool bForce = false ) { return Hints() ? Hints()->HintMessage( hint, bForce ) : false; }
 	void 					HintMessage( const char *pMessage ) { if (Hints()) Hints()->HintMessage( pMessage ); }
@@ -653,13 +653,13 @@ public:
 	CBaseEntity *GetObserverTarget() const	{ return m_hObserverTarget; }
 
 	// Round gamerules
-	virtual bool	IsReadyToPlay( void ) { return true; }
-	virtual bool	IsReadyToSpawn( void ) { return true; }
-	virtual bool	ShouldGainInstantSpawn( void ) { return false; }
-	virtual void	ResetPerRoundStats( void ) { return; }
-	void			AllowInstantSpawn( void ) { m_bAllowInstantSpawn = true; }
+	virtual bool	IsReadyToPlay() { return true; }
+	virtual bool	IsReadyToSpawn() { return true; }
+	virtual bool	ShouldGainInstantSpawn() { return false; }
+	virtual void	ResetPerRoundStats() { return; }
+	void			AllowInstantSpawn() { m_bAllowInstantSpawn = true; }
 
-	virtual void	ResetScores( void ) { ResetFragCount(); ResetDeathCount(); }
+	virtual void	ResetScores() { ResetFragCount(); ResetDeathCount(); }
 	void	ResetFragCount();
 	void	IncrementFragCount( int nCount );
 
@@ -671,7 +671,7 @@ public:
 
 	void	SetConnected( PlayerConnectedState iConnected ) { m_iConnected = iConnected; }
 	virtual void EquipSuit( bool bPlayEffects = true );
-	virtual void RemoveSuit( void );
+	virtual void RemoveSuit();
 	void	SetMaxSpeed( float flMaxSpeed ) { m_flMaxspeed = flMaxSpeed; }
 
 	void	NotifyNearbyRadiationSource( float flRange );
@@ -700,23 +700,23 @@ public:
 	void	SetTimeBase( float flTimeBase );
 	float	GetTimeBase() const;
 	void	SetLastUserCommand( const CUserCmd &cmd );
-	const CUserCmd *GetLastUserCommand( void );
+	const CUserCmd *GetLastUserCommand();
 	virtual bool IsBot() const;
 
-	bool	IsPredictingWeapons( void ) const; 
+	bool	IsPredictingWeapons() const; 
 	int		CurrentCommandNumber() const;
 	const CUserCmd *GetCurrentUserCommand() const;
 
-	int		GetFOV( void );														// Get the current FOV value
-	int		GetDefaultFOV( void ) const;										// Default FOV if not specified otherwise
-	int		GetFOVForNetworking( void );										// Get the current FOV used for network computations
+	int		GetFOV();														// Get the current FOV value
+	int		GetDefaultFOV() const;										// Default FOV if not specified otherwise
+	int		GetFOVForNetworking();										// Get the current FOV used for network computations
 	bool	SetFOV( CBaseEntity *pRequester, int FOV, float zoomRate = 0.0f, int iZoomStart = 0 );	// Alters the base FOV of the player (must have a valid requester)
 	void	SetDefaultFOV( int FOV );											// Sets the base FOV if nothing else is affecting it by zooming
-	CBaseEntity *GetFOVOwner( void ) { return m_hZoomOwner; }
+	CBaseEntity *GetFOVOwner() { return m_hZoomOwner; }
 	float	GetFOVDistanceAdjustFactor(); // shared between client and server
 	float	GetFOVDistanceAdjustFactorForNetworking();
 
-	int		GetImpulse( void ) const { return m_nImpulse; }
+	int		GetImpulse() const { return m_nImpulse; }
 
 	// Movement constraints
 	void	ActivateMovementConstraint( CBaseEntity *pEntity, const Vector &vecCenter, float flRadius, float flConstraintWidth, float flSpeedFactor );
@@ -731,13 +731,18 @@ public:
 	void	ForceButtons( int nButtons );
 	void	UnforceButtons( int nButtons );
 
+	// Accessors for gamemovement
+	bool IsDucked() const { return m_Local.m_bDucked; }
+	bool IsDucking() const { return m_Local.m_bDucking; }
+	float GetStepSize() const { return m_Local.m_flStepSize; }
+
 	//---------------------------------
 	// Inputs
 	//---------------------------------
 	void	InputSetHealth( inputdata_t &inputdata );
 	void	InputSetHUDVisibility( inputdata_t &inputdata );
 
-	surfacedata_t *GetSurfaceData( void ) { return m_pSurfaceData; }
+	surfacedata_t *GetSurfaceData() { return m_pSurfaceData; }
 	void SetLadderNormal( Vector vecLadderNormal ) { m_vecLadderNormal = vecLadderNormal; }
 
 	// Here so that derived classes can use the expresser
@@ -749,15 +754,15 @@ public:
 private:
 	
 	// For queueing up CUserCmds and running them from PhysicsSimulate
-	int					GetCommandContextCount( void ) const;
+	int					GetCommandContextCount() const;
 	CCommandContext		*GetCommandContext( int index );
-	CCommandContext		*AllocCommandContext( void );
+	CCommandContext		*AllocCommandContext();
 	void				RemoveCommandContext( int index );
-	void				RemoveAllCommandContexts( void );
-	CCommandContext		*RemoveAllCommandContextsExceptNewest( void );
+	void				RemoveAllCommandContexts();
+	CCommandContext		*RemoveAllCommandContextsExceptNewest();
 	void				ReplaceContextCommands( CCommandContext *ctx, CUserCmd *pCommands, int nCommands );
 
-	int					DetermineSimulationTicks( void );
+	int					DetermineSimulationTicks();
 	void				AdjustPlayerTimeBase( int simulation_ticks );
 
 public:
@@ -770,7 +775,7 @@ public:
 	// This player's data that should only be replicated to 
 	//  the player and not to other players.
 	CNetworkVarEmbedded( CPlayerLocalData, m_Local );
-	void InitFogController( void );
+	void InitFogController();
 	void InputSetFogController( inputdata_t &inputdata );
 
 	// Used by env_soundscape_triggerable to manage when the player is touching multiple
@@ -812,13 +817,13 @@ public:
 	bool					m_bLagCompensation;	// user wants lag compenstation
 	bool					m_bPredictWeapons; //  user has client side predicted weapons
 	
-	float		GetDeathTime( void ) { return m_flDeathTime; }
+	float		GetDeathTime() { return m_flDeathTime; }
 
-	void		ClearZoomOwner( void );
+	void		ClearZoomOwner();
 
 	void		SetPreviouslyPredictedOrigin( const Vector &vecAbsOrigin );
 	const Vector &GetPreviouslyPredictedOrigin() const;
-	float		GetFOVTime( void ){ return m_flFOVTime; }
+	float		GetFOVTime(){ return m_flFOVTime; }
 
 	void		AdjustDrownDmg( int nAmount );
 
@@ -896,7 +901,7 @@ protected:
 	// Player Physics Shadow
 	int						m_vphysicsCollisionState;
 
-	virtual int SpawnArmorValue( void ) const { return 0; }
+	virtual int SpawnArmorValue() const { return 0; }
 
 	float					m_fNextSuicideTime; // the time after which the player can next use the suicide command
 	int						m_iSuicideCustomKillFlags;
@@ -1009,9 +1014,9 @@ private:
 	bool					m_bDuckToggled;		// If true, the player is crouching via a toggle
 
 public:
-	bool					GetToggledDuckState( void ) { return m_bDuckToggled; }
-	void					ToggleDuck( void );
-	float					GetStickDist( void );
+	bool					GetToggledDuckState() { return m_bDuckToggled; }
+	void					ToggleDuck();
+	float					GetStickDist();
 
 	float					m_flForwardMove;
 	float					m_flSideMove;
@@ -1068,11 +1073,6 @@ protected:
 #if defined ( SDK_DLL )
 	friend class CSDKGameMovement;
 #endif
-	
-	// Accessors for gamemovement
-	bool IsDucked( void ) const { return m_Local.m_bDucked; }
-	bool IsDucking( void ) const { return m_Local.m_bDucking; }
-	float GetStepSize( void ) const { return m_Local.m_flStepSize; }
 
 	CNetworkVar( float,  m_flLaggedMovementValue );
 
@@ -1111,10 +1111,10 @@ protected:
 
 public:
 
-	float  GetLaggedMovementValue( void ){ return m_flLaggedMovementValue;	}
+	float  GetLaggedMovementValue(){ return m_flLaggedMovementValue;	}
 	void   SetLaggedMovementValue( float flValue ) { m_flLaggedMovementValue = flValue;	}
 
-	inline bool IsAutoKickDisabled( void ) const;
+	inline bool IsAutoKickDisabled() const;
 	inline void DisableAutoKick( bool disabled );
 
 	void	DumpPerfToRecipient( CBasePlayer *pRecipient, int nMaxRecords );
@@ -1160,7 +1160,7 @@ EXTERN_SEND_TABLE(DT_BasePlayer)
 //-----------------------------------------------------------------------------
 // Inline methods
 //-----------------------------------------------------------------------------
-inline bool CBasePlayer::IsAutoKickDisabled( void ) const
+inline bool CBasePlayer::IsAutoKickDisabled() const
 {
 	return m_autoKickDisabled;
 }
@@ -1206,12 +1206,12 @@ inline void CBasePlayer::SetLastUserCommand( const CUserCmd &cmd )
 	m_LastCmd = cmd; 
 }
 
-inline CUserCmd const *CBasePlayer::GetLastUserCommand( void )
+inline CUserCmd const *CBasePlayer::GetLastUserCommand()
 {
 	return &m_LastCmd;
 }
 
-inline bool CBasePlayer::IsPredictingWeapons( void ) const 
+inline bool CBasePlayer::IsPredictingWeapons() const 
 {
 	return m_bPredictWeapons;
 }
@@ -1239,7 +1239,7 @@ inline CBaseEntity *CBasePlayer::GetVehicleEntity()
 	return m_hVehicle.Get();
 }
 
-inline bool CBasePlayer::IsInAVehicle( void ) const 
+inline bool CBasePlayer::IsInAVehicle() const 
 { 
 	return ( NULL != m_hVehicle.Get() ) ? true : false; 
 }
@@ -1249,7 +1249,7 @@ inline void CBasePlayer::SetTouchedPhysics( bool bTouch )
 	m_touchedPhysObject = bTouch; 
 }
 
-inline bool CBasePlayer::TouchedPhysics( void )			
+inline bool CBasePlayer::TouchedPhysics()			
 { 
 	return m_touchedPhysObject; 
 }

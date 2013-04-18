@@ -33,20 +33,16 @@ extern ConVar r_flashlightdepthtexture;
 void r_newflashlightCallback_f(IConVar *pConVar, const char *pOldString, float flOldValue);
 
 static ConVar r_newflashlight				("r_newflashlight",				"1",		FCVAR_CHEAT, "", r_newflashlightCallback_f);
-static ConVar r_powerfulflashlight			("r_powerfulflashlight",		"0",		FCVAR_CHEAT, "Activa o desactiva una linterna más poderosa.");
 static ConVar r_swingflashlight				("r_swingflashlight",			"1",		FCVAR_CHEAT);
 static ConVar r_flashlightlockposition		("r_flashlightlockposition",	"0",		FCVAR_CHEAT);
 static ConVar r_flashlightfov				("r_flashlightfov",				"45.0",		FCVAR_CHEAT);
-static ConVar r_flashlight_powerfulfov		("r_flashlight_powerfulfov",	"65.0",		FCVAR_CHEAT, "Define el campo de visión (FOV) de la linterna poderosa.");
 static ConVar r_flashlightoffsetx			("r_flashlightoffsetx",			"10.0",		FCVAR_CHEAT);
 static ConVar r_flashlightoffsety			("r_flashlightoffsety",			"-20.0",	FCVAR_CHEAT);
 static ConVar r_flashlightoffsetz			("r_flashlightoffsetz",			"24.0",		FCVAR_CHEAT);
 static ConVar r_flashlightnear				("r_flashlightnear",			"4.0",		FCVAR_CHEAT);
 static ConVar r_flashlightfar				("r_flashlightfar",				"750.0",	FCVAR_CHEAT);
-static ConVar r_flashlight_powefulfar		("r_flashlight_powefulfar",		"1000.0",	FCVAR_CHEAT, "Define la distancia de iluminación de la linterna poderosa.");
 static ConVar r_flashlightconstant			("r_flashlightconstant",		"0.0",		FCVAR_CHEAT);
 static ConVar r_flashlightlinear			("r_flashlightlinear",			"100.0",	FCVAR_CHEAT);
-static ConVar r_flashlight_powerfullinear	("r_flashlight_powerfullinear",	"60.0",		FCVAR_CHEAT, "Define la iluminación de la linterna poderosa.");
 static ConVar r_flashlightquadratic			("r_flashlightquadratic",		"0.0",		FCVAR_CHEAT);
 static ConVar r_flashlightvisualizetrace	("r_flashlightvisualizetrace",	"0",		FCVAR_CHEAT);
 static ConVar r_flashlightambient			("r_flashlightambient",			"0.0",		FCVAR_CHEAT);
@@ -71,24 +67,19 @@ void r_newflashlightCallback_f( IConVar *pConVar, const char *pOldString, float 
 //-----------------------------------------------------------------------------
 CFlashlightEffect::CFlashlightEffect(int nEntIndex)
 {
-	m_FlashlightHandle = CLIENTSHADOW_INVALID_HANDLE;
-	m_nEntIndex = nEntIndex;
+	m_FlashlightHandle	= CLIENTSHADOW_INVALID_HANDLE;
+	m_nEntIndex			= nEntIndex;
 
-	m_bIsOn = false;
-	m_pPointLight = NULL;
-	if( engine->GetDXSupportLevel() < 70 )
-	{
-		r_newflashlight.SetValue( 0 );
-	}	
+	m_bIsOn			= false;
+	m_pPointLight	= NULL;
+
+	if ( engine->GetDXSupportLevel() < 70 )
+		r_newflashlight.SetValue(0);
 
 	if ( g_pMaterialSystemHardwareConfig->SupportsBorderColor() )
-	{
-		m_FlashlightTexture.Init( "effects/flashlight_border", TEXTURE_GROUP_OTHER, true );
-	}
+		m_FlashlightTexture.Init("effects/flashlight_border", TEXTURE_GROUP_OTHER, true);
 	else
-	{
-		m_FlashlightTexture.Init( "effects/flashlight001", TEXTURE_GROUP_OTHER, true );
-	}
+		m_FlashlightTexture.Init("effects/flashlight001", TEXTURE_GROUP_OTHER, true);
 }
 
 
@@ -160,8 +151,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 	FlashlightState_t state;
 
 	// We will lock some of the flashlight params if player is on a ladder, to prevent oscillations due to the trace-rays
-	bool bPlayerOnLadder = ( C_BasePlayer::GetLocalPlayer()->GetMoveType() == MOVETYPE_LADDER );
-
+	bool bPlayerOnLadder		= ( C_BasePlayer::GetLocalPlayer()->GetMoveType() == MOVETYPE_LADDER );
 	const float flEpsilon		= 0.1f;			// Offset flashlight position along vecUp
 	const float flDistCutoff	= 128.0f;
 	const float flDistDrag		= 0.2;
@@ -169,7 +159,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 	CTraceFilterSkipPlayerAndViewModel traceFilter;
 	float flOffsetY = r_flashlightoffsety.GetFloat();
 
-	if( r_swingflashlight.GetBool() )
+	if ( r_swingflashlight.GetBool() )
 	{
 		// This projects the view direction backwards, attempting to raise the vertical
 		// offset of the flashlight, but only when the player is looking down.
@@ -198,7 +188,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 	iMask		&= ~CONTENTS_HITBOX;
 	iMask		|= CONTENTS_WINDOW;
 
-	Vector vTarget = vecPos + vecForward * ((r_powerfulflashlight.GetBool()) ? r_flashlight_powefulfar.GetFloat() : r_flashlightfar.GetFloat());
+	Vector vTarget = vecPos + vecForward *  r_flashlightfar.GetFloat();
 
 	// Work with these local copies of the basis for the rest of the function
 	Vector vDir   = vTarget - vOrigin;
@@ -274,9 +264,6 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 	bool bFlicker		= false;
 	float flashlightFOV = r_flashlightfov.GetFloat();
 
-	if ( r_powerfulflashlight.GetBool() )
-		flashlightFOV = r_flashlight_powerfulfov.GetFloat();
-
 	C_BaseHLPlayer *pPlayer = (C_BaseHLPlayer *)C_BasePlayer::GetLocalPlayer();
 
 	if ( pPlayer )
@@ -300,7 +287,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 				
 				// On
 				if ( flFlicker > 0.25f && flFlicker < 0.75f )
-					state.m_fLinearAtten = ((r_powerfulflashlight.GetBool()) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat()) * flScale;
+					state.m_fLinearAtten = r_flashlightlinear.GetFloat() * flScale;
 
 				// Off
 				else
@@ -309,7 +296,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 			else
 			{
 				float flNoise			= cosf( gpGlobals->curtime * 7.0f ) * sinf( gpGlobals->curtime * 25.0f );
-				state.m_fLinearAtten	= ((r_powerfulflashlight.GetBool()) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat()) * flScale + 1.5f * flNoise;
+				state.m_fLinearAtten	= r_flashlightlinear.GetFloat() * flScale + 1.5f * flNoise;
 			}
 
 			state.m_fHorizontalFOVDegrees	= flashlightFOV - ( 16.0f * (1.0f-flScale) );
@@ -321,7 +308,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 
 	if ( bFlicker == false )
 	{
-		state.m_fLinearAtten			= ( (r_powerfulflashlight.GetBool() ) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat());
+		state.m_fLinearAtten			= r_flashlightlinear.GetFloat();
 		state.m_fHorizontalFOVDegrees	= flashlightFOV;
 		state.m_fVerticalFOVDegrees		= flashlightFOV;
 	}
@@ -332,7 +319,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 	state.m_Color[2]				= 1.0f;
 	state.m_Color[3]				= r_flashlightambient.GetFloat();
 	state.m_NearZ					= r_flashlightnear.GetFloat() + m_flDistMod;	// Push near plane out so that we don't clip the world when the flashlight pulls back 
-	state.m_FarZ					= (r_powerfulflashlight.GetBool()) ? r_flashlight_powefulfar.GetFloat() : r_flashlightfar.GetFloat();
+	state.m_FarZ					= r_flashlightfar.GetFloat();
 	state.m_bEnableShadows			= r_flashlightdepthtexture.GetBool();
 	state.m_flShadowMapResolution	= r_flashlightdepthres.GetInt();
 
@@ -356,7 +343,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 	// Kill the old flashlight method if we have one.
 	LightOffOld();
 
-	#ifndef NO_TOOLFRAMEWORK
+#ifndef NO_TOOLFRAMEWORK
 	if ( clienttools->IsInRecordingMode() )
 	{
 		KeyValues *msg = new KeyValues( "FlashlightState" );
@@ -367,7 +354,7 @@ void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecFo
 		ToolFramework_PostToolMessage( HTOOLHANDLE_INVALID, msg );
 		msg->deleteThis();
 	}
-	#endif
+#endif
 }
 
 /*
@@ -649,17 +636,12 @@ void CFlashlightEffect::UpdateLightOld(const Vector &vecPos, const Vector &vecDi
 void CFlashlightEffect::UpdateLight(const Vector &vecPos, const Vector &vecDir, const Vector &vecRight, const Vector &vecUp, int nDistance)
 {
 	if ( !m_bIsOn )
-	{
 		return;
-	}
+
 	if( r_newflashlight.GetBool() )
-	{
-		UpdateLightNew( vecPos, vecDir, vecRight, vecUp );
-	}
+		UpdateLightNew(vecPos, vecDir, vecRight, vecUp);
 	else
-	{
-		UpdateLightOld( vecPos, vecDir, nDistance );
-	}
+		UpdateLightOld(vecPos, vecDir, nDistance);
 }
 
 
@@ -741,14 +723,14 @@ void CHeadlightEffect::UpdateLight( const Vector &vecPos, const Vector &vecDir, 
 	state.m_fHorizontalFOVDegrees	= 45.0f;
 	state.m_fVerticalFOVDegrees		= 30.0f;
 	state.m_fQuadraticAtten			= r_flashlightquadratic.GetFloat();
-	state.m_fLinearAtten			= ((r_powerfulflashlight.GetBool()) ? r_flashlight_powerfullinear.GetFloat() : r_flashlightlinear.GetFloat());
+	state.m_fLinearAtten			= r_flashlightlinear.GetFloat();
 	state.m_fConstantAtten			= r_flashlightconstant.GetFloat();
 	state.m_Color[0]				= 1.0f;
 	state.m_Color[1]				= 1.0f;
 	state.m_Color[2]				= 1.0f;
 	state.m_Color[3]				= r_flashlightambient.GetFloat();
 	state.m_NearZ					= r_flashlightnear.GetFloat();
-	state.m_FarZ					= (r_powerfulflashlight.GetBool()) ? r_flashlight_powefulfar.GetFloat() : r_flashlightfar.GetFloat();
+	state.m_FarZ					= r_flashlightfar.GetFloat();
 	state.m_bEnableShadows			= true;
 	state.m_pSpotlightTexture		= m_FlashlightTexture;
 	state.m_nSpotlightTextureFrame	= 0;
@@ -764,4 +746,3 @@ void CHeadlightEffect::UpdateLight( const Vector &vecPos, const Vector &vecDir, 
 	
 	g_pClientShadowMgr->UpdateProjectedTexture( GetFlashlightHandle(), true );
 }
-

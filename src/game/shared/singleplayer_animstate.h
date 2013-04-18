@@ -56,6 +56,7 @@ private:
     int                 ConvergeAngles(float goal,float maxrate, float dt, float& current);
     void                EstimateYaw(void);
 
+	//void				ComputePoseParam_AimPitch( CStudioHdr *pStudioHdr );
     void                ComputePoseParam_BodyYaw(void);
     void                ComputePoseParam_BodyPitch(CStudioHdr *pStudioHdr);
     void                ComputePoseParam_BodyLookYaw(void);

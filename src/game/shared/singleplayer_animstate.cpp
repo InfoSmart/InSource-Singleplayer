@@ -43,15 +43,16 @@ extern ConVar mp_ik;
 
 CSinglePlayerAnimState::CSinglePlayerAnimState( CBasePlayer *pPlayer ): m_pPlayer( pPlayer )
 {
-    m_flGaitYaw = 0.0f;
-    m_flGoalFeetYaw = 0.0f;
-    m_flCurrentFeetYaw = 0.0f;
-    m_flCurrentTorsoYaw = 0.0f;
-    m_flLastYaw = 0.0f;
-    m_flLastTurnTime = 0.0f;
-    m_flTurnCorrectionTime = 0.0f;
+    m_flGaitYaw				= 0.0f;
+    m_flGoalFeetYaw			= 0.0f;
+    m_flCurrentFeetYaw		= 0.0f;
+    m_flCurrentTorsoYaw		= 0.0f;
+    m_flLastYaw				= 0.0f;
+    m_flLastTurnTime		= 0.0f;
+    m_flTurnCorrectionTime	= 0.0f;
 
     m_pPlayer = NULL;
+	m_angAiming.Init();
 };
 
 void CSinglePlayerAnimState::Init( CBasePlayer *pPlayer )
@@ -176,6 +177,22 @@ void CSinglePlayerAnimState::EstimateYaw( void )
             m_flGaitYaw = -180;
     }
 }
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+/*
+void CSinglePlayerAnimState::ComputePoseParam_AimPitch( CStudioHdr *pStudioHdr )
+{
+	// Get the view pitch.
+	float flAimPitch	= m_flEyePitch;
+	m_angAiming.x		= Approach( flAimPitch, m_angAiming.x, gpGlobals->frametime * 110.0f );
+
+	// Set the aim pitch pose parameter and save.
+	GetBasePlayer()->SetPoseParameter( pStudioHdr, m_PoseParameterData.m_iAimPitch, m_angAiming.x );
+	m_DebugAnimData.m_flAimPitch = flAimPitch;
+}
+*/
 
 //-----------------------------------------------------------------------------
 // Purpose: Override for backpeddling

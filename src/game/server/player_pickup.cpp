@@ -14,7 +14,7 @@
 // player pickup utility routine
 void Pickup_ForcePlayerToDropThisObject( CBaseEntity *pTarget )
 {
-	if ( pTarget == NULL )
+	if ( pTarget == NULL || g_pGameRules->IsMultiplayer() )
 		return;
 
 	IPhysicsObject *pPhysics = pTarget->VPhysicsGetObject();

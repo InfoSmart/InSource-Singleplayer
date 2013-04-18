@@ -284,9 +284,10 @@ static ConCommand toggle_duck("toggle_duck", CC_ToggleDuck, "Toggles duck");
 // Guardado y definición de datos
 //=========================================================
 
+#ifndef INSOURCE
 LINK_ENTITY_TO_CLASS(player, CHL2_Player);
-
 PRECACHE_REGISTER(player);
+#endif
 
 CBaseEntity *FindEntityForward(CBasePlayer *pMe, bool fHull);
 
@@ -367,7 +368,6 @@ END_DATADESC()
 CHL2_Player::CHL2_Player()
 {
 	m_pPlayerAnimState = CreatePlayerAnimationState(this);
-	m_angEyeAngles.Init();
 
 	m_nNumMissPositions	= 0;
 	m_pPlayerAISquad	= 0;
@@ -849,17 +849,13 @@ void CHL2_Player::PostThink()
 {
 	BaseClass::PostThink();
 
-	if (!g_fGameOver && !IsPlayerLockedInPlace() && IsAlive())
+	if ( !g_fGameOver && !IsPlayerLockedInPlace() && IsAlive() )
 		 HandleAdmireGlovesAnimation();
-
-	m_angEyeAngles = EyeAngles();
 
 	QAngle angles = GetLocalAngles();
 	angles[PITCH] = 0;
 	SetLocalAngles(angles);
 
-
-	//m_pPlayerAnimState->Update(m_angEyeAngles[YAW], m_angEyeAngles[PITCH]);
 	m_pPlayerAnimState->Update();
 }
 
@@ -1966,12 +1962,12 @@ int CHL2_Player::FlashlightIsOn( void )
 //=========================================================
 void CHL2_Player::FlashlightTurnOn()
 {
-	if(m_bFlashlightDisabled)
+	if ( m_bFlashlightDisabled )
 		return;
 
-	if (Flashlight_UseLegacyVersion())
+	if ( Flashlight_UseLegacyVersion() )
 	{
-		if(!SuitPower_AddDevice(SuitDeviceFlashlight))
+		if ( !SuitPower_AddDevice(SuitDeviceFlashlight) )
 			return;
 	}
 

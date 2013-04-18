@@ -315,7 +315,6 @@ protected:
 
 private:
 	CSinglePlayerAnimState *m_pPlayerAnimState;
-	QAngle					m_angEyeAngles;
 
 	bool				CommanderExecuteOne( CAI_BaseNPC *pNpc, const commandgoal_t &goal, CAI_BaseNPC **Allies, int numAllies );
 

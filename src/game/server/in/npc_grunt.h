@@ -27,6 +27,7 @@ public:
 
 	void Spawn();
 	void Precache();
+	void Think();
 	Class_T	Classify();
 
 	void IdleSound();

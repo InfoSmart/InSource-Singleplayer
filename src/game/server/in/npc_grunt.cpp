@@ -78,20 +78,18 @@ ConVar sk_grunt_dmg_low		("sk_grunt_dmg_low",		"0", 0, "Daño causado por un golp
 // Color de la sangre.
 #define BLOOD			BLOOD_COLOR_MECH
 
+// Color de renderizado
 #define RENDER_COLOR	255, 255, 255, 255
 
 // Distancia de visibilidad.
 #define SEE_DIST		9000.0f
 
 // Campo de visión
-#define FOV				-0.4f
+#define FOV				VIEW_FIELD_FULL
 
 // Propiedades
 // No disolverse (Con la bola de energía) - No morir con la super arma de gravedad.
 #define EFLAGS			EFL_NO_DISSOLVE | EFL_NO_MEGAPHYSCANNON_RAGDOLL
-
-// Opciones extra - Flags (Para el Hammer Editor)
-#define SF_GRUNT_NO_BACKGROUND_MUSIC	0x00010000
 
 // Lanzar objetos
 #define THROW_PHYSICS_FARTHEST_OBJECT	40.0*12.0
@@ -175,7 +173,6 @@ BEGIN_DATADESC( CNPC_Grunt )
 END_DATADESC()
 
 //=========================================================
-// Spawn()
 // Crear un nuevo Grunt
 //=========================================================
 void CNPC_Grunt::Spawn()
@@ -246,8 +243,25 @@ void CNPC_Grunt::Precache()
 	BaseClass::Precache();
 }
 
+void CNPC_Grunt::Think()
+{
+	BaseClass::Think();
+
+	// Al menos en Apocalypse Singleplayer, siempre debe conocer la ubicación
+	// del jugador.
+	if ( GetEnemy() == NULL && !g_pGameRules->IsMultiplayer() )
+	{
+		CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+
+		if ( !pPlayer || !pPlayer->IsAlive() )
+			return;
+
+		SetEnemy(pPlayer);
+		UpdateEnemyMemory(pPlayer, pPlayer->GetAbsOrigin());
+	}
+}
+
 //=========================================================
-// Classify()
 // Devuelve el tipo de NPC.
 // Con el fin de usarse en la tabla de relaciones.
 //=========================================================
@@ -313,7 +327,6 @@ void CNPC_Grunt::AttackSound(bool highAttack)
 }
 
 //=========================================================
-// MaxYawSpeed()
 // Devuelve la velocidad máxima del yaw dependiendo de la
 // actividad actual.
 //=========================================================
@@ -336,7 +349,6 @@ float CNPC_Grunt::MaxYawSpeed()
 }
 
 //=========================================================
-// HandleAnimEvent()
 // Ejecuta una acción al momento que el modelo hace
 // la animación correspondiente.
 //=========================================================
@@ -433,7 +445,7 @@ void CNPC_Grunt::MeleeAttack(bool highAttack)
 	int pTypeDamage			= DMG_SLASH | DMG_ALWAYSGIB;
 
 	Vector vecMins	= GetHullMins();
-	Vector vecMaxs	= GetHullMaxs();
+	Vector vecMaxs	= GetHullMaxs() + 5;
 	vecMins.z		= vecMins.x;
 	vecMaxs.z		= vecMaxs.x;
 
@@ -474,24 +486,28 @@ void CNPC_Grunt::MeleeAttack(bool highAttack)
 			// Lanzarlo por los aires.
 			pVictim->ApplyAbsVelocityImpulse(pImpulse);
 
-			// El jugador tiene un arma.
-			if ( pPlayer->GetActiveWeapon() && !GameRules()->IsSkillLevel(SKILL_EASY) )
+			// Esta función por ahora la desactivamos en Multiplayer
+			if ( !g_pGameRules->IsMultiplayer() )
 			{
-				// !!!REFERENCE
-				// En Left4Dead cuando un Tank avienta por los aires a un jugador el mismo
-				// "desactiva" su arma hasta que cae, después se crea la animación de levantar y activar
-				// el arma. (Mientras esta desactivada no se puede disparar)
+				// El jugador tiene un arma.
+				if ( pPlayer->GetActiveWeapon() && !GameRules()->IsSkillLevel(SKILL_EASY) )
+				{
+					// !!!REFERENCE
+					// En Left4Dead cuando un Tank avienta por los aires a un jugador el mismo
+					// "desactiva" su arma hasta que cae, después se crea la animación de levantar y activar
+					// el arma. (Mientras esta desactivada no se puede disparar)
 
-				// Ocultar el arma del jugador.
-				// FIXME: Incluso con el arma oculta es posible disparar.
-				// FIXME 2: Si el arma ya esta "oculta" el juego lanza una excepción (Se va al carajo...)
-				pPlayer->GetActiveWeapon()->Holster();
+					// Ocultar el arma del jugador.
+					// FIXME: Incluso con el arma oculta es posible disparar.
+					// FIXME 2: Si el arma ya esta "oculta" el juego lanza una excepción (Se va al carajo...)
+					//pPlayer->GetActiveWeapon()->Holster();
 
-				// El lanzamiento fue muy poderoso, hacer que el jugador suelte el arma.
-				// FIXME: Si el jugador al momento de soltar el arma tenia 100 balas de un máximo de 200
-				// al recojer el arma su munición se restaura a 200. (Balas gratis)
-				if ( pPunch > 90 && random->RandomInt(0, 1) == 1 )
-					pPlayer->GetActiveWeapon()->Drop(pImpulse * 1.5);
+					// El lanzamiento fue muy poderoso, hacer que el jugador suelte el arma.
+					// FIXME: Si el jugador al momento de soltar el arma tenia 100 balas de un máximo de 200
+					// al recojer el arma su munición se restaura a 200. (Balas gratis)
+					if ( pPunch > 80 && random->RandomInt(0, 1) == 1 )
+						pPlayer->GetActiveWeapon()->Drop(pImpulse * 1.5);
+				}
 			}
 		}
 		// Nuestra victima es un NPC (o algo así...)
@@ -514,7 +530,7 @@ void CNPC_Grunt::MeleeAttack(bool highAttack)
 	}
 	else
 	{
-		// TODO
+		// @TODO
 		//FailAttackSound();
 	}
 }
@@ -564,7 +580,6 @@ void CNPC_Grunt::RangeAttack1()
 */
 
 //=========================================================
-// MeleeAttack1Conditions()
 // Verifica si es conveniente hacer un ataque cuerpo a cuerpo.
 // En este caso: Golpe alto
 //=========================================================
@@ -575,7 +590,7 @@ int CNPC_Grunt::MeleeAttack1Conditions(float flDot, float flDist)
 		return COND_NONE;
 	
 	// Distancia y angulo correcto, ¡ataque!
-	if ( flDist <= 30 && flDot >= 0.7 )
+	if ( flDist <= 40 && flDot >= 0.7 )
 		return COND_CAN_MELEE_ATTACK1;
 
 	Vector vecMins	= GetHullMins();
@@ -637,7 +652,6 @@ int CNPC_Grunt::OnTakeDamage_Alive(const CTakeDamageInfo &inputInfo)
 }
 
 //=========================================================
-// Event_Killed()
 // Muerte del NPC.
 //=========================================================
 void CNPC_Grunt::Event_Killed(const CTakeDamageInfo &info)
@@ -715,7 +729,7 @@ int CNPC_Grunt::SelectSchedule()
 //=========================================================
 int CNPC_Grunt::TranslateSchedule(int scheduleType)
 {
-	switch( scheduleType )
+	switch ( scheduleType )
 	{
 		case SCHED_THROW:
 			if( DistToPhysicsEnt() > THROW_PHYSICS_SWATDIST )
@@ -813,7 +827,6 @@ void CNPC_Grunt::StartTask(const Task_t *pTask)
 }
 
 //=========================================================
-// RunTask
 //
 //=========================================================
 void CNPC_Grunt::RunTask(const Task_t *pTask)

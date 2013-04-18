@@ -34,9 +34,12 @@ BEGIN_SEND_TABLE_NOBASE( CHL2PlayerLocalData, DT_HL2Local )
 	SendPropVector( SENDINFO(m_vecLocatorOrigin) ),
 #endif
 
-	SendPropFloat( SENDINFO(m_iBlood) ),			 // InSource - Sangre
 	SendPropArray3( SENDINFO_ARRAY3(PocketItems), SendPropInt( SENDINFO_ARRAY(PocketItems) ) ),
 	SendPropArray3( SENDINFO_ARRAY3(BackpackItems), SendPropInt( SENDINFO_ARRAY(BackpackItems) ) ),
+	
+	SendPropFloat( SENDINFO(m_iBlood) ),		// InSource - Sangre
+	SendPropFloat( SENDINFO(m_iHunger) ),		// InSource - Hambre
+	SendPropFloat( SENDINFO(m_iThirst) ),		// InSource - Sed
 
 END_SEND_TABLE()
 

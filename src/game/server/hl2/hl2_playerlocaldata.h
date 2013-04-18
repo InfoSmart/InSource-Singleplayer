@@ -42,13 +42,20 @@ public:
 	CNetworkVar( float, m_flFlashBattery );
 	CNetworkVar( Vector, m_vecLocatorOrigin );
 
-	CNetworkVar( float, m_iBlood );					// InSource - Sangre
-	CNetworkArray( int, PocketItems,	100 );		// InSource - Inventario
-	CNetworkArray( int, BackpackItems,	100 );		// InSource - Inventario
-
 	// Ladder related data
 	CNetworkVar( EHANDLE, m_hLadder );
 	LadderMove_t			m_LadderMove;
+
+	//=========================================================
+	// INSOURCE
+
+	CNetworkArray( int, PocketItems,	100 );		// InSource - Inventario
+	CNetworkArray( int, BackpackItems,	100 );		// InSource - Inventario
+
+	CNetworkVar( float, m_iBlood );		// InSource - Sangre
+	CNetworkVar( float, m_iHunger );	// InSource - Hambre
+	CNetworkVar( float, m_iThirst );	// InSource - Sed
+
 };
 
 EXTERN_SEND_TABLE(DT_HL2Local);

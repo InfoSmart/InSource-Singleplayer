@@ -417,6 +417,7 @@ const char *pItemsNames[] =
 	"#Inventory_AmmoSMG1Grenade",
 	"#Inventory_AmmoBuckShot",
 	"#Inventory_AmmoAR2AltFire",
+	"#Inventory_EmptyBloodKIT",
 };
 
 const char *pItems[] = 
@@ -443,6 +444,7 @@ const char *pItems[] =
 	"item_ammo_smg1_grenade",
 	"item_box_buckshot",
 	"item_ammo_ar2_altfire",
+	"item_empty_bloodkit",
 };
 
 //=========================================================

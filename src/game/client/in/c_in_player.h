@@ -36,6 +36,8 @@ public:
 	static C_IN_Player* GetLocalINPlayer();
 
 	float GetBlood() const { return m_HL2Local.m_iBlood; }
+	float GetHunger() const { return m_HL2Local.m_iHunger; }
+	float GetThirst() const { return m_HL2Local.m_iThirst; }
 
 	virtual void TraceAttack(const CTakeDamageInfo &info, const Vector &vecDir, trace_t *ptr);
 	virtual void DoImpactEffect(trace_t &tr, int nDamageType);

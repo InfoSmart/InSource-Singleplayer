@@ -1022,15 +1022,13 @@ void C_BasePlayer::TeamChange( int iNewTeam )
 	// Base class does nothing
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: Creates, destroys, and updates the flashlight effect as needed.
 //-----------------------------------------------------------------------------
-
 void C_BasePlayer::UpdateFlashlight()
 {
 	// The dim light is the flashlight.
-	if ( IsEffectActive( EF_DIMLIGHT ) )
+	if ( IsEffectActive(EF_DIMLIGHT) )
 	{
 		if ( !m_pFlashlight )
 		{
@@ -1043,30 +1041,10 @@ void C_BasePlayer::UpdateFlashlight()
 			m_pFlashlight->TurnOn();
 		}
 
-		Vector vecForward, vecRight, vecUp;
+		Vector vecForward, vecRight, vecUp;		
 		Vector position = EyePosition();
-
-		if ( ::input->CAM_IsThirdPerson() && GetActiveWeapon() )
-		{
-			C_BaseCombatWeapon *pWeapon = GetActiveWeapon();
-			int iAttachment = pWeapon->LookupAttachment("muzzle");
-
-			if ( iAttachment > 0 )
-			{
-				QAngle ang;
-				pWeapon->GetAttachment(iAttachment, position, ang);
-
-				AngleVectors(ang, &vecForward, &vecRight, &vecUp);
-				position += vecForward * 6.0f;
-			}
-			else
-			{
-				EyeVectors(&vecForward, &vecRight, &vecUp);
-				position += vecForward * (VEC_HULL_MAX).Length2D();
-			}
-		}
-		else
-			EyeVectors(&vecForward, &vecRight, &vecUp);
+	
+		EyeVectors(&vecForward, &vecRight, &vecUp);
 
 		// Update the light with the new position and direction.		
 		m_pFlashlight->UpdateLight(position, vecForward, vecRight, vecUp, FLASHLIGHT_DISTANCE);
@@ -1078,38 +1056,6 @@ void C_BasePlayer::UpdateFlashlight()
 		m_pFlashlight = NULL;
 	}
 }
-
-/*
-void C_BasePlayer::UpdateFlashlight()
-{
-	// The dim light is the flashlight.
-	if ( IsEffectActive( EF_DIMLIGHT ) )
-	{
-		if (!m_pFlashlight)
-		{
-			// Turned on the headlight; create it.
-			m_pFlashlight = new CFlashlightEffect(index);
-
-			if (!m_pFlashlight)
-				return;
-
-			m_pFlashlight->TurnOn();
-		}
-
-		Vector vecForward, vecRight, vecUp;
-		EyeVectors( &vecForward, &vecRight, &vecUp );
-
-		// Update the light with the new position and direction.		
-		m_pFlashlight->UpdateLight( EyePosition(), vecForward, vecRight, vecUp, FLASHLIGHT_DISTANCE );
-	}
-	else if (m_pFlashlight)
-	{
-		// Turned off the flashlight; delete it.
-		delete m_pFlashlight;
-		m_pFlashlight = NULL;
-	}
-}
-*/
 
 //-----------------------------------------------------------------------------
 // Purpose: Creates player flashlight if it's ative
@@ -1125,17 +1071,11 @@ void C_BasePlayer::Flashlight()
 		ve = dynamic_cast< C_BaseAnimating* >( GetObserverTarget() );
 }
 
-
 //-----------------------------------------------------------------------------
 // Purpose: Engine is asking whether to add this player to the visible entities list
 //-----------------------------------------------------------------------------
 void C_BasePlayer::AddEntity()
 {
-	// FIXME/UNDONE:  Should the local player say yes to adding itself now 
-	// and then, when it ges time to render and it shouldn't still do the render with
-	// STUDIO_EVENTS set so that its attachment points will get updated even if not
-	// in third person?
-
 	// Add in water effects
 	if ( IsLocalPlayer() )
 		CreateWaterEffects();

@@ -86,8 +86,7 @@ public:
 	virtual void	ReceiveMessage( int classID, bf_read &msg );
 
 	virtual void	OnRestore();
-
-	virtual void	AddEntity( void );
+	virtual void	AddEntity();
 
 	virtual void	MakeTracer( const Vector &vecTracerSrc, const trace_t &tr, int iTracerType );
 

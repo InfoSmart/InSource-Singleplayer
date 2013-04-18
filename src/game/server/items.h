@@ -35,6 +35,9 @@
 #define SIZE_AMMO_CROSSBOW			6
 #define	SIZE_AMMO_AR2_ALTFIRE		1
 
+#define SIZE_BOX_FLARE_ROUNDS	5
+#define SIZE_BOX_SNIPER_ROUNDS	10
+
 #define SF_ITEM_START_CONSTRAINED	0x00000001
 
 
@@ -45,41 +48,41 @@ public:
 
 	CItem();
 
-	virtual void Spawn( void );
+	virtual void Spawn();
 	virtual void Precache();
 
-	virtual CBaseEntity* Respawn( void );
-	void ItemTouch( CBaseEntity *pOther );
-	virtual void Materialize( void );
-	virtual bool MyTouch( CBasePlayer *pPlayer ) { return false; };
+	virtual CBaseEntity* Respawn();
+	void ItemTouch(CBaseEntity *pOther);
+	virtual void Materialize();
+	virtual bool MyTouch(CBasePlayer *pPlayer) { return false; };
 
 	// Become touchable when we are at rest
-	virtual void OnEntityEvent( EntityEvent_t event, void *pEventData );
+	virtual void OnEntityEvent(EntityEvent_t event, void *pEventData);
 
 	// Activate when at rest, but don't allow pickup until then
 	void ActivateWhenAtRest();
 
 	// IPlayerPickupVPhysics
-	virtual void OnPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGunPickup_t reason = PICKED_UP_BY_CANNON );
-	virtual void OnPhysGunDrop( CBasePlayer *pPhysGunUser, PhysGunDrop_t reason );
+	virtual void OnPhysGunPickup(CBasePlayer *pPhysGunUser, PhysGunPickup_t reason = PICKED_UP_BY_CANNON);
+	virtual void OnPhysGunDrop(CBasePlayer *pPhysGunUser, PhysGunDrop_t reason);
 
 	virtual int	ObjectCaps() { return BaseClass::ObjectCaps() | FCAP_IMPULSE_USE | FCAP_WCEDIT_POSITION; };
 	virtual void Use( CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value );
-	Vector	GetOriginalSpawnOrigin( void ) { return m_vOriginalSpawnOrigin;	}
-	QAngle	GetOriginalSpawnAngles( void ) { return m_vOriginalSpawnAngles;	}
-	void	SetOriginalSpawnOrigin( const Vector& origin ) { m_vOriginalSpawnOrigin = origin; }
-	void	SetOriginalSpawnAngles( const QAngle& angles ) { m_vOriginalSpawnAngles = angles; }
-	bool	CreateItemVPhysicsObject( void );
+	Vector	GetOriginalSpawnOrigin() { return m_vOriginalSpawnOrigin;	}
+	QAngle	GetOriginalSpawnAngles() { return m_vOriginalSpawnAngles;	}
+	void	SetOriginalSpawnOrigin(const Vector& origin) { m_vOriginalSpawnOrigin = origin; }
+	void	SetOriginalSpawnAngles(const QAngle& angles) { m_vOriginalSpawnAngles = angles; }
+	bool	CreateItemVPhysicsObject();
 	bool	ItemCanBeTouchedByPlayer( CBasePlayer *pPlayer );
 
 #if defined( HL2MP )
-	void	FallThink( void );
+	void	FallThink();
 	float  m_flNextResetCheckTime;
 #endif
 
 	DECLARE_DATADESC();
 private:
-	void ComeToRest( void );
+	void ComeToRest();
 
 private:
 	bool		m_bActivateWhenAtRest;

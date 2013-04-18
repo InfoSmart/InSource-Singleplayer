@@ -37,7 +37,10 @@ public:
 
 	virtual void	Init();
 	virtual int		GetDeathMessageStartHeight();
-	virtual bool	ShouldDrawCrosshair( void );
+	virtual bool	ShouldDrawCrosshair();
+
+	virtual void	LevelInit(const char* newmap);
+	virtual void	LevelShutdown();
 };
 
 extern IClientMode *GetClientModeNormal();

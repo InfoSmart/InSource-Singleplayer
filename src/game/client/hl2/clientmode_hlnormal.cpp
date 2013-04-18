@@ -13,6 +13,7 @@
 #include <vgui_controls/AnimationController.h>
 #include "iinput.h"
 #include "ienginevgui.h"
+#include "ge_screeneffects.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -90,11 +91,10 @@ void ClientModeHLNormal::Init()
 	BaseClass::Init();
 
 	// Load up the combine control panel scheme
-	g_hVGuiCombineScheme = vgui::scheme()->LoadSchemeFromFileEx( enginevgui->GetPanel( PANEL_CLIENTDLL ), IsXbox() ? "resource/ClientScheme.res" : "resource/CombinePanelScheme.res", "CombineScheme" );
-	if (!g_hVGuiCombineScheme)
-	{
+	g_hVGuiCombineScheme = vgui::scheme()->LoadSchemeFromFileEx(enginevgui->GetPanel(PANEL_CLIENTDLL), IsXbox() ? "resource/ClientScheme.res" : "resource/CombinePanelScheme.res", "CombineScheme");
+
+	if ( !g_hVGuiCombineScheme )
 		Warning( "Couldn't load combine panel scheme!\n" );
-	}
 }
 
 int ClientModeHLNormal::GetDeathMessageStartHeight()
@@ -102,10 +102,19 @@ int ClientModeHLNormal::GetDeathMessageStartHeight()
 	return m_pViewport->GetDeathMessageStartHeight();
 }
 
-bool ClientModeHLNormal::ShouldDrawCrosshair( void )
+bool ClientModeHLNormal::ShouldDrawCrosshair()
 {
 	return ( g_bRollingCredits == false );
 }
 
+void ClientModeHLNormal::LevelInit(const char* newmap)
+{
+	g_pScreenSpaceEffects->EnableScreenSpaceEffect("ge_entglow");
+	BaseClass::LevelInit(newmap);
+}
 
-
+void ClientModeHLNormal::LevelShutdown()
+{
+	g_pScreenSpaceEffects->DisableScreenSpaceEffect("ge_entglow");
+	BaseClass::LevelShutdown();
+}

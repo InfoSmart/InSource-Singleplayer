@@ -47,7 +47,13 @@ public:
 	EHANDLE			m_hLadder;
 	LadderMove_t	m_LadderMove;
 
+	//=========================================================
+	// INSOURCE
+
 	float m_iBlood;				// InSource - Sangre
+	float m_iHunger;			// InSource - Hambre
+	float m_iThirst;			// InSource - Sed
+
 	int PocketItems[100];		// InSource - Inventario.
 	int BackpackItems[100];		// InSource - Inventario.
 };

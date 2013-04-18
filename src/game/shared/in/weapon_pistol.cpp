@@ -18,14 +18,6 @@
 
 #include "basehlcombatweapon.h"
 
-//#include "basecombatcharacter.h"
-//#include "AI_BaseNPC.h"
-//#include "player.h"
-//#include "gamerules.h"
-//#include "soundent.h"
-//#include "game.h"
-//#include "vstdlib/random.h"
-
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
@@ -47,8 +39,6 @@ ConVar	pistol_use_new_accuracy( "pistol_use_new_accuracy", "1" );
 
 class CWeaponPistol : public CHLMachineGun
 {
-	//DECLARE_DATADESC();
-
 public:
 	DECLARE_CLASS( CWeaponPistol, CHLMachineGun );
 
@@ -280,7 +270,6 @@ void CWeaponPistol::PrimaryAttack()
 	CSoundEnt::InsertSound(SOUND_COMBAT, GetAbsOrigin(), SOUNDENT_VOLUME_PISTOL, 0.2, GetOwner());
 #endif
 
-	CIN_Player *pOwner = ToInPlayer(GetOwner());
 	BaseClass::PrimaryAttack();
 
 	// Add an accuracy penalty which can move past our maximum penalty time if we're really spastic
@@ -314,6 +303,7 @@ void CWeaponPistol::PrimaryAttack()
 	m_iPrimaryAttacks++;
 
 #ifndef CLIENT_DLL
+	CIN_Player *pOwner = ToInPlayer(GetOwner());
 	gamestats->Event_WeaponFired(pOwner, true, GetClassname());
 #endif
 }

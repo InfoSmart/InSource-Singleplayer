@@ -127,6 +127,7 @@ void CWeapon357::Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatChara
 //=========================================================
 void CWeapon357::PrimaryDisorient()
 {
+#ifndef CLIENT_DLL
 	// Only the player fires this way so we can cast
 	CIN_Player *pPlayer = ToInPlayer(GetOwner());
 
@@ -149,13 +150,13 @@ void CWeapon357::PrimaryDisorient()
 
 		pPlayer->ViewPunch(viewPunch);
 
-	#ifndef CLIENT_DLL
+	
 		// Efecto de empuje (Camara hacia atras)
 		Vector recoilForce = pPlayer->BodyDirection2D() * - (sk_plr_dmg_357.GetFloat() * 10.0f);
 		recoilForce[2] += random->RandomFloat(80.0f, 120.0f);
 
 		pPlayer->ApplyAbsVelocityImpulse(recoilForce);
-	#endif
+	
 
 		// Iván: No tengo idea de que hace pero estaba ahí...
 		QAngle angles = pPlayer->GetLocalAngles();
@@ -163,10 +164,7 @@ void CWeapon357::PrimaryDisorient()
 		angles.x += random->RandomInt(-20, 20);
 		angles.y += random->RandomInt(-20, 20);
 		angles.z = 0;
-
-	#ifndef CLIENT_DLL
 		pPlayer->SnapEyeAngles(angles, true);
-	#endif
 	}
 	else
 	{
@@ -177,12 +175,10 @@ void CWeapon357::PrimaryDisorient()
 		angles.y += random->RandomInt(-1, 1);
 		angles.z = 0;
 
-	#ifndef CLIENT_DLL
 		pPlayer->SnapEyeAngles(angles, true);
-	#endif
-
 		pPlayer->ViewPunch(QAngle(-8, random->RandomFloat(-2, 2), 0));
 	}
+#endif
 }
 
 //=========================================================

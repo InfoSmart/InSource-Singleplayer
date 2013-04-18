@@ -504,13 +504,13 @@ void CWeaponShotgun::DryFire()
 //=========================================================
 void CWeaponShotgun::PrimaryDisorient()
 {
+#ifndef CLIENT_DLL
 	// Only the player fires this way so we can cast
 	CIN_Player *pPlayer = ToInPlayer(GetOwner());
 
 	if ( !pPlayer )
 		return;
 
-#ifndef CLIENT_DLL
 	// Desorientar al jugador
 	ConVarRef sk_plr_dmg_buckshot("sk_plr_dmg_buckshot");
 
@@ -554,13 +554,13 @@ void CWeaponShotgun::PrimaryDisorient()
 //=========================================================
 void CWeaponShotgun::SecondaryDisorient()
 {
+#ifndef CLIENT_DLL
 	// Solo el jugador sufre de desorientación.
 	CIN_Player *pPlayer = ToInPlayer(GetOwner());
 
 	if ( !pPlayer )
 		return;
 
-#ifndef CLIENT_DLL
 	// Desorientar al jugador
 	ConVarRef sk_plr_dmg_buckshot("sk_plr_dmg_buckshot");
 

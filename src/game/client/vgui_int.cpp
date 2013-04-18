@@ -18,6 +18,7 @@
 #include "idebugoverlaypanel.h"
 #include "vgui_features.h" // InSource - OPCIONES EXTRA
 #include "vgui_contact.h" // InSource - CONTACTO
+#include "vgui_inventory.h" 
 #include <vgui/isurface.h>
 #include <vgui/IVGui.h>
 #include <vgui/IInput.h>
@@ -187,9 +188,10 @@ void VGui_CreateGlobalPanels( void )
 		InSource
 	*/
 
-	featurespanel->Create(gameUiDll); // OPCIONES EXTRA
-	htmlview->Create(gameParent); // HTML VIEW (NO USADO)
-	contactpanel->Create(gameParent); // CONTACTO
+	featurespanel->Create(gameUiDll);	// OPCIONES EXTRA
+	htmlview->Create(gameParent);		// HTML VIEW (NO USADO)
+	contactpanel->Create(gameParent);	// CONTACTO
+	InventoryPanel->Create(gameParent); // Creates the panel.
 
 	/*
 		InSource
@@ -235,6 +237,7 @@ void VGui_Shutdown()
 	featurespanel->Destroy();
 	htmlview->Destroy();
 	contactpanel->Destroy();
+	InventoryPanel->Destroy();
 
 	/*
 		InSource

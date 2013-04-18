@@ -8,14 +8,12 @@
 #include "baseviewmodel_shared.h"
 #include "datacache/imdlcache.h"
 
-#if defined( CLIENT_DLL )
+#if defined(CLIENT_DLL)
 #include "iprediction.h"
 #include "prediction.h"
 
-// cin: 070105 - ironsight mode changes
 #include "convar.h"
 #include "c_baseplayer.h"
-
 #else
 #include "vguiscreen.h"
 #endif
@@ -30,11 +28,11 @@
 #define VIEWMODEL_ANIMATION_PARITY_BITS 3
 #define SCREEN_OVERLAY_MATERIAL "vgui/screens/vgui_overlay"
 
-//----------------------------------------------------
-// MODO DE VISTA "IRONSIGHT" DE LAS ARMAS.
-//----------------------------------------------------
-
 #if defined(CLIENT_DLL)
+
+//=========================================================
+// Modo de mira de armas.
+//=========================================================
 
 void IronSightTestOffset(ConVar *pConVar, char *pszString);
 
@@ -43,12 +41,12 @@ float gIronsightedTime(0.0f);
 // Segundos de la animación de cambio de vista.
 float gMoveTime(0.3f);
 
-//----------------------------------------------------
-// Comandos para probar y calcular la vista IronSight.
-//----------------------------------------------------
+//=========================================================
+// Definición de variables para la configuración.
+//=========================================================
 
-ConVar	 in_ironsight_enabled("in_ironsight_enabled", "1", FCVAR_REPLICATED, "Apuntar");
-ConVar   in_ironsight_test_offset("in_ironsight_test_offset", "0", 0, "Probar y calcular los angulos de la vista IronSight.", (FnChangeCallback_t)IronSightTestOffset);
+ConVar	 in_ironsight_enabled		("in_ironsight_enabled",		"1",	FCVAR_REPLICATED,	"Apuntar");
+ConVar   in_ironsight_test_offset	("in_ironsight_test_offset",	 "0",	0,					"Probar y calcular los angulos de la vista IronSight.", (FnChangeCallback_t)IronSightTestOffset);
 
 ConVar   in_ironsight_test_offset_x("in_ironsight_test_offset_x", "0");
 ConVar   in_ironsight_test_offset_y("in_ironsight_test_offset_y", "0");
@@ -58,24 +56,22 @@ ConVar   in_ironsight_test_ori_offset_x("in_ironsight_test_ori_offset_x", "0");
 ConVar   in_ironsight_test_ori_offset_y("in_ironsight_test_ori_offset_y", "0");
 ConVar   in_ironsight_test_ori_offset_z("in_ironsight_test_ori_offset_z", "0");
  
-/*----------------------------------------------------
-	IronSightTestOffset()
-	Probar el sistema de la vista IronSight
-	Ten en cuenta que activando el modo de prueba
-	los angulos no cambiarán a su respectiva configuración del arma.
-----------------------------------------------------*/
+//=========================================================
+// Activa el sistema de pruebas con las miras.
+// Activable desde el comando in_ironsight_test_offset
+//=========================================================
 void IronSightTestOffset(ConVar *pConVar, char *pszString)
 {
    CBasePlayer *pPlayer = UTIL_PlayerByIndex(engine->GetLocalPlayer());
 
-   // Algo anda mal con el usuario. ?
-   if (!pPlayer)
+   // El jugador no ha sido preparado.
+   if ( !pPlayer )
 	   return;
 
    CBaseCombatWeapon *pWeapon  = dynamic_cast<CBaseCombatWeapon *>(pPlayer->GetActiveWeapon());
 
-   // No hay ninguna arma disponible.
-   if (!pWeapon)
+   // El jugador no tiene ningúna arma.
+   if ( !pWeapon )
 		return;
 
    // Ajustar valores.
@@ -88,14 +84,13 @@ void IronSightTestOffset(ConVar *pConVar, char *pszString)
    in_ironsight_test_ori_offset_z.SetValue(pWeapon->GetWpnData().m_expOriOffset.z);
 }
 
-/*----------------------------------------------------
-	IronSightToggle()
-	Activa o desactiva el modo de vista IronSight
-----------------------------------------------------*/
+//=========================================================
+// Activa la mira del arma actual.
+//=========================================================
 void IronSightToggle()
 {
 	// Función desactivada.
-	if ( in_ironsight_enabled.GetInt() == 0 )
+	if ( !in_ironsight_enabled.GetBool() )
 		return;
 
 	// ¿Spam?
@@ -104,11 +99,20 @@ void IronSightToggle()
 
 	CBasePlayer *pPlayer = UTIL_PlayerByIndex(engine->GetLocalPlayer());
 
-	// Algo anda mal con el usuario. ?
+	// El jugador no ha sido preparado.
 	if ( !pPlayer )
 		return;
 	
-	C_BaseViewModel *pVm = pPlayer->GetViewModel();
+	CBaseCombatWeapon *pWeapon		= dynamic_cast<CBaseCombatWeapon *>(pPlayer->GetActiveWeapon());
+	C_BaseViewModel *pVm			= pPlayer->GetViewModel();
+
+	 // El jugador no tiene ningúna arma.
+	if ( !pWeapon )
+		return;
+
+	// Esta arma no tiene mira.
+	if ( pWeapon->GetWpnData().m_expOffset.x == 0 && pWeapon->GetWpnData().m_expOffset.y == 0 )
+		return;
 
 	// Se ha encontrado un modelo válido del jugador.
 	if ( pVm )
@@ -219,15 +223,14 @@ void CBaseViewModel::Precache( void )
 //-----------------------------------------------------------------------------
 void CBaseViewModel::Spawn( void )
 {
-	Precache( );
+	Precache();
 	SetSize( Vector( -8, -4, -2), Vector(8, 4, 2) );
-	SetSolid( SOLID_NONE );
+	SetSolid(SOLID_NONE);
 
-	#ifdef CLIENT_DLL
-	   // cin: 070105 - ironsighted mode changes
-	   m_bExpSighted  = false;
-	   m_expFactor    = 0.0f;
-	   gIronsightedTime = 0.0f; 
+	#if defined( CLIENT_DLL )
+	m_bExpSighted		= false;
+	m_expFactor			= 0.0f;
+	gIronsightedTime	= 0.0f; 
 	#endif
 }
 
@@ -679,6 +682,7 @@ LINK_ENTITY_TO_CLASS( viewmodel, CBaseViewModel );
 IMPLEMENT_NETWORKCLASS_ALIASED( BaseViewModel, DT_BaseViewModel )
 
 BEGIN_NETWORK_TABLE_NOBASE(CBaseViewModel, DT_BaseViewModel)
+
 #if !defined( CLIENT_DLL )
 	SendPropModelIndex(SENDINFO(m_nModelIndex)),
 	SendPropInt		(SENDINFO(m_nBody), 8),
@@ -695,9 +699,12 @@ BEGIN_NETWORK_TABLE_NOBASE(CBaseViewModel, DT_BaseViewModel)
 	SendPropInt( SENDINFO( m_nResetEventsParity ), EF_PARITY_BITS, SPROP_UNSIGNED ),
 	SendPropInt( SENDINFO( m_nMuzzleFlashParity ), EF_MUZZLEFLASH_BITS, SPROP_UNSIGNED ),
 
+	//SendPropBool( SENDINFO(m_bExpSighted))
+
 #if !defined( INVASION_DLL ) && !defined( INVASION_CLIENT_DLL )
 	SendPropArray	(SendPropFloat(SENDINFO_ARRAY(m_flPoseParameter),	8, 0, 0.0f, 1.0f), m_flPoseParameter),
 #endif
+
 #else
 	RecvPropInt		(RECVINFO(m_nModelIndex)),
 	RecvPropInt		(RECVINFO(m_nSkin)),
@@ -713,6 +720,8 @@ BEGIN_NETWORK_TABLE_NOBASE(CBaseViewModel, DT_BaseViewModel)
 	RecvPropInt( RECVINFO( m_nNewSequenceParity )),
 	RecvPropInt( RECVINFO( m_nResetEventsParity )),
 	RecvPropInt( RECVINFO( m_nMuzzleFlashParity )),
+
+	//RecvPropBool( RECVINFO(m_bExpSighted)),
 
 #if !defined( INVASION_DLL ) && !defined( INVASION_CLIENT_DLL )
 	RecvPropArray(RecvPropFloat(RECVINFO(m_flPoseParameter[0]) ), m_flPoseParameter ),

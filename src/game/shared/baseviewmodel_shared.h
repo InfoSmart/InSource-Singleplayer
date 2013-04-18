@@ -32,9 +32,6 @@ class CBaseViewModel : public CBaseAnimating
 	DECLARE_CLASS( CBaseViewModel, CBaseAnimating );
 public:
 
-	bool m_bExpSighted; //ADDED
-	float m_expFactor; //ADDED
-
 	DECLARE_NETWORKCLASS();
 	DECLARE_PREDICTABLE();
 
@@ -47,6 +44,10 @@ public:
 
 
 	bool IsViewable(void) { return false; }
+
+	
+	bool m_bExpSighted; //ADDED
+	float m_expFactor; //ADDED
 
 	virtual void					UpdateOnRemove( void );
 

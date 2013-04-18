@@ -14,7 +14,6 @@
 
 
 #include "dt_recv.h"
-
 #include "hl2/hl_movedata.h"
 
 EXTERN_RECV_TABLE( DT_HL2Local );
@@ -48,7 +47,9 @@ public:
 	EHANDLE			m_hLadder;
 	LadderMove_t	m_LadderMove;
 
-	float m_iBlood; // InSource - Sangre
+	float m_iBlood;				// InSource - Sangre
+	int PocketItems[100];		// InSource - Inventario.
+	int BackpackItems[100];		// InSource - Inventario.
 };
 
 

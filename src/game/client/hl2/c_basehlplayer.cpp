@@ -14,6 +14,14 @@
 #include "collisionutils.h"
 #include "iinput.h"
 
+#include "hud_macros.h"
+
+#include "flashlighteffect.h"
+#include "input.h"
+#include "iviewrender_beams.h"
+#include "dlight.h"
+#include "r_efx.h"
+
 #include "tier0/memdbgon.h"
 
 #define AVOID_SPEED 2000.0f
@@ -58,9 +66,10 @@ void CC_DropPrimary(void)
 
 static ConCommand dropprimary("dropprimary", CC_DropPrimary, "dropprimary: Drops the primary weapon of the player.");
 
-#if !defined (HL2MP) && !defined (PORTAL)
+#if !defined (HL2MP) && !defined (PORTAL) && !defined(INSOURCE)
 	LINK_ENTITY_TO_CLASS(player, C_BaseHLPlayer);
 #endif
+
 
 /*----------------------------------------------------
 	C_BaseHLPlayer
@@ -77,7 +86,8 @@ C_BaseHLPlayer::C_BaseHLPlayer()
 	m_flZoomStartTime	= 0.0f;
 	m_flSpeedMod		= cl_forwardspeed.GetFloat();
 
-	
+	ConVarRef scissor("r_flashlightscissor");
+	scissor.SetValue("0");
 }
 
 /*----------------------------------------------------
@@ -696,100 +706,6 @@ void C_BaseHLRagdoll::Interp_Copy( C_BaseAnimatingOverlay *pSourceEntity )
 			}
 		}
 	}
-}
-
-void C_BaseHLRagdoll::AddEntity()
-{
-	BaseClass::AddEntity();
-
-	// Tony; modified so third person can do the beam too.
-	// TODO: Incorporar.
-	/*
-	if ( IsEffectActive( EF_DIMLIGHT ) )
-	{
-		//Tony; if local player, not in third person, and there's a beam, destroy it. It will get re-created if they go third person again.
-		if ( this == C_BasePlayer::GetLocalPlayer() && !::input->CAM_IsThirdPerson() && m_pFlashlightBeam != NULL )
-		{
-			ReleaseFlashlight();
-			return;
-		}
-		else if( this != C_BasePlayer::GetLocalPlayer() || ::input->CAM_IsThirdPerson() )
-		{
-			int iAttachment = LookupAttachment( "anim_attachment_RH" );
-
-			if ( iAttachment < 0 )
-				return;
-
-			Vector vecOrigin;
-			//Tony; EyeAngles will return proper whether it's local player or not.
-			QAngle eyeAngles = EyeAngles();
-
-			GetAttachment( iAttachment, vecOrigin, eyeAngles );
-
-			Vector vForward;
-			AngleVectors( eyeAngles, &vForward );
-
-			trace_t tr;
-			UTIL_TraceLine( vecOrigin, vecOrigin + (vForward * 200), MASK_SHOT, this, COLLISION_GROUP_NONE, &tr );
-
-			if( !m_pFlashlightBeam )
-			{
-				BeamInfo_t beamInfo;
-				beamInfo.m_nType = TE_BEAMPOINTS;
-				beamInfo.m_vecStart = tr.startpos;
-				beamInfo.m_vecEnd = tr.endpos;
-				beamInfo.m_pszModelName = "sprites/glow01.vmt";
-				beamInfo.m_pszHaloName = "sprites/glow01.vmt";
-				beamInfo.m_flHaloScale = 3.0;
-				beamInfo.m_flWidth = 8.0f;
-				beamInfo.m_flEndWidth = 35.0f;
-				beamInfo.m_flFadeLength = 300.0f;
-				beamInfo.m_flAmplitude = 0;
-				beamInfo.m_flBrightness = 60.0;
-				beamInfo.m_flSpeed = 0.0f;
-				beamInfo.m_nStartFrame = 0.0;
-				beamInfo.m_flFrameRate = 0.0;
-				beamInfo.m_flRed = 255.0;
-				beamInfo.m_flGreen = 255.0;
-				beamInfo.m_flBlue = 255.0;
-				beamInfo.m_nSegments = 8;
-				beamInfo.m_bRenderable = true;
-				beamInfo.m_flLife = 0.5;
-				beamInfo.m_nFlags = FBEAM_FOREVER | FBEAM_ONLYNOISEONCE | FBEAM_NOTILE | FBEAM_HALOBEAM;
-
-				m_pFlashlightBeam = beams->CreateBeamPoints( beamInfo );
-			}
-
-			if( m_pFlashlightBeam )
-			{
-				BeamInfo_t beamInfo;
-				beamInfo.m_vecStart = tr.startpos;
-				beamInfo.m_vecEnd = tr.endpos;
-				beamInfo.m_flRed = 255.0;
-				beamInfo.m_flGreen = 255.0;
-				beamInfo.m_flBlue = 255.0;
-
-				beams->UpdateBeamInfo( m_pFlashlightBeam, beamInfo );
-
-				//Tony; local players don't make the dlight.
-				if( this != C_BasePlayer::GetLocalPlayer() )
-				{
-					dlight_t *el = effects->CL_AllocDlight( 0 );
-					el->origin = tr.endpos;
-					el->radius = 50; 
-					el->color.r = 200;
-					el->color.g = 200;
-					el->color.b = 200;
-					el->die = gpGlobals->curtime + 0.1;
-				}
-			}
-		}
-	}
-	else if ( m_pFlashlightBeam )
-	{
-		ReleaseFlashlight();
-	}
-	*/
 }
 
 void C_BaseHLRagdoll::ImpactTrace( trace_t *pTrace, int iDamageType, char *pCustomImpactName )

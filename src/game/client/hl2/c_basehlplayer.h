@@ -56,6 +56,10 @@ public:
 
 	virtual IRagdoll* GetRepresentativeRagdoll() const;
 
+	virtual void	AddEntity() { BaseClass::AddEntity(); }
+	virtual void UpdateFlashlight() { BaseClass::UpdateFlashlight(); }
+	
+
 public:
 
 	C_HL2PlayerLocalData		m_HL2Local;
@@ -97,7 +101,6 @@ public:
 	int GetPlayerEntIndex() const;
 	IRagdoll* GetIRagdoll() const;
 	
-	void AddEntity();
 	void ImpactTrace( trace_t *pTrace, int iDamageType, char *pCustomImpactName );
 	void UpdateOnRemove();
 	virtual void SetupWeights( const matrix3x4_t *pBoneToWorld, int nFlexWeightCount, float *pFlexWeights, float *pFlexDelayedWeights );

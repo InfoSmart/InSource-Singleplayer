@@ -205,10 +205,7 @@ bool CHalfLife2::Damage_IsTimeBased( int iDmgType )
 	#endif
 }
 
-#ifdef CLIENT_DLL
-
-
-#else
+#ifndef CLIENT_DLL
 
 extern bool		g_fGameOver;
 
@@ -233,7 +230,7 @@ CHalfLife2::CHalfLife2()
 {
 	m_bMegaPhysgun = false;
 		
-	m_flLastHealthDropTime = 0.0f;
+	m_flLastHealthDropTime	= 0.0f;
 	m_flLastGrenadeDropTime = 0.0f;
 }
 

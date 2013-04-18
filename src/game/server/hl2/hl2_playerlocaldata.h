@@ -12,7 +12,6 @@
 #endif
 
 #include "networkvar.h"
-
 #include "hl_movedata.h"
 
 //-----------------------------------------------------------------------------
@@ -43,7 +42,9 @@ public:
 	CNetworkVar( float, m_flFlashBattery );
 	CNetworkVar( Vector, m_vecLocatorOrigin );
 
-	CNetworkVar( Vector, m_iBlood ); // InSource - Sangre
+	CNetworkVar( float, m_iBlood );					// InSource - Sangre
+	CNetworkArray( int, PocketItems,	100 );		// InSource - Inventario
+	CNetworkArray( int, BackpackItems,	100 );		// InSource - Inventario
 
 	// Ladder related data
 	CNetworkVar( EHANDLE, m_hLadder );

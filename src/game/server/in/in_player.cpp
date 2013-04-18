@@ -14,6 +14,9 @@
 #include "scripted.h"
 #include "in_buttons.h"
 
+#include "ammodef.h"
+#include "items.h"
+
 #include "tier0/memdbgon.h"
 
 // Necesario para la música de fondo.
@@ -50,7 +53,17 @@ ConVar in_regeneration("in_regeneration",						"1",	FCVAR_NOTIFY | FCVAR_REPLICA
 ConVar in_regeneration_wait_time("in_regeneration_wait_time",	"10",	FCVAR_NOTIFY | FCVAR_REPLICATED,	"Tiempo de espera en segundos al regenerar salud. (Aumenta según el nivel de dificultad)");
 ConVar in_regeneration_rate("in_regeneration_rate",				"3",	FCVAR_NOTIFY | FCVAR_REPLICATED,	"Cantidad de salud a regenerar (Disminuye según el nivel de dificultad)");
 
-ConVar sv_in_maxblood("sv_in_maxblood", "5600",		FCVAR_NOTIFY | FCVAR_REPLICATED, "Máxima sangre.");
+ConVar sv_in_blood("sv_in_blood",	"5600",		FCVAR_NOTIFY | FCVAR_REPLICATED, "Cantidad de sangre.");
+
+ConVar sv_in_hunger("sv_in_hunger",				"1000",		FCVAR_NOTIFY | FCVAR_REPLICATED, "Cantidad de hambre.");
+ConVar sv_in_hunger_rate("sv_in_hunger_rate",	"15",		FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo en minutos para disminuir la cantidad de hambre.");
+
+ConVar sv_in_thirst("sv_in_thirst",				"500",	FCVAR_NOTIFY | FCVAR_REPLICATED, "Cantidad de sed.");
+ConVar sv_in_thirst_rate("sv_in_thirst_rate",	 "10",	FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo en minutos para disminuir la cantidad de sed.");
+
+ConVar sv_max_inventory("sv_max_inventory", "10",	FCVAR_NOTIFY | FCVAR_REPLICATED, "Número de objetos máximo en el inventario.");
+
+ConVar sv_flashlight_weapon("sv_flashlight_weapon", "0", FCVAR_REPLICATED, "Acoplar las linternas en la boca de las armas?");
 
 //=========================================================
 // Configuración
@@ -69,8 +82,23 @@ ConVar sv_in_maxblood("sv_in_maxblood", "5600",		FCVAR_NOTIFY | FCVAR_REPLICATED
 //=========================================================
 
 LINK_ENTITY_TO_CLASS( player, CIN_Player );
+PRECACHE_REGISTER(player);
 
-PRECACHE_REGISTER( player );
+BEGIN_SEND_TABLE_NOBASE( CIN_Player, DT_INLocalPlayerExclusive )
+	SendPropFloat( SENDINFO_VECTORELEM(m_angEyeAngles, 0), 8, SPROP_CHANGES_OFTEN, -90.0f, 90.0f ),
+END_SEND_TABLE()
+
+BEGIN_SEND_TABLE_NOBASE( CIN_Player, DT_INNonLocalPlayerExclusive )
+	// send a lo-res origin to other players
+	SendPropFloat( SENDINFO_VECTORELEM(m_angEyeAngles, 0), 8, SPROP_CHANGES_OFTEN, -90.0f, 90.0f ),
+	SendPropAngle( SENDINFO_VECTORELEM(m_angEyeAngles, 1), 10, SPROP_CHANGES_OFTEN ),
+END_SEND_TABLE()
+
+IMPLEMENT_SERVERCLASS_ST(CIN_Player, DT_IN_Player)
+	SendPropDataTable( "inlocaldata", 0, &REFERENCE_SEND_TABLE(DT_INLocalPlayerExclusive), SendProxy_SendLocalDataTable ),
+	// Data that gets sent to all other players
+	SendPropDataTable( "innonlocaldata", 0, &REFERENCE_SEND_TABLE(DT_INNonLocalPlayerExclusive), SendProxy_SendNonLocalDataTable ),
+END_SEND_TABLE()
 
 BEGIN_DATADESC( CIN_Player )
 	DEFINE_FIELD( NextHealthRegeneration,	FIELD_INTEGER ),
@@ -80,7 +108,7 @@ BEGIN_DATADESC( CIN_Player )
 	DEFINE_FIELD( m_iBlood,					FIELD_FLOAT ),
 END_DATADESC()
 
-const char *PlayerModels[] = 
+const char *PlayerModels[] =
 {
 	"models/humans/group03/male_01.mdl",
 	"models/humans/group03/male_02.mdl",
@@ -109,11 +137,20 @@ CIN_Player::CIN_Player()
 	BodyHurt				= 0;					// Efecto de muerte.
 	TasksTimer				= 0;					// Tareas.
 
+	m_angEyeAngles.Init();
+
 	// Esto solo aplicado al modo supervivencia.
 	if ( g_pGameRules->IsMultiplayer() )
 	{
 		m_bBloodWound		= false;
-		m_HL2Local.m_iBlood	= m_iBlood = sv_in_maxblood.GetFloat();
+		m_iBloodSpawn		= gpGlobals->curtime;
+
+		m_HL2Local.m_iBlood		= m_iBlood = sv_in_blood.GetFloat();
+		m_HL2Local.m_iHunger	= m_iHunger = sv_in_hunger.GetFloat();
+		m_HL2Local.m_iThirst	= m_iThirst = sv_in_thirst.GetFloat();
+
+		m_iHungerTime = gpGlobals->curtime;
+		m_iThirstTime = gpGlobals->curtime;
 	}
 }
 
@@ -134,7 +171,7 @@ const char *CIN_Player::GetConVar(const char *pConVar)
 		return engine->GetClientConVarValue(engine->IndexOfEdict(edict()), pConVar);
 
 	ConVarRef pVar(pConVar);
-	
+
 	if ( pVar.IsValid() )
 		return pVar.GetString();
 	else
@@ -150,13 +187,16 @@ void CIN_Player::ExecCommand(const char *pCommand)
 	engine->ClientCommand(edict(), pCommand);
 }
 
-
 //=========================================================
 // Guardar los objetos necesarios en caché.
 //=========================================================
 void CIN_Player::Precache()
 {
 	BaseClass::Precache();
+
+	PrecacheModel("sprites/glow_test02.vmt");
+	PrecacheModel("sprites/light_glow03.vmt");
+	PrecacheModel("sprites/glow01.vmt");
 
 	PrecacheScriptSound("Player.Pain.Female");
 	PrecacheScriptSound("Player.Pain.Male");
@@ -225,7 +265,9 @@ void CIN_Player::Spawn()
 
 		// Reseteamos la sangre.
 		m_bBloodWound		= false;
-		m_HL2Local.m_iBlood	= m_iBlood = sv_in_maxblood.GetFloat();
+		m_HL2Local.m_iBlood		= m_iBlood = sv_in_blood.GetFloat();
+		m_HL2Local.m_iHunger	= m_iHunger = sv_in_hunger.GetFloat();
+		m_HL2Local.m_iThirst	= m_iThirst = sv_in_thirst.GetFloat();
 	}
 
 	BaseClass::Spawn();
@@ -325,33 +367,19 @@ ReturnSpot:
 }
 
 //=========================================================
-// Dependiendo del modelo, devuelve si el jugador es hombre
-// o mujer. (Util para las voces de dolor)
-//=========================================================
-int CIN_Player::PlayerGender()
-{
-	if ( !g_pGameRules->IsMultiplayer() )
-		return PLAYER_FEMALE;
-
-	// Obtenemos el modelo del jugador.
-	const char *pPlayerModel = GetConVar("cl_playermodel");
-
-	if ( pPlayerModel == "" || pPlayerModel == NULL )
-		return PLAYER_FEMALE;
-
-	if ( Q_stristr(pPlayerModel, "female") || Q_stristr(pPlayerModel, "abigail") )
-		return PLAYER_FEMALE;
-
-	return PLAYER_MALE;
-}
-
-//=========================================================
 // Bucle de ejecución de tareas. "Pre"
 //=========================================================
 void CIN_Player::PreThink()
 {
 	HandleSpeedChanges();
-	BloodThink();
+
+	// Esto solo funciona en modo Survival.
+	if ( g_pGameRules->IsMultiplayer() )
+	{
+		BloodThink();
+		HungerThink();
+		ThirstThink();
+	}
 
 	BaseClass::PreThink();
 }
@@ -374,7 +402,7 @@ void CIN_Player::PostThink()
 			{
 				int RegenerationHealth = in_regeneration_rate.GetInt();
 				float RegenerationWait = in_regeneration_wait_time.GetFloat();
-				
+
 				// Más o menos salud dependiendo del nivel de dificultad.
 				switch ( GameRules()->GetSkillLevel() )
 				{
@@ -480,6 +508,7 @@ void CIN_Player::PostThink()
 		}
 	}
 
+	m_angEyeAngles = EyeAngles();
 	BaseClass::PostThink();
 }
 
@@ -518,39 +547,20 @@ void CIN_Player::BloodThink()
 	// Tenemos una "herida de sangre"
 	if ( m_bBloodWound && m_iBlood > 0 )
 	{
-		m_iBlood	= m_iBlood - 0.3;
+		m_iBlood	= m_iBlood - random->RandomFloat(0.1, 1.5);
 		int pRand	= random->RandomInt(1, 900);
 
-		for ( int i = 0 ; i < 1000 ; i++ )
+		if ( m_iBloodSpawn < (gpGlobals->curtime - 3) )
 		{
 			Vector vecSpot = WorldSpaceCenter();
-			vecSpot.x += random->RandomFloat( -30, 30 ); 
-			vecSpot.y += random->RandomFloat( -30, 30 ); 
-			vecSpot.z += random->RandomFloat( -10, 10 ); 
+			vecSpot.x += random->RandomFloat( -1, 1 );
+			vecSpot.y += random->RandomFloat( -1, 1 );
 
-			UTIL_BloodDrips(vecSpot, vec3_origin, BLOOD_COLOR_RED, 50);
-			UTIL_BloodDrips(vecSpot, vec3_origin, BLOOD_COLOR_RED, 50);
-			UTIL_BloodDrips(vecSpot, vec3_origin, BLOOD_COLOR_RED, 50);
-			UTIL_BloodDrips(vecSpot, vec3_origin, BLOOD_COLOR_RED, 50);
-			UTIL_BloodDrips(vecSpot, vec3_origin, BLOOD_COLOR_RED, 50);
+			// Lanzar sangre.
+			// FIXME: La sangre no se ve desde la vista del jugador pero si desde los otros.
+			SpawnBlood(vecSpot, vec3_origin, BLOOD_COLOR_RED, 1);
+			m_iBloodSpawn = gpGlobals->curtime;
 		}
-
-		for ( int i = 0 ; i < 500 ; i++ ) //5
-		{
-			Vector vecSpot = WorldSpaceCenter();
-			vecSpot.x += random->RandomFloat( -15, 15 ); 
-			vecSpot.y += random->RandomFloat( -15, 15 ); 
-			vecSpot.z += random->RandomFloat( -8, 8 );
-
-			Vector vecDir;
-			vecDir.x = random->RandomFloat(-1, 1);
-			vecDir.y = random->RandomFloat(-1, 1);
-			vecDir.z = 0;
-
-			UTIL_BloodSpray(vecSpot, vecDir, BLOOD_COLOR_RED, 4, FX_BLOODSPRAY_DROPS | FX_BLOODSPRAY_CLOUD);
-		}
-
-		UTIL_BloodSpray(WorldSpaceCenter(), Vector(0, 0, 1), BLOOD_COLOR_RED, 4, FX_BLOODSPRAY_DROPS | FX_BLOODSPRAY_CLOUD);
 
 		// ¡Ha cicatrizado! Suertudo.
 		if ( pRand == 843 && m_iBloodTime < (gpGlobals->curtime - 60) )
@@ -558,7 +568,7 @@ void CIN_Player::BloodThink()
 	}
 	else
 	{
-		if ( random->RandomInt(1, 100) == 2 && m_iBlood < sv_in_maxblood.GetFloat() )
+		if ( random->RandomInt(1, 100) == 2 && m_iBlood < sv_in_blood.GetFloat() )
 			m_iBlood = m_iBlood + 0.1;
 	}
 
@@ -577,7 +587,7 @@ void CIN_Player::BloodThink()
 
 		else if ( m_iBlood < 500 )
 			damage.SetDamage(5);
-		
+
 		else if ( m_iBlood < 1100 )
 			damage.SetDamage(4);
 
@@ -597,6 +607,46 @@ void CIN_Player::BloodThink()
 	}
 
 	m_HL2Local.m_iBlood = GetBlood();
+}
+
+void CIN_Player::HungerThink()
+{
+	// El hambre solo existe en el modo supervivencia.
+	if ( !g_pGameRules->IsMultiplayer() )
+		return;
+
+	// ¡Tenemos mucha hambre! Empezar a disminuir la sangre.
+	if ( m_iHunger < 50 && m_iBlood > 0 )
+		m_iBlood = m_iBlood - random->RandomFloat(0.1, 1.5);
+
+	// Aún no toca disminuir el hambre.
+	if ( m_iHungerTime >= (gpGlobals->curtime - (sv_in_hunger_rate.GetInt() + 60)) )
+		return;
+
+	m_iHunger		= m_iHunger - random->RandomFloat(1.0, 3.0);
+	m_iHungerTime	= gpGlobals->curtime;
+
+	m_HL2Local.m_iHunger = GetHunger(); // Lo enviamos al cliente.
+}
+
+void CIN_Player::ThirstThink()
+{
+	// La sed solo existe en el modo supervivencia.
+	if ( !g_pGameRules->IsMultiplayer() )
+		return;
+
+	// ¡Tenemos mucha sed! Empezar a disminuir la sangre.
+	if ( m_iThirst < 30 && m_iBlood > 0 )
+		m_iBlood = m_iBlood - random->RandomFloat(0.1, 1.5);
+
+	// Aún no toca disminuir el hambre.
+	if ( m_iThirstTime >= (gpGlobals->curtime - (sv_in_thirst_rate.GetInt() + 60)) )
+		return;
+
+	m_iThirst		= m_iThirst - random->RandomFloat(1.0, 2.0);
+	m_iThirstTime	= gpGlobals->curtime;
+
+	m_HL2Local.m_iThirst = m_iThirst; // Lo enviamos al cliente.
 }
 
 //=========================================================
@@ -635,21 +685,21 @@ void CIN_Player::HandleSpeedChanges()
 		{
 			//if ( sv_stickysprint.GetBool() )
 			StopSprinting();
-			
+
 			// Quitar el estado de "presionado" a la tecla de correr.
 			m_nButtons &= ~IN_SPEED;
 		}
 	}
 
 	bool bIsWalking		= IsWalking();
-	bool bWantWalking;	
-	
+	bool bWantWalking;
+
 	// Tenemos el traje de protección y no estamos ni corriendo ni agachados.
 	if ( IsSuitEquipped() )
 		bWantWalking = (m_nButtons & IN_WALK) && !IsSprinting() && !(m_nButtons & IN_DUCK);
 	else
 		bWantWalking = true;
-	
+
 	// Iván: Creo que esto no funciona... StartWalking() jamas es llamado ¿Solución?
 	if ( bIsWalking != bWantWalking )
 	{
@@ -767,7 +817,7 @@ bool CIN_Player::Weapon_CanSwitchTo(CBaseCombatWeapon *pWeapon)
 {
 	// Cuando el arma cambia también hay que actualizar la velocidad del jugador con el peso de la misma.
 	// Puedes cambiar el peso en los scripts de las armas, variable: "slow_speed"
-	// TODO: Cambiar a un lugar más apropiado	
+	// TODO: Cambiar a un lugar más apropiado
 
 	if ( IsSprinting() )
 		SetMaxSpeed(CalcWeaponSpeed(pWeapon));
@@ -824,7 +874,7 @@ int CIN_Player::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 	*/
 
 	// Sonidos del traje realisticos.
-	if ( !ftrivial && fmajor && flHealthPrev >= 75 ) 
+	if ( !ftrivial && fmajor && flHealthPrev >= 75 )
 	{
 		SetSuitUpdate("!HEV_MED2", false, SUIT_NEXT_IN_30MIN);	// Administrando atención medica.
 
@@ -876,10 +926,19 @@ int CIN_Player::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 	if ( g_pGameRules->IsMultiplayer() )
 	{
 		// ¡Herido!
-		if ( info.GetInflictor()->Classify() == CLASS_ZOMBIE && m_lastDamageAmount > 1 || m_lastDamageAmount > 10 || info.GetInflictor()->Classify() == CLASS_GRUNT )
+		// El inflictor fue un zombi con una probabilidad alta.
+		// El daño sufrido fue mayor a 10
+		// El inflictor es un Grunt
+		// El daño es de bala con una probabilidad alta.
+		if ( info.GetInflictor()->Classify() == CLASS_ZOMBIE && random->RandomInt(1, 5) == 2 ||
+			m_lastDamageAmount > 10 ||
+			info.GetInflictor()->Classify() == CLASS_GRUNT ||
+			info.GetDamageType() == DMG_BULLET && random->RandomInt(1, 5) == 2 )
 		{
 			m_bBloodWound	= true;
-			m_iBloodTime	= gpGlobals->curtime; 
+			m_iBloodTime	= gpGlobals->curtime;
+
+			m_iBlood = m_iBlood - (m_lastDamageAmount * random->RandomInt(1, 3));
 		}
 	}
 
@@ -890,9 +949,12 @@ int CIN_Player::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 	return fTookDamage;
 }
 
+//=========================================================
+// Añade una cantidad de sangre al jugador.
+//=========================================================
 int CIN_Player::TakeBlood(float flBlood)
 {
-	int iMax = sv_in_maxblood.GetInt();
+	int iMax = sv_in_blood.GetInt();
 
 	if ( m_iBlood >= iMax )
 		return 0;
@@ -904,6 +966,38 @@ int CIN_Player::TakeBlood(float flBlood)
 		m_iBlood = iMax;
 
 	return m_iBlood - oldBlood;
+}
+
+//=========================================================
+// Cura una herida
+//=========================================================
+bool CIN_Player::ScarredBloodWound()
+{
+	if ( !m_bBloodWound )
+		return false;
+
+	// Así de sencillo, demasiado...
+	m_bBloodWound = false;
+	return true;
+}
+
+//=========================================================
+// Añade una cantidad de hambre al jugador.
+//=========================================================
+int CIN_Player::TakeHunger(float flHunger)
+{
+	int iMax = sv_in_hunger.GetInt();
+
+	if ( m_iHunger >= iMax )
+		return 0;
+
+	const int oldHunger = m_iHunger;
+	m_iHunger += flHunger;
+
+	if ( m_iHunger > iMax )
+		m_iHunger = iMax;
+
+	return m_iHunger - oldHunger;
 }
 
 //=========================================================
@@ -927,7 +1021,7 @@ void CIN_Player::CreateRagdollEntity()
 
 	// Obtenemos el cadaver.
 	CHL2Ragdoll *pRagdoll = dynamic_cast<CHL2Ragdoll* >(m_hRagdoll.Get());
-	
+
 	// Al parecer no hay ninguno, crearlo.
 	if ( !pRagdoll )
 		pRagdoll = dynamic_cast< CHL2Ragdoll* >(CreateEntityByName("hl2_ragdoll"));
@@ -944,6 +1038,82 @@ void CIN_Player::CreateRagdollEntity()
 	}
 
 	m_hRagdoll	= pRagdoll;
+}
+
+//=========================================================
+//=========================================================
+// FUNCIONES DE UTILIDAD
+//=========================================================
+//=========================================================
+
+//=========================================================
+// Dependiendo del modelo, devuelve si el jugador es hombre
+// o mujer. (Util para las voces de dolor)
+//=========================================================
+int CIN_Player::PlayerGender()
+{
+	// En modo Historia jugamos como Abigaíl (Mujer)
+	if ( !g_pGameRules->IsMultiplayer() )
+		return PLAYER_FEMALE;
+
+	// Obtenemos el modelo del jugador.
+	const char *pPlayerModel = GetConVar("cl_playermodel");
+
+	if ( pPlayerModel == "" || pPlayerModel == NULL )
+		return PLAYER_FEMALE;
+
+	if ( Q_stristr(pPlayerModel, "female") || Q_stristr(pPlayerModel, "abigail") )
+		return PLAYER_FEMALE;
+
+	return PLAYER_MALE;
+}
+
+//=========================================================
+// Ejecuta un comando desde el lado del cliente.
+//=========================================================
+bool CIN_Player::ClientCommand(const CCommand &args)
+{
+	// Inventario: Soltar objeto
+	if ( Q_stristr(args[0], "dropitem") )
+	{
+		int pFrom = INVENTORY_POCKET;
+
+		if ( Q_stristr(args[1], "backpack") )
+			pFrom = INVENTORY_BACKPACK;
+
+		Inventory_DropItemByName(args[2], pFrom);
+		return true;
+	}
+
+	// Inventario: Usar objeto.
+	if ( Q_stristr(args[0], "useitem") )
+	{
+		int pFrom = INVENTORY_POCKET;
+
+		if ( Q_stristr(args[1], "backpack") )
+			pFrom = INVENTORY_BACKPACK;
+
+		Inventory_UseItemByName(args[2], pFrom);
+		return true;
+	}
+
+	// Inventario: Mover objeto.
+	if ( Q_stristr(args[0], "moveitem") )
+	{
+		int pFrom	= INVENTORY_POCKET;
+		int pTo		= INVENTORY_BACKPACK;
+
+		if ( Q_stristr(args[1], "backpack") )
+			pFrom = INVENTORY_BACKPACK;
+
+		if ( Q_stristr(args[2], "pocket") )
+			pTo = INVENTORY_POCKET;
+
+		Inventory_MoveItemByName(args[3], pFrom, pTo);
+		return true;
+	}
+
+	return BaseClass::ClientCommand(args);
 }
 
 //=========================================================
@@ -1004,4 +1174,740 @@ void CIN_Player::FadeoutMusic(CSoundPatch *pMusic, float range)
 		return;
 
 	ENVELOPE_CONTROLLER.SoundFadeOut(pMusic, range, false);
+}
+
+
+
+
+
+//=========================================================
+//=========================================================
+// FUNCIONES RELACIONADAS AL INVENTARIO
+//=========================================================
+// !!!NOTE: Esto es una implementación muy básica (y asquerosa)
+// de un inventario, si alguien más experimentado en esto
+// puede mejorarlo ¡bienvenid@!
+// PD: Me siento desarrollador de Wikipedia.
+//=========================================================
+//=========================================================
+
+//=========================================================
+// Aplica la escala de munición a partir del nivel de dificultad.
+//=========================================================
+int InITEM_GiveAmmo(CBasePlayer *pPlayer, float flCount, const char *pszAmmoName, bool bSuppressSound = false)
+{
+	int iAmmoType = GetAmmoDef()->Index(pszAmmoName);
+
+	if ( iAmmoType == -1 )
+	{
+		Msg("ERROR: Attempting to give unknown ammo type (%s)\n", pszAmmoName);
+		return 0;
+	}
+
+	flCount *= g_pGameRules->GetAmmoQuantityScale(iAmmoType);
+
+	// Don't give out less than 1 of anything.
+	flCount = max(1.0f, flCount);
+	return pPlayer->GiveAmmo(flCount, iAmmoType, bSuppressSound);
+}
+
+//=========================================================
+// Obtiene la ID de un objeto usable para el inventario.
+//=========================================================
+int CIN_Player::Inventory_GetItemID(const char *pName)
+{
+	if ( Q_stristr(pName, "item_blood") )
+		return 1;
+
+	if ( Q_stristr(pName, "bandage") )
+		return 2;
+
+	if ( Q_stristr(pName, "battery") )
+		return 3;
+
+	if ( Q_stristr(pName, "healthkit") )
+		return 4;
+
+	if ( Q_stristr(pName, "healthvial") )
+		return 5;
+
+	if ( Q_stristr(pName, "ammo_pistol") )
+		return 6;
+
+	if ( Q_stristr(pName, "pistol_large") )
+		return 7;
+
+	if ( Q_stristr(pName, "ammo_smg1") )
+		return 8;
+
+	if ( Q_stristr(pName, "smg1_large") )
+		return 9;
+
+	if ( Q_stristr(pName, "ammo_ar2") )
+		return 10;
+
+	if ( Q_stristr(pName, "ar2_large") )
+		return 11;
+
+	if ( Q_stristr(pName, "ammo_357") )
+		return 12;
+
+	if ( Q_stristr(pName, "ammo_357_large") )
+		return 13;
+
+	if ( Q_stristr(pName, "ammo_crossbow") )
+		return 14;
+
+	if ( Q_stristr(pName, "flare_round") )
+		return 15;
+
+	if ( Q_stristr(pName, "box_flare_rounds") )
+		return 16;
+
+	if ( Q_stristr(pName, "rpg_round") )
+		return 17;
+
+	if ( Q_stristr(pName, "ar2_grenade") )
+		return 18;
+
+	if ( Q_stristr(pName, "smg1_grenade") )
+		return 19;
+
+	if ( Q_stristr(pName, "box_buckshot") )
+		return 20;
+
+	if ( Q_stristr(pName, "ar2_altfire") )
+		return 21;
+
+	if ( Q_stristr(pName, "empty_bloodkit") )
+		return 22;
+
+	return 0;
+}
+
+//=========================================================
+// Verifica si el jugador tiene un objeto con esta ID.
+//=========================================================
+bool CIN_Player::Inventory_HasItem(int pEntity, int pSection)
+{
+	// Bolsillo
+	if ( pSection == INVENTORY_POCKET || pSection == INVENTORY_ALL )
+	{
+		// Verificamos cada slot del inventario.
+		for ( int i = 1; i < m_HL2Local.PocketItems.Count(); i++ )
+		{
+			// Este slot contiene exactamente la ID del objeto.
+			if ( m_HL2Local.PocketItems[i] == pEntity )
+				return true;
+		}
+	}
+
+	// Mochila
+	if ( pSection == INVENTORY_BACKPACK || pSection == INVENTORY_ALL )
+	{
+		// Verificamos cada slot del inventario.
+		for ( int i = 1; i < m_HL2Local.BackpackItems.Count(); i++ )
+		{
+			// Este slot contiene exactamente la ID del objeto.
+			if ( m_HL2Local.BackpackItems[i] == pEntity )
+				return true;
+		}
+	}
+
+	return false;
+}
+
+//=========================================================
+// Agrega un nuevo objeto al inventario.
+//=========================================================
+int CIN_Player::Inventory_AddItem(const char *pName, int pSection)
+{
+	// Esto no es válido, mochila o bolsillo.
+	if ( pSection == INVENTORY_ALL )
+		return 0;
+
+	// Inventario lleno.
+	if ( Inventory_GetItemCount(pSection) >= sv_max_inventory.GetInt() )
+	{
+		ClientPrint(this, HUD_PRINTCENTER, "#Inventory_HUD_Full");
+		return 0;
+	}
+
+	int pEntity = Inventory_GetItemID(pName);
+
+	// ¡Este objeto no esta registrado!
+	if ( pEntity == 0 )
+		return 0;
+
+	// No hay ningún objeto con esta ID en la lista, ajustarlo.
+	if ( Items[pEntity] == "" || !Items[pEntity] )
+		Items[pEntity] = pName;
+
+	if ( pSection == INVENTORY_POCKET )
+	{
+		// Verificamos cada slot del inventario.
+		for ( int i = 1; i < m_HL2Local.PocketItems.Count(); i++ )
+		{
+			// Este slot no tiene ningún objeto.
+			if ( m_HL2Local.PocketItems[i] == 0 || !m_HL2Local.PocketItems[i] )
+			{
+				// Establecemos el objeto en este slot y actualizamos el inventario.
+				m_HL2Local.PocketItems.Set(i, pEntity);
+				ExecCommand("cl_update_inventory 1");
+
+				Msg("[INVENTARIO] %s ha recogido %s y lo ha puesto en su bolsillo. \r\n", GetPlayerName(), Inventory_GetItemName(pEntity));
+				return i;
+			}
+		}
+	}
+
+	if ( pSection == INVENTORY_BACKPACK )
+	{
+		// Verificamos cada slot del inventario.
+		for ( int i = 1; i < m_HL2Local.BackpackItems.Count(); i++ )
+		{
+			// Este slot no tiene ningún objeto.
+			if ( m_HL2Local.BackpackItems[i] == 0 || !m_HL2Local.BackpackItems[i] )
+			{
+				// Establecemos el objeto en este slot y actualizamos el inventario.
+				m_HL2Local.BackpackItems.Set(i, pEntity);
+				ExecCommand("cl_update_inventory 1");
+
+				Msg("[INVENTARIO] %s ha recogido %s y lo ha puesto en su mochila. \r\n", GetPlayerName(), Inventory_GetItemName(pEntity));
+				return i;
+			}
+		}
+	}
+
+	return 0;
+}
+
+//=========================================================
+// Agrega un nuevo objeto (desde su ID) al inventario.
+//=========================================================
+int CIN_Player::Inventory_AddItemByID(int pEntity, int pSection)
+{
+	const char *pName = Inventory_GetItemName(pEntity); 
+	return Inventory_AddItem(pName, pSection);
+}
+
+//=========================================================
+// Mueve un objeto de una sección a otra.
+//=========================================================
+bool CIN_Player::Inventory_MoveItem(int pEntity, int pFrom, int pTo)
+{
+	// Al parecer no tenemos este objeto en nuestro inventario.
+	if ( !Inventory_HasItem(pEntity, pFrom) )
+		return false;
+
+	// Bolsillo.
+	if ( pFrom == INVENTORY_POCKET )
+	{
+		// Verificamos cada slot del inventario.
+		for ( int i = 1; i < m_HL2Local.PocketItems.Count(); i++ )
+		{
+			// Este slot contiene exactamente la ID del objeto.
+			if ( m_HL2Local.PocketItems[i] == pEntity )
+			{
+				Inventory_RemoveItem(pEntity, pFrom);
+				Inventory_AddItemByID(pEntity, pTo);
+
+				return true;
+			}
+		}
+	}
+
+	// Mochila.
+	if ( pFrom == INVENTORY_BACKPACK )
+	{
+		// Verificamos cada slot del inventario.
+		for ( int i = 1; i < m_HL2Local.BackpackItems.Count(); i++ )
+		{
+			// Este slot contiene exactamente la ID del objeto.
+			if ( m_HL2Local.BackpackItems[i] == pEntity )
+			{
+				Inventory_RemoveItem(pEntity, pFrom);
+				Inventory_AddItemByID(pEntity, pTo);
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+//=========================================================
+// Mueve un objeto con su nombre desde una sección a otra.
+//=========================================================
+bool CIN_Player::Inventory_MoveItemByName(const char *pName, int pFrom, int pTo)
+{
+	int pEntity = Inventory_GetItemID(pName);
+	return Inventory_MoveItem(pEntity, pFrom, pTo);
+}
+
+//=========================================================
+// Remueve un objeto del inventario.
+//=========================================================
+bool CIN_Player::Inventory_RemoveItem(int pEntity, int pSection)
+{
+	if ( pSection == INVENTORY_POCKET )
+	{
+		// Verificamos cada slot del inventario.
+		for ( int i = 1; i < m_HL2Local.PocketItems.Count(); i++ )
+		{
+			// Este slot contiene exactamente la ID del objeto.
+			if ( m_HL2Local.PocketItems[i] == pEntity )
+			{
+				// La establecemos en 0 para removerlo y actualizamos el inventario.
+				m_HL2Local.PocketItems.Set(i, 0);
+				ExecCommand("cl_update_inventory 1");
+
+				return true;
+			}
+		}
+	}
+
+	if ( pSection == INVENTORY_BACKPACK )
+	{
+		// Verificamos cada slot del inventario.
+		for ( int i = 1; i < m_HL2Local.BackpackItems.Count(); i++ )
+		{
+			// Este slot contiene exactamente la ID del objeto.
+			if ( m_HL2Local.BackpackItems[i] == pEntity )
+			{
+				// La establecemos en 0 para removerlo y actualizamos el inventario.
+				m_HL2Local.BackpackItems.Set(i, 0);
+				ExecCommand("cl_update_inventory 1");
+
+				return true;
+			}
+		}	
+	}
+
+	return false;
+}
+
+//=========================================================
+// Remueve el objeto que se encuentre en esta posición.
+//=========================================================
+bool CIN_Player::Inventory_RemoveItemByPos(int Position, int pSection)
+{
+	if ( pSection == INVENTORY_POCKET )
+	{
+		// No hay ningún objeto en este slot.
+		if ( m_HL2Local.PocketItems[Position] == 0 || !m_HL2Local.PocketItems[Position] )
+			return false;
+
+		// La establecemos en 0 para remover el objeto que estaba aquí.
+		m_HL2Local.PocketItems.Set(Position, 0);
+	}
+
+	if ( pSection == INVENTORY_BACKPACK )
+	{
+		// No hay ningún objeto en este slot.
+		if ( m_HL2Local.BackpackItems[Position] == 0 || !m_HL2Local.BackpackItems[Position] )
+			return false;
+
+		// La establecemos en 0 para remover el objeto que estaba aquí.
+		m_HL2Local.BackpackItems.Set(Position, 0);
+	}
+
+	ExecCommand("cl_update_inventory 1");
+	return true;
+}
+
+//=========================================================
+// Suelta todos los objetos del inventario.
+//=========================================================
+void CIN_Player::Inventory_DropAll()
+{
+	// Verificamos cada slot del inventario.
+	for ( int i = 1; i < m_HL2Local.PocketItems.Count(); i++ )
+	{
+		// Este slot no tiene ningún objeto.
+		if ( m_HL2Local.PocketItems[i] == 0 || !m_HL2Local.PocketItems[i] )
+			continue;
+
+		Inventory_DropItem(m_HL2Local.PocketItems[i], INVENTORY_POCKET, true);
+	}
+
+	// Verificamos cada slot del inventario.
+	for ( int i = 1; i < m_HL2Local.BackpackItems.Count(); i++ )
+	{
+		// Este slot no tiene ningún objeto.
+		if ( m_HL2Local.BackpackItems[i] == 0 || !m_HL2Local.BackpackItems[i] )
+			continue;
+
+		Inventory_DropItem(m_HL2Local.BackpackItems[i], INVENTORY_BACKPACK, true);
+	}
+}
+
+//=========================================================
+// Suelta un objeto del inventario.
+//=========================================================
+bool CIN_Player::Inventory_DropItem(int pEntity, int pSection, bool dropRandom)
+{
+	// Al parecer no tenemos este objeto en nuestro inventario.
+	if ( !Inventory_HasItem(pEntity, pSection) )
+		return false;
+
+	// Obtenemos el objeto.
+	const char *pItemName = Inventory_GetItemName(pEntity);
+
+	// ¿Se ha eliminado/bugeado?
+	if ( pItemName == "" )
+		return false;
+
+	CBaseEntity *pEnt = CreateEntityByName(pItemName);
+
+	if ( !pEnt )
+		return false;
+
+	// Lo creamos en nuestra ubicación.
+	Vector vecForward;
+	AngleVectors(EyeAngles(), &vecForward);
+
+	Vector vecOrigin;
+	QAngle vecAngles(0, GetAbsAngles().y - 90, 0);
+
+	if ( dropRandom )
+		vecOrigin = GetAbsOrigin() + vecForward * 5 + Vector(random->RandomInt(1, 20),random->RandomInt(1, 20),random->RandomInt(1, 20)); // Al azar
+	else
+		vecOrigin = GetAbsOrigin() + vecForward * 56 + Vector(0,0,64); // Justo delante de nosotros.
+
+	pEnt->SetAbsOrigin(vecOrigin);
+	pEnt->SetAbsAngles(vecAngles);
+
+	DispatchSpawn(pEnt);
+	pEnt->Activate();
+
+	// Lo removemos del inventario.
+	Inventory_RemoveItem(pEntity, pSection);
+	return true;
+}
+
+//=========================================================
+// Suelta el objeto que se encuentre en esta posición.
+//=========================================================
+bool CIN_Player::Inventory_DropItemByPos(int Position, int pSection, bool dropRandom)
+{
+	int pEntity = Inventory_GetItem(Position);
+	return Inventory_DropItem(pEntity, pSection, dropRandom);
+}
+
+//=========================================================
+// Suelta un objeto con este nombre.
+//=========================================================
+bool CIN_Player::Inventory_DropItemByName(const char *pName, int pSection, bool dropRandom)
+{
+	int pEntity = Inventory_GetItemID(pName);
+	return Inventory_DropItem(pEntity, pSection, dropRandom);
+}
+
+//=========================================================
+// Devuelve la cantidad de objetos en el inventario.
+//=========================================================
+int CIN_Player::Inventory_GetItemCount(int pSection)
+{
+	int pTotal = 0;
+
+	if ( pSection == INVENTORY_POCKET || pSection == INVENTORY_ALL )
+	{
+		// Verificamos cada slot del inventario.
+		for ( int i = 1; i < m_HL2Local.PocketItems.Count(); i++ )
+		{
+			// Este slot no tiene ningún objeto.
+			if ( m_HL2Local.PocketItems[i] == 0 || !m_HL2Local.PocketItems[i] )
+				continue;
+
+			pTotal++;
+		}
+	}
+
+	if ( pSection == INVENTORY_BACKPACK || pSection == INVENTORY_ALL )
+	{
+		// Verificamos cada slot del inventario.
+		for ( int i = 1; i < m_HL2Local.BackpackItems.Count(); i++ )
+		{
+			// Este slot no tiene ningún objeto.
+			if ( m_HL2Local.BackpackItems[i] == 0 || !m_HL2Local.BackpackItems[i] )
+				continue;
+
+			pTotal++;
+		}
+	}
+
+	return pTotal;
+}
+
+//=========================================================
+// Obtiene la ID del objeto que se encuentra en esta posición.
+//=========================================================
+int CIN_Player::Inventory_GetItem(int Position, int pSection)
+{
+	if ( pSection == INVENTORY_POCKET )
+	{
+		// No hay ningún objeto en este slot.
+		if ( m_HL2Local.PocketItems[Position] == 0 || !m_HL2Local.PocketItems[Position] )
+			return 0;
+
+		return m_HL2Local.PocketItems.Get(Position);
+	}
+
+	if ( pSection == INVENTORY_BACKPACK )
+	{
+		// No hay ningún objeto en este slot.
+		if ( m_HL2Local.BackpackItems[Position] == 0 || !m_HL2Local.BackpackItems[Position] )
+			return 0;
+
+		return m_HL2Local.BackpackItems.Get(Position);
+	}
+
+	return 0;
+}
+
+//=========================================================
+// Obtiene el nombre clase de un objeto en el inventario.
+//=========================================================
+const char *CIN_Player::Inventory_GetItemName(int pEntity)
+{
+	// No hay ningún objeto con esta ID en la lista.
+	if ( Items[pEntity] == "" || !Items[pEntity] )
+		return "";
+
+	return Items[pEntity];
+}
+
+//=========================================================
+// Obtiene el nombre de un objeto de una posición en el inventario.
+//=========================================================
+const char *CIN_Player::Inventory_GetItemNameByPos(int Position, int pSection)
+{
+	int pEntity = Inventory_GetItem(Position, pSection);
+	return Inventory_GetItemName(pEntity);
+}
+
+//=========================================================
+// Usa un objeto del inventario.
+// @TODO: Asquerosa esta implementación... Estaría mucho
+// mejor tener el código de uso en el código
+// del objeto (ejemplo: item_bandage.cpp). Con esto
+// se repite el código 2 veces... -Iván
+//=========================================================
+void CIN_Player::Inventory_UseItem(int pEntity, int pSection)
+{
+	// Obtenemos el nombre clase del objeto.
+	const char *pItemName	= Inventory_GetItemName(pEntity);
+	bool pDelete			= true;
+
+	if ( pItemName == "" )
+		return;
+
+	if ( !Inventory_HasItem(pEntity, pSection) )
+	{
+		Msg("[INVENTARIO] %s ha intentado usar %s. No esta en su inventario! \r\n", GetPlayerName(), pItemName);
+		return;
+	}
+
+	// Benda
+	// Objeto para dejar de sangrar.
+	if ( Q_stristr(pItemName, "bandage") )
+	{
+		if ( ScarredBloodWound() )
+		{
+			CSingleUserRecipientFilter user(this);
+			user.MakeReliable();
+
+			UserMessageBegin(user, "ItemPickup");
+				WRITE_STRING(pItemName);
+			MessageEnd();
+
+			CPASAttenuationFilter filter(this, "Player.Bandage");
+			EmitSound(filter, entindex(), "Player.Bandage");
+		}
+		else
+			pDelete = false;
+	}
+
+	// Sangre
+	// Todos necesitamos litros y litros de sangre para vivir.
+	if ( Q_stristr(pItemName, "item_blood") )
+	{
+		ConVarRef sk_bloodkit("sk_bloodkit");
+
+		if ( TakeBlood(sk_bloodkit.GetFloat()) != 0 )
+		{
+			CSingleUserRecipientFilter user(this);
+			user.MakeReliable();
+
+			UserMessageBegin(user, "ItemPickup");
+				WRITE_STRING(pItemName);
+			MessageEnd();
+
+			Inventory_AddItem("item_empty_bloodkit", pSection);
+		}
+		else
+			pDelete = false;
+	}
+
+	// Bolsa de sangre vacia.
+	if ( Q_stristr(pItemName, "empty_blood") )
+		pDelete = false;
+
+	// Bateria
+	if ( Q_stristr(pItemName, "battery") )
+		ApplyBattery();
+
+	// Botiquin
+	if ( Q_stristr(pItemName, "health") )
+	{
+		ConVarRef sk_healthkit("sk_healthkit");
+
+		if ( TakeHealth(sk_healthkit.GetFloat(), DMG_GENERIC) )
+		{
+			CSingleUserRecipientFilter user(this);
+			user.MakeReliable();
+
+			UserMessageBegin(user, "ItemPickup");
+				WRITE_STRING(GetClassname());
+			MessageEnd();
+
+			CPASAttenuationFilter filter(this, "HealthKit.Touch");
+			EmitSound(filter, entindex(), "HealthKit.Touch");
+		}
+		else
+			pDelete = false;
+	}
+
+
+	// Munición: Pistola
+	if ( Q_stristr(pItemName, "ammo_pistol") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_PISTOL, "Pistol") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: Pistola
+	if ( Q_stristr(pItemName, "pistol_large") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_PISTOL_LARGE, "Pistol") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: SMG1
+	if ( Q_stristr(pItemName, "ammo_smg1") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_SMG1, "SMG1") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: SMG1
+	if ( Q_stristr(pItemName, "smg1_large") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_SMG1, "SMG1") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: AR2
+	if ( Q_stristr(pItemName, "ammo_ar2") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_AR2, "AR2") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: AR2
+	if ( Q_stristr(pItemName, "ar2_large") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_AR2_LARGE, "AR2") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: 357
+	if ( Q_stristr(pItemName, "ammo_357") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_357, "357") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: 357
+	if ( Q_stristr(pItemName, "ammo_357_large") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_357_LARGE, "357") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: Ballesta
+	if ( Q_stristr(pItemName, "ammo_crossbow") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_CROSSBOW, "XBowBolt") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: Flareround
+	if ( Q_stristr(pItemName, "flare_round") )
+	{
+		if ( InITEM_GiveAmmo(this, 1, "FlareRound") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: Flareround
+	if ( Q_stristr(pItemName, "box_flare_rounds") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_BOX_FLARE_ROUNDS, "FlareRound") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: RPG
+	if ( Q_stristr(pItemName, "rpg_round") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_RPG_ROUND, "RPG_Round") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: Granada AR2 y Granada SMG1
+	if ( Q_stristr(pItemName, "ar2_grenade") ||  Q_stristr(pItemName, "smg1_grenade") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_SMG1_GRENADE, "SMG1_Grenade") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: Escopeta
+	if ( Q_stristr(pItemName, "box_buckshot") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_BUCKSHOT, "Buckshot") == 0 )
+			pDelete = false;
+	}
+
+	// Munición: AR2 Altfire
+	if ( Q_stristr(pItemName, "ar2_altfire") )
+	{
+		if ( InITEM_GiveAmmo(this, SIZE_AMMO_AR2_ALTFIRE, "AR2AltFire") == 0 )
+			pDelete = false;
+	}
+
+	// Todo salio correcto, eliminar del inventario.
+	if ( pDelete )
+	{
+		Msg("[INVENTARIO] %s ha usado %s. \r\n", GetPlayerName(), pItemName);
+		Inventory_RemoveItem(pEntity, pSection);
+	}
+}
+
+//=========================================================
+// Usa el objeto que este en esta posición.
+//=========================================================
+void CIN_Player::Inventory_UseItemByPos(int Position, int pSection)
+{
+	int pEntity = Inventory_GetItem(Position, pSection);
+	Inventory_UseItem(pEntity, pSection);
+}
+
+//=========================================================
+// Usa el objeto con este nombre.
+//=========================================================
+void CIN_Player::Inventory_UseItemByName(const char *pName, int pSection)
+{
+	int pEntity = Inventory_GetItemID(pName);
+	Inventory_UseItem(pEntity, pSection);
 }

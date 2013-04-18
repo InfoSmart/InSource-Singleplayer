@@ -241,12 +241,13 @@ END_DATADESC()
 //-----------------------------------------------------------------------------
 // Spawn
 //-----------------------------------------------------------------------------
-void CAmbientGeneric::Spawn( void )
+void CAmbientGeneric::Spawn()
 {
-	m_iSoundLevel = ComputeSoundlevel( m_radius, FBitSet( m_spawnflags, SF_AMBIENT_SOUND_EVERYWHERE )?true:false );
-	ComputeMaxAudibleDistance( );
+	m_iSoundLevel = ComputeSoundlevel( m_radius, FBitSet(m_spawnflags, SF_AMBIENT_SOUND_EVERYWHERE) ? true : false );
+	ComputeMaxAudibleDistance();
 
-	char *szSoundFile = (char *)STRING( m_iszSound );
+	char *szSoundFile = (char *)STRING(m_iszSound);
+
 	if ( !m_iszSound || strlen( szSoundFile ) < 1 )
 	{
 		Warning( "Empty %s (%s) at %.2f, %.2f, %.2f\n", GetClassname(), GetDebugName(), GetAbsOrigin().x, GetAbsOrigin().y, GetAbsOrigin().z );
@@ -254,36 +255,31 @@ void CAmbientGeneric::Spawn( void )
 		return;
 	}
 
-    SetSolid( SOLID_NONE );
-    SetMoveType( MOVETYPE_NONE );
+    SetSolid(SOLID_NONE);
+    SetMoveType(MOVETYPE_NONE);
 
 	// Set up think function for dynamic modification 
 	// of ambient sound's pitch or volume. Don't
 	// start thinking yet.
 
 	SetThink(&CAmbientGeneric::RampThink);
-	SetNextThink( TICK_NEVER_THINK );
+	SetNextThink(TICK_NEVER_THINK);
 
 	m_fActive = false;
 
-	if ( FBitSet ( m_spawnflags, SF_AMBIENT_SOUND_NOT_LOOPING ) )
-	{
+	if ( FBitSet (m_spawnflags, SF_AMBIENT_SOUND_NOT_LOOPING) )
 		m_fLooping = false;
-	}
 	else
-	{
 		m_fLooping = true;
-	}
 
-	m_hSoundSource = NULL;
-	m_nSoundSourceEntIndex = -1;
+	m_hSoundSource			= NULL;
+	m_nSoundSourceEntIndex	= -1;
 
-	Precache( );
+	Precache();
 
 	// init all dynamic modulation parms
 	InitModulationParms();
 }
-
 
 //-----------------------------------------------------------------------------
 // Computes the max audible radius for a given sound level
@@ -292,7 +288,7 @@ void CAmbientGeneric::Spawn( void )
 
 void CAmbientGeneric::ComputeMaxAudibleDistance( )
 {
-	if (( m_iSoundLevel == SNDLVL_NONE )	|| ( m_radius == 0.0f ))
+	if ( (m_iSoundLevel == SNDLVL_NONE)	|| (m_radius == 0.0f) )
 	{
 		m_flMaxRadius = -1.0f;
 		return;
@@ -300,7 +296,8 @@ void CAmbientGeneric::ComputeMaxAudibleDistance( )
 
 	// Sadly, there's no direct way of getting at this. 
 	// We have to do an interative computation.
-	float flGain = enginesound->GetDistGainFromSoundLevel( m_iSoundLevel, m_radius );
+	float flGain = enginesound->GetDistGainFromSoundLevel(m_iSoundLevel, m_radius);
+
 	if ( flGain <= MIN_AUDIBLE_VOLUME )
 	{
 		m_flMaxRadius = m_radius;
@@ -309,10 +306,12 @@ void CAmbientGeneric::ComputeMaxAudibleDistance( )
 
 	float flMinRadius = m_radius; 
 	float flMaxRadius = m_radius * 2;
+
 	while ( true )
 	{
 		// First, find a min + max range surrounding the desired distance gain
 		float flGain = enginesound->GetDistGainFromSoundLevel( m_iSoundLevel, flMaxRadius );
+
 		if ( flGain <= MIN_AUDIBLE_VOLUME )
 			break;
 
@@ -329,18 +328,16 @@ void CAmbientGeneric::ComputeMaxAudibleDistance( )
 
 	// Now home in a little bit
 	int nInterations = 4;
+
 	while ( --nInterations >= 0 )
 	{
-		float flTestRadius = (flMinRadius + flMaxRadius) * 0.5f;
-		float flGain = enginesound->GetDistGainFromSoundLevel( m_iSoundLevel, flTestRadius );
+		float flTestRadius	= (flMinRadius + flMaxRadius) * 0.5f;
+		float flGain		= enginesound->GetDistGainFromSoundLevel( m_iSoundLevel, flTestRadius );
+
 		if ( flGain <= MIN_AUDIBLE_VOLUME )
-		{
 			flMaxRadius = flTestRadius;
-		}
 		else
-		{
 			flMinRadius = flTestRadius;
-		}
 	}
 
 	m_flMaxRadius = flMaxRadius;
@@ -355,7 +352,7 @@ void CAmbientGeneric::InputPitch( inputdata_t &inputdata )
 {
 	m_dpv.pitch = clamp( inputdata.value.Float(), 0, 255 );
 
-	SendSound( SND_CHANGE_PITCH );
+	SendSound(SND_CHANGE_PITCH);
 }
 
 
@@ -856,19 +853,25 @@ void CAmbientGeneric::InputStopSound( inputdata_t &inputdata )
 
 void CAmbientGeneric::SendSound( SoundFlags_t flags)
 {
-	char *szSoundFile = (char *)STRING( m_iszSound );
-	CBaseEntity* pSoundSource = m_hSoundSource;
+	char *szSoundFile			= (char *)STRING(m_iszSound);
+	CBaseEntity* pSoundSource	= m_hSoundSource;
+
 	if ( pSoundSource )
 	{
 		if ( flags == SND_STOP )
 		{
 			UTIL_EmitAmbientSound(pSoundSource->GetSoundSourceIndex(), pSoundSource->GetAbsOrigin(), szSoundFile, 
 						0, SNDLVL_NONE, flags, 0);
+
+			m_fActive = false;
 		}
 		else
 		{
 			UTIL_EmitAmbientSound(pSoundSource->GetSoundSourceIndex(), pSoundSource->GetAbsOrigin(), szSoundFile, 
 				(m_dpv.vol * 0.01), m_iSoundLevel, flags, m_dpv.pitch);
+
+			if ( m_fLooping )
+				m_fActive = true;
 		}
 	}	
 	else
@@ -878,6 +881,8 @@ void CAmbientGeneric::SendSound( SoundFlags_t flags)
 		{
 			UTIL_EmitAmbientSound(m_nSoundSourceEntIndex, GetAbsOrigin(), szSoundFile, 
 					0, SNDLVL_NONE, flags, 0);
+
+			m_fActive = false;
 		}
 	}
 }

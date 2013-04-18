@@ -4,11 +4,14 @@
 #include "insp_gamerules.h"
 #include "inmp_gamerules.h"
 #include "gamerules.h"
+#include "viewport_panel_names.h"
 
 #include "tier0/vprof.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+
+ConVar sv_show_motd("sv_show_motd", "0", 0, "Muestra el mensaje del día.");
 
 //=========================================================
 // called each time a player is spawned into the game
@@ -24,9 +27,6 @@ void ClientPutInServer(edict_t *pEdict, const char *playername)
 //=========================================================
 void FinishClientPutInServer(CIN_Player *pPlayer)
 {
-	//pPlayer->InitialSpawn();
-	//pPlayer->Spawn();
-
 	char sName[128];
 	Q_strncpy(sName, pPlayer->GetPlayerName(), sizeof(sName));
 
@@ -39,7 +39,22 @@ void FinishClientPutInServer(CIN_Player *pPlayer)
 
 	UTIL_ClientPrintAll(HUD_PRINTNOTIFY, "#Game_connected", sName[0] != 0 ? sName : "<unconnected>");
 
-	// @TODO: ¿Mensaje del día?
+	pPlayer->ExecCommand("cl_update_inventory 1"); // Actualizamos el inventario.
+	
+	if ( sv_show_motd.GetBool() )
+	{
+		const ConVar *hostname	= cvar->FindVar("hostname");
+		const char *title		= (hostname) ? hostname->GetString() : "MENSAJE DEL DÍA";
+
+		
+		KeyValues *data = new KeyValues("data");
+		data->SetString("title", title);		// info panel title
+		data->SetString("type", "1");			// show userdata from stringtable entry
+		data->SetString("msg",	"motd");		// use this stringtable entry
+
+		pPlayer->ShowViewPortPanel(PANEL_INFO, true, data);
+		data->deleteThis();
+	}
 }
 
 //=========================================================
@@ -67,13 +82,12 @@ void ClientActive(edict_t *pEdict, bool bLoadGame)
 const char *GetGameDescription()
 {
 	// Con el fin de detectar cuando los binarios se quedan en caché.
-	// @TODO: Remover en Release
-	Msg("InSource: v1.51 \r\n");
+	Msg("InSource: BUILD \r\n");
 
 	if ( g_pGameRules ) // this function may be called before the world has spawned, and the game rules initialized
 		return g_pGameRules->GetGameDescription();
 	else
-		return "InSource";
+		return "InSource Alpha";
 }
 
 //=========================================================
@@ -82,6 +96,7 @@ const char *GetGameDescription()
 void InstallGameRules()
 {
 	// Esta es la magia de tener 2 modos.
+	// @TODO: Crear el modo Coop.
 
 	if ( gpGlobals->coop || gpGlobals->deathmatch )
 		CreateGameRulesObject("CInSourceMPRules");
@@ -101,13 +116,8 @@ void respawn(CBaseEntity *pEdict, bool fCopyCorpse)
 
 		if ( pPlayer )
 		{
-			//if ( fCopyCorpse )
-				//pPlayer->CreateCorpse();
-
 			if ( gpGlobals->curtime > pPlayer->GetDeathTime() + DEATH_ANIMATION_TIME )
-			{
 				pPlayer->Spawn();
-			}
 			else
 				pPlayer->SetNextThink(gpGlobals->curtime + 0.1f);
 		}

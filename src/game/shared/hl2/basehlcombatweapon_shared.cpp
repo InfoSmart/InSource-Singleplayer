@@ -7,25 +7,45 @@
 #include "cbase.h"
 #include "basehlcombatweapon_shared.h"
 
+#ifdef CLIENT_DLL
+extern IVModelInfoClient* modelinfo;
+#else
+extern IVModelInfo* modelinfo;
+#endif
+
+
+#if defined( CLIENT_DLL )
+
+	#include "vgui/ISurface.h"
+	#include "vgui_controls/controls.h"
+	#include "c_in_player.h"
+	#include "hud_crosshair.h"
+
+#else
+
+	#include "in_player.h"
+	#include "vphysics/constraints.h"
+
+#endif
+
 #include "hl2_player_shared.h"
+#include "inmp_gamerules.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-LINK_ENTITY_TO_CLASS( basehlcombatweapon, CBaseHLCombatWeapon );
-
 IMPLEMENT_NETWORKCLASS_ALIASED( BaseHLCombatWeapon , DT_BaseHLCombatWeapon )
 
 BEGIN_NETWORK_TABLE( CBaseHLCombatWeapon , DT_BaseHLCombatWeapon )
-#if !defined( CLIENT_DLL )
-//	SendPropInt( SENDINFO( m_bReflectViewModelAnimations ), 1, SPROP_UNSIGNED ),
-#else
-//	RecvPropInt( RECVINFO( m_bReflectViewModelAnimations ) ),
-#endif
+
 END_NETWORK_TABLE()
 
+BEGIN_PREDICTION_DATA( CBaseHLCombatWeapon )
+END_PREDICTION_DATA()
 
-#if !defined( CLIENT_DLL )
+LINK_ENTITY_TO_CLASS( basehlcombatweapon, CBaseHLCombatWeapon );
+
+#ifdef GAME_DLL
 
 #include "globalstate.h"
 
@@ -44,10 +64,79 @@ END_DATADESC()
 
 #endif
 
-BEGIN_PREDICTION_DATA( CBaseHLCombatWeapon )
-END_PREDICTION_DATA()
-
 ConVar sk_auto_reload_time( "sk_auto_reload_time", "3", FCVAR_REPLICATED );
+
+CBaseHLCombatWeapon::CBaseHLCombatWeapon()
+{
+	SetPredictionEligible(true);
+	AddSolidFlags(FSOLID_TRIGGER);
+}
+
+bool CBaseHLCombatWeapon::IsPredicted() const
+{ 
+	return true;
+}
+
+#ifdef CLIENT_DLL
+
+void CBaseHLCombatWeapon::OnDataChanged( DataUpdateType_t type )
+{
+	BaseClass::OnDataChanged( type );
+
+	if ( GetPredictable() && !ShouldPredict() )
+		ShutdownPredictable();
+}
+
+
+bool CBaseHLCombatWeapon::ShouldPredict()
+{
+	if ( GetOwner() && GetOwner() == C_BasePlayer::GetLocalPlayer() )
+		return true;
+
+	return BaseClass::ShouldPredict();
+}
+
+
+#else
+
+void CBaseHLCombatWeapon::Materialize()
+{
+	if ( !g_pGameRules->IsMultiplayer() )
+		return;
+
+	if ( IsEffectActive(EF_NODRAW) )
+	{		
+		RemoveEffects(EF_NODRAW);
+		DoMuzzleFlash();
+	}
+
+	if ( HasSpawnFlags(SF_NORESPAWN) == false )
+	{
+		VPhysicsInitNormal(SOLID_BBOX, GetSolidFlags() | FSOLID_TRIGGER, false);
+		SetMoveType(MOVETYPE_VPHYSICS );
+
+		//g_pGameRules->AddLevelDesignerPlacedObject( this );
+	}
+
+	if ( HasSpawnFlags(SF_NORESPAWN) == false )
+	{
+		if ( GetOriginalSpawnOrigin() == vec3_origin )
+		{
+			m_vOriginalSpawnOrigin = GetAbsOrigin();
+			m_vOriginalSpawnAngles = GetAbsAngles();
+		}
+	}
+
+	SetPickupTouch();
+	SetThink(NULL);
+}
+
+int CBaseHLCombatWeapon::ObjectCaps()
+{
+	return BaseClass::ObjectCaps() & ~FCAP_IMPULSE_USE;
+}
+
+#endif
 
 //-----------------------------------------------------------------------------
 // Purpose: 

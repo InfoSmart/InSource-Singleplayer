@@ -19,13 +19,7 @@
 class CBaseHLCombatWeapon : public CBaseCombatWeapon
 {
 #if !defined( CLIENT_DLL )
-#ifndef _XBOX
 	DECLARE_DATADESC();
-#else
-protected:
-	DECLARE_DATADESC();
-private:
-#endif
 #endif
 
 	DECLARE_CLASS( CBaseHLCombatWeapon, CBaseCombatWeapon );
@@ -33,17 +27,36 @@ public:
 	DECLARE_NETWORKCLASS();
 	DECLARE_PREDICTABLE();
 
-	virtual bool	WeaponShouldBeLowered( void );
+	CBaseHLCombatWeapon();
+
+	virtual bool	WeaponShouldBeLowered();
+
+	virtual bool	IsPredicted() const;
+	//virtual void	FallInit();
+
+#ifdef CLIENT_DLL
+	virtual void	OnDataChanged( DataUpdateType_t type );
+	virtual bool	ShouldPredict();
+#else
+
+	virtual void	Materialize();
+	virtual	int		ObjectCaps();
+
+	Vector	GetOriginalSpawnOrigin( void ) { return m_vOriginalSpawnOrigin;	}
+	QAngle	GetOriginalSpawnAngles( void ) { return m_vOriginalSpawnAngles;	}
+
+
+#endif
 
 			bool	CanLower();
-	virtual bool	Ready( void );
-	virtual bool	Lower( void );
-	virtual bool	Deploy( void );
+	virtual bool	Ready();
+	virtual bool	Lower();
+	virtual bool	Deploy();
 	virtual bool	Holster( CBaseCombatWeapon *pSwitchingTo );
-	virtual void	WeaponIdle( void );
+	virtual void	WeaponIdle();
 
 	virtual void	AddViewmodelBob( CBaseViewModel *viewmodel, Vector &origin, QAngle &angles );
-	virtual	float	CalcViewmodelBob( void );
+	virtual	float	CalcViewmodelBob();
 
 	virtual Vector	GetBulletSpread( WeaponProficiency_t proficiency );
 	virtual float	GetSpreadBias( WeaponProficiency_t proficiency );
@@ -51,10 +64,13 @@ public:
 	virtual const	WeaponProficiencyInfo_t *GetProficiencyValues();
 	static const	WeaponProficiencyInfo_t *GetDefaultProficiencyValues();
 
-	virtual void	ItemHolsterFrame( void );
+	virtual void	ItemHolsterFrame();
 
 	int				m_iPrimaryAttacks;		// # of primary attacks performed with this weapon
 	int				m_iSecondaryAttacks;	// # of secondary attacks performed with this weapon
+
+	Vector			m_vOriginalSpawnOrigin;
+	QAngle			m_vOriginalSpawnAngles;
 
 protected:
 

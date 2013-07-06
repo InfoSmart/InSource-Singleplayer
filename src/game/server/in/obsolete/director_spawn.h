@@ -1,6 +1,6 @@
-#ifndef NPC_ZOMBIE_MAKER_H
+#ifndef DIRECTOR_SPAWN_H
 
-#define NPC_ZOMBIE_MAKER_H
+#define DIRECTOR_SPAWN_H
 
 #ifdef _WIN32
 #pragma once
@@ -8,12 +8,12 @@
 
 #include "env_sound.h"
 
-class CDirectorZombieSpawn : public CBaseEntity
+class CDirectorSpawn : public CBaseEntity
 {
 public:
-	DECLARE_CLASS(CDirectorZombieSpawn, CBaseEntity);
+	DECLARE_CLASS(CDirectorSpawn, CBaseEntity);
 
-	CDirectorZombieSpawn();
+	CDirectorSpawn();
 
 	void Spawn();
 	void Precache();
@@ -22,15 +22,20 @@ public:
 	void Disable();
 
 	bool CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult);
-	void ChildPostSpawn(CAI_BaseNPC *pChild);
+	bool PostSpawn(CAI_BaseNPC *pNPC);
+	void AddHealth(CAI_BaseNPC *pNPC);
+	CAI_BaseNPC *VerifyClass(const char *pClass);
 
-	CAI_BaseNPC *MakeNPC(bool Horde = false, bool disclosePlayer = false);
+	CAI_BaseNPC *MakeNPC(bool Horde = false, bool disclosePlayer = false, bool checkRadius = true);
 	CAI_BaseNPC *MakeNoCollisionNPC(bool Horde = false, bool disclosePlayer = false);
-	CAI_BaseNPC *MakeGrunt();
-	bool CanMakeGrunt() { return SpawnGrunt; }
+	CAI_BaseNPC *MakeBoss();
+
+	bool Enabled() { return ( Disabled ) ? false : true; }
+	bool CanMakeBoss();
 
 	void DeathNotice(CBaseEntity *pVictim);
-	const char *SelectRandomZombie();
+	const char *SelectRandom();
+	const char *SelectRandomBoss();
 
 	int DrawDebugTextOverlays();
 
@@ -51,18 +56,30 @@ private:
 	COutputEvent OnChildDead;
 
 	bool Disabled;
-
-	bool SpawnClassicZombie;
-	bool SpawnFastZombie;
-	bool SpawnPoisonZombie;
-	bool SpawnZombine;
-	bool SpawnGrunt;
+	float SpawnRadius;
 
 	int Childs;
 	int ChildsAlive;
 	int ChildsKilled;
 
-	float SpawnRadius;
+protected:
+	string_t iNpcs[8];
+	string_t iBoss[3];
+
+	/*
+	const char *NPC1;
+	const char *NPC2;
+	const char *NPC3;
+	const char *NPC4;
+	const char *NPC5;
+	const char *NPC6;
+	const char *NPC7;
+	const char *NPC8;
+
+	const char *BOSS1;
+	const char *BOSS2;
+	const char *BOSS3;
+	*/
 };
 
 #define SF_SPAWN_CLASSIC		4

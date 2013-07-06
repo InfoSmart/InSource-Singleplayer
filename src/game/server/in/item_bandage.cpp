@@ -1,14 +1,13 @@
 //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
-// Purpose: Handling for the suit batteries.
+// Benda.
+// Objeto para dejar de sangrar.
 //
-// $NoKeywords: $
+// InfoSmart 2013. Todos los derechos reservados.
 //=============================================================================//
 
 #include "cbase.h"
-#include "basecombatweapon.h"
 #include "gamerules.h"
-#include "engine/IEngineSound.h"
 #include "in_player.h"
 #include "items.h"
 
@@ -16,32 +15,33 @@
 #include "tier0/memdbgon.h"
 
 //=========================================================
-// CItemBattery
+// CBandage
 //=========================================================
-class CItemBattery : public CItem
+class CBandage : public CItem
 {
 public:
-	DECLARE_CLASS(CItemBattery, CItem);
+	DECLARE_CLASS(CBandage, CItem);
 
 	void Spawn();
 	void Precache();
+
 	bool MyTouch(CBasePlayer *pPlayer);
 	void Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value);
 };
 
-LINK_ENTITY_TO_CLASS(item_battery, CItemBattery);
-PRECACHE_REGISTER(item_battery);
+LINK_ENTITY_TO_CLASS(item_bandage, CBandage);
+PRECACHE_REGISTER(item_bandage);
 
 //=========================================================
 // Configuración
 //=========================================================
 
-#define MODEL "models/items/battery.mdl"
+#define MODEL "models/props_junk/cardboardbox01b.mdl" // @TODO: Crear/encontrar uno mejor.
 
 //=========================================================
 // Crea el objeto.
 //=========================================================
-void CItemBattery::Spawn()
+void CBandage::Spawn()
 {
 	Precache();
 	SetModel(MODEL);
@@ -52,29 +52,53 @@ void CItemBattery::Spawn()
 //=========================================================
 // Guarda los objetos necesarios en caché.
 //=========================================================
-void CItemBattery::Precache()
+void CBandage::Precache()
 {
 	PrecacheModel(MODEL);
-	PrecacheScriptSound("ItemBattery.Touch");
+	PrecacheScriptSound("Player.Bandage");
 }
 
 //=========================================================
 // Se activa cuando el usuario toca el objeto.
 //=========================================================
-bool CItemBattery::MyTouch(CBasePlayer *pPlayer)
+bool CBandage::MyTouch(CBasePlayer *pPlayer)
 {
 	// En modo Survival esto solo se puede usar desde el inventario.
 	if ( g_pGameRules->IsMultiplayer() )
 		return false;
 
-	CHL2_Player *pHL2Player = dynamic_cast<CHL2_Player *>(pPlayer);
-	return ( pHL2Player && pHL2Player->ApplyBattery() );
+	CIN_Player *pInPlayer = GetInPlayer(pPlayer);
+
+	if ( !pPlayer )
+		return false;
+
+	if ( pInPlayer->ScarredBloodWound() )
+	{
+		CSingleUserRecipientFilter user(pInPlayer);
+		user.MakeReliable();
+
+		UserMessageBegin(user, "ItemPickup");
+		WRITE_STRING(GetClassname());
+		MessageEnd();
+
+		CPASAttenuationFilter filter(pInPlayer, "Player.Bandage");
+		EmitSound(filter, entindex(), "Player.Bandage");
+
+		if ( g_pGameRules->ItemShouldRespawn(this) )
+			Respawn();
+		else
+			Remove();
+
+		return true;
+	}
+
+	return false;
 }
 
 //=========================================================
 // Se activa cuando el usuario usa (+USE) el objeto.
 //=========================================================
-void CItemBattery::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value)
+void CBandage::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value)
 {
 	// En modo Historia esto hace lo que tiene que hacer.
 	if ( !g_pGameRules->IsMultiplayer() )

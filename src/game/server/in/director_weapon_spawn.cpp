@@ -17,17 +17,27 @@
 #include "items.h"
 #include "basehlcombatweapon.h"
 
+#include "in_gamerules.h"
+#include "in_player.h"
+
 #include "tier0/memdbgon.h"
 
-#define DETECT_SPAWN_RADIUS 20
-
 //=========================================================
-// Definición de variables de configuración.
+// Configuración
 //=========================================================
 
-ConVar sv_weapons_respawn			("sv_weapons_respawn",				"1", FCVAR_NOTIFY | FCVAR_REPLICATED, "Reaparecer armas.");
-ConVar sv_weapons_respawn_min_time	("sv_weapons_respawn_min_time",		"20", FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo minimo en segundos que tardará en reaparecer las armas.");
-ConVar sv_weapons_respawn_max_time	("sv_weapons_respawn_max_time",		"50", FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo máximo en segundos que tardará en reaparecer las armas.");
+#define ITEM_NAME			"director_weapon"
+#define AMMO_NAME			"director_weapon_ammo"
+
+#define DETECT_SPAWN_RADIUS 50
+
+//=========================================================
+// Definición de comandos de consola.
+//=========================================================
+
+ConVar sv_weapons_respawn			("sv_weapons_respawn", "1", FCVAR_NOTIFY | FCVAR_REPLICATED, "Reaparecer armas.");
+ConVar sv_weapons_respawn_min_time	("sv_weapons_respawn_min_time", "30", FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo minimo en segundos que tardará en reaparecer las armas.");
+ConVar sv_weapons_respawn_max_time	("sv_weapons_respawn_max_time", "60", FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo máximo en segundos que tardará en reaparecer las armas.");
 
 //=========================================================
 //=========================================================
@@ -43,107 +53,150 @@ LINK_ENTITY_TO_CLASS( director_weapon_spawn, CDirectorWeaponSpawn );
 
 BEGIN_DATADESC( CDirectorWeaponSpawn )
 
-	DEFINE_KEYFIELD( OnlyAmmo, FIELD_BOOLEAN, "OnlyAmmo" )
+	DEFINE_KEYFIELD( OnlyAmmo, FIELD_BOOLEAN, "OnlyAmmo" ),
+
+	DEFINE_FIELD( pWeaponsInList,	FIELD_INTEGER ),
+	//DEFINE_FIELD( pWeaponsList,		FIELD_CUSTOM ),
 	
 END_DATADESC();
 
 //=========================================================
-// Guardar los objetos necesarios en caché.
+// Guarda los objetos necesarios en caché.
 //=========================================================
 void CDirectorWeaponSpawn::Precache()
 {
-	if ( m_spawnflags & SF_SPAWN_CROWBAR )
-		UTIL_PrecacheOther("weapon_crowbar");
+	pWeaponsInList = 0;
 
-	if ( m_spawnflags & SF_SPAWN_PISTOL )
+	// Palanca
+	if ( HasSpawnFlags(SF_SPAWN_CROWBAR) )
+		AddWeapon("weapon_crowbar", true);
+
+	// Pistola
+	if ( HasSpawnFlags(SF_SPAWN_PISTOL) )
 	{
-		UTIL_PrecacheOther("weapon_pistol");
+		AddWeapon("weapon_pistol", true);
+
 		UTIL_PrecacheOther("item_ammo_pistol");
 		UTIL_PrecacheOther("item_ammo_pistol_large");
 	}
 
-	if ( m_spawnflags & SF_SPAWN_RIFLE )
+	// AR2
+	if ( HasSpawnFlags(SF_SPAWN_AR2) )
 	{
-		UTIL_PrecacheOther("weapon_ar2");
+		AddWeapon("weapon_ar2", true);
+
 		UTIL_PrecacheOther("item_ammo_ar2");
 		UTIL_PrecacheOther("item_ammo_ar2_large");
 	}
 
-	if ( m_spawnflags & SF_SPAWN_SMG1 )
+	// Metralleta: SMG1
+	if ( HasSpawnFlags(SF_SPAWN_SMG1) )
 	{
-		UTIL_PrecacheOther("weapon_smg1");
+		AddWeapon("weapon_smg1", true);
+
 		UTIL_PrecacheOther("item_ammo_smg1");
 		UTIL_PrecacheOther("item_ammo_smg1_large");
 	}
 
-	if ( m_spawnflags & SF_SPAWN_SHOTGUN )
+	// Escopeta
+	if ( HasSpawnFlags(SF_SPAWN_SHOTGUN) )
 	{
-		UTIL_PrecacheOther("weapon_shotgun");
+		AddWeapon("weapon_shotgun", true);
 		UTIL_PrecacheOther("item_box_buckshot");
 	}
 
-	if ( m_spawnflags & SF_SPAWN_357 )
+	// MAGNUM .357
+	if ( HasSpawnFlags(SF_SPAWN_357) )
 	{
-		UTIL_PrecacheOther("weapon_357");
+		AddWeapon("weapon_357", true);
+
 		UTIL_PrecacheOther("item_ammo_357");
 		UTIL_PrecacheOther("item_ammo_357_large");
 	}
 
-	if ( m_spawnflags & SF_SPAWN_ALYXGUN )
-		UTIL_PrecacheOther("weapon_alyxgun");
+	// Pistola automatica
+	if ( HasSpawnFlags(SF_SPAWN_ALYXGUN) )
+		AddWeapon("weapon_alyxgun", true);
 
-	if ( m_spawnflags & SF_SPAWN_CROSSBOW )
+	// Ballesta
+	if ( HasSpawnFlags(SF_SPAWN_CROSSBOW) )
 	{
-		UTIL_PrecacheOther("weapon_crossbow");
+		AddWeapon("weapon_crossbow", true);
 		UTIL_PrecacheOther("item_ammo_crossbow");
 	}
 
-	if ( m_spawnflags & SF_SPAWN_FRAG )
-		UTIL_PrecacheOther("weapon_frag");
+	// Granada
+	if ( HasSpawnFlags(SF_SPAWN_FRAG) )
+		AddWeapon("weapon_frag", true);
 
 	BaseClass::Precache();
 }
 
 //=========================================================
+// Agrega un arma a la lista.
+//=========================================================
+void CDirectorWeaponSpawn::AddWeapon(const char *pWeapon, bool pPrecache)
+{
+	// Verificamos cada slot en pWeaponsInList
+	for ( int i = 1; i <= ARRAYSIZE(pWeaponsList); ++i )
+	{
+		// Este slot esta disponible.
+		if ( pWeaponsList[i] == "" || !pWeaponsList[i] )
+		{
+			// Agregamos el arma a la lista.
+			pWeaponsList[i] = pWeapon;
+			++pWeaponsInList;
+
+			break;
+		}
+	}
+
+	// Guardamos en caché la arma.
+	if ( pPrecache )
+		UTIL_PrecacheOther(pWeapon);
+}
+
+//=========================================================
+// Crea una arma.
 //=========================================================
 void CDirectorWeaponSpawn::Make()
 {
-	// Esta entidad por ahora no funciona en Multiplayer.
-	if ( GameRules()->IsMultiplayer() )
-		return;
-
 	// Desactivado.
 	if ( Disabled )
 		return;
 
 	// Emm... ¿puso todas las clases en "no crear"? :genius:
-	// @TODO: Mejorar código.
-	if ( !HasSpawnFlags(SF_SPAWN_CROWBAR | SF_SPAWN_PISTOL | SF_SPAWN_RIFLE | SF_SPAWN_SMG1 | SF_SPAWN_SHOTGUN | SF_SPAWN_357 | SF_SPAWN_ALYXGUN | SF_SPAWN_CROSSBOW | SF_SPAWN_FRAG))
+	// @TODO: ¿Mejorar código?
+	if ( !HasSpawnFlags(SF_SPAWN_CROWBAR | SF_SPAWN_PISTOL | SF_SPAWN_AR2 | SF_SPAWN_SMG1 | SF_SPAWN_SHOTGUN | SF_SPAWN_357 | SF_SPAWN_ALYXGUN | SF_SPAWN_CROSSBOW | SF_SPAWN_FRAG ))
 		return;
 
 	// Seleccionamos una clase de arma para crear.
 	const char *pWeaponClass	= SelectWeapon();
-	CBasePlayer *pPlayer		= UTIL_GetLocalPlayer();
+	//CBasePlayer *pPlayer		= UTIL_GetLocalPlayer();
 
-	// Al parecer el jugador ya tiene esta arma, dejarle munición.
-	if ( pPlayer->Weapon_OwnsThisType(pWeaponClass) || OnlyAmmo )
+	if ( pWeaponClass == "" )
+		return;
+
+	// Al parecer el jugador ya tiene esta arma.
+	// Crear munición.
+	// pPlayer->Weapon_OwnsThisType(pWeaponClass) ||
+	if ( OnlyAmmo )
 		MakeAmmo(pWeaponClass);
 
 	// Creamos el arma.
 	else
 	{
 		// ¡Granadas!
-		if ( pWeaponClass == "weapon_frag" )
+		// @FIXME: Ocaciona un ruido extraño.
+		/*if ( pWeaponClass == "weapon_frag" )
 		{
-			int i;
-
 			// Creamos de 2 a 4 granadas.
 			// @TODO: La cantidad depende del nivel de estres.
-			for ( i = 0; i <= random->RandomInt(1, 3); i = i + 1 )
+			for ( int i = 0; i <= random->RandomInt(1, 3); i = i + 1 )
 				MakeWeapon("weapon_frag");
 
 			return;
-		}
+		}*/
 
 		MakeWeapon(pWeaponClass);
 	}
@@ -176,8 +229,7 @@ void CDirectorWeaponSpawn::MakeWeapon(const char *pWeaponClass)
 	pWeapon->SetAbsOrigin(origin);
 
 	// Nombre de la entidad.
-	// Iván: ¡NO CAMBIAR SIN AVISAR! Es utilizado por otras entidades para referirse a las armas creadas por el director.
-	pWeapon->SetName(MAKE_STRING("director_weapon"));
+	pWeapon->SetName(MAKE_STRING(ITEM_NAME));
 	pWeapon->SetAbsAngles(angles);
 
 	// Creamos el arma, le decimos quien es su dios (creador) y lo activamos.
@@ -220,8 +272,7 @@ void CDirectorWeaponSpawn::MakeAmmo(const char *pWeaponClass)
 	pAmmo->SetAbsOrigin(origin);
 
 	// Nombre de la Munición.
-	// Iván: ¡NO CAMBIAR SIN AVISAR! Es utilizado por otras entidades para referirse a la munición creada por el director.
-	pAmmo->SetName(MAKE_STRING("director_weapon_ammo"));
+	pAmmo->SetName(MAKE_STRING(AMMO_NAME));
 	pAmmo->SetAbsAngles(angles);
 
 	// Creamos la arma, le decimos quien es su dios (creador) y lo activamos.
@@ -237,37 +288,18 @@ void CDirectorWeaponSpawn::MakeAmmo(const char *pWeaponClass)
 //=========================================================
 const char *CDirectorWeaponSpawn::SelectWeapon()
 {
-	int pRandom = random->RandomInt(1, 10);
+	// Seleccionamos un arma de las disponibles.
+	int pRandom			= random->RandomInt(1, pWeaponsInList);
+	const char *pWeapon = pWeaponsList[pRandom];
 
-	if ( pRandom == 1 )
-		return ( m_spawnflags & SF_SPAWN_CROWBAR ) ? "weapon_crowbar" : SelectWeapon();
+	// ¿Vacio?
+	if ( pWeapon == "" || !pWeapon )
+	{
+		Warning("[DIRECTOR WEAPON SPAWN] SelectWeapon() ha devuelto una cadena vacia. (Eso no deberia pasar) \r\n");
+		return SelectWeapon();
+	}
 
-	if ( pRandom == 2 )
-		return ( m_spawnflags & SF_SPAWN_PISTOL ) ? "weapon_pistol" : SelectWeapon();
-
-	if ( pRandom == 3 )
-		return ( m_spawnflags & SF_SPAWN_RIFLE ) ? "weapon_ar2" : SelectWeapon();
-
-	if ( pRandom == 4 )
-		return ( m_spawnflags & SF_SPAWN_SMG1 ) ? "weapon_smg1" : SelectWeapon();
-
-	if ( pRandom == 5 )
-		return ( m_spawnflags & SF_SPAWN_SHOTGUN ) ? "weapon_shotgun" : SelectWeapon();
-
-	if ( pRandom == 6 )
-		return ( m_spawnflags & SF_SPAWN_357 ) ? "weapon_357" : SelectWeapon();
-
-	if ( pRandom == 7 )
-		return ( m_spawnflags & SF_SPAWN_ALYXGUN ) ? "weapon_alyxgun" : SelectWeapon();
-
-	if ( pRandom == 8 )
-		return ( m_spawnflags & SF_SPAWN_CROSSBOW ) ? "weapon_crossbow" : SelectWeapon();
-
-	if ( pRandom == 9 )
-		return ( m_spawnflags & SF_SPAWN_FRAG ) ? "weapon_frag" : SelectWeapon();
-
-
-	return SelectWeapon();
+	return pWeapon;
 }
 
 //=========================================================
@@ -307,10 +339,12 @@ const char *CDirectorWeaponSpawn::SelectAmmo(const char *pWeaponClass)
 	return pResult;
 }
 
-//=========================================================
+//==================================================================================================================
+//==================================================================================================================
+
 //=========================================================
 // WEAPON_SPAWN
-//=========================================================
+// Creador de armas para Multiplayer
 //=========================================================
 
 //=========================================================
@@ -320,9 +354,7 @@ const char *CDirectorWeaponSpawn::SelectAmmo(const char *pWeaponClass)
 LINK_ENTITY_TO_CLASS( weapon_spawn, CWeaponSpawn );
 
 BEGIN_DATADESC( CWeaponSpawn )
-
-	DEFINE_KEYFIELD( OnlyAmmo, FIELD_BOOLEAN, "OnlyAmmo" )
-	
+	DEFINE_KEYFIELD( OnlyAmmo, FIELD_BOOLEAN, "OnlyAmmo" )	
 END_DATADESC();
 
 //=========================================================
@@ -330,8 +362,6 @@ END_DATADESC();
 //=========================================================
 CWeaponSpawn::CWeaponSpawn()
 {
-	//NextSpawn = gpGlobals->curtime;
-	//UniqueKey		= random->RandomInt(1000, 9000); // Establecemos una ID única.
 	pLastWeaponSpawned	= NULL;
 
 	// Pensamos ¡ahora!
@@ -362,7 +392,7 @@ void CWeaponSpawn::Precache()
 		UTIL_PrecacheOther("item_ammo_pistol_large");
 	}
 
-	if ( HasSpawnFlags(SF_SPAWN_RIFLE) )
+	if ( HasSpawnFlags(SF_SPAWN_AR2) )
 	{
 		UTIL_PrecacheOther("weapon_ar2");
 		UTIL_PrecacheOther("item_ammo_ar2");
@@ -426,18 +456,18 @@ void CWeaponSpawn::Precache()
 bool CWeaponSpawn::DetectTouch()
 {
 	// Buscamos nuestra arma creada.
-	CBaseHLCombatWeapon *pEntity = (CBaseHLCombatWeapon *)gEntList.FindEntityByNameNearest("survivor_weapon", GetAbsOrigin(), DETECT_SPAWN_RADIUS, pLastWeaponSpawned);
+	CBaseEntity *pEntity = (CBaseEntity *)gEntList.FindEntityByNameNearest("survivor_weapon", GetAbsOrigin(), DETECT_SPAWN_RADIUS, pLastWeaponSpawned);
 
 	// No se encontro ninguna arma.
 	if ( !pEntity )
 	{
 		// Buscamos por munición creada.
-		pEntity = (CBaseHLCombatWeapon *)gEntList.FindEntityByNameNearest("survivor_weapon_ammo", GetAbsOrigin(), DETECT_SPAWN_RADIUS, pLastWeaponSpawned);
+		pEntity = (CBaseEntity *)gEntList.FindEntityByNameNearest("survivor_weapon_ammo", GetAbsOrigin(), DETECT_SPAWN_RADIUS, pLastWeaponSpawned);
 
 		if ( !pEntity )
 		{
 			// Buscamos por salud creada.
-			pEntity = (CBaseHLCombatWeapon *)gEntList.FindEntityByNameNearest("survivor_item", GetAbsOrigin(), DETECT_SPAWN_RADIUS, pLastWeaponSpawned);
+			pEntity = (CBaseEntity *)gEntList.FindEntityByNameNearest("survivor_item", GetAbsOrigin(), DETECT_SPAWN_RADIUS, pLastWeaponSpawned);
 
 			if ( pEntity )
 				return true;
@@ -466,7 +496,7 @@ void CWeaponSpawn::Make()
 
 	// Emm... ¿puso todas las clases en "no crear"? :genius:
 	// @TODO: Mejorar código.
-	if ( !HasSpawnFlags(SF_SPAWN_CROWBAR | SF_SPAWN_PISTOL | SF_SPAWN_RIFLE | SF_SPAWN_SMG1 | SF_SPAWN_SHOTGUN | SF_SPAWN_357 | SF_SPAWN_ALYXGUN | SF_SPAWN_CROSSBOW | SF_SPAWN_FRAG | SF_SPAWN_HEALTHKIT | SF_SPAWN_BATTERY | SF_SPAWN_BLOOD | SF_SPAWN_BANDAGE))
+	if ( !HasSpawnFlags(SF_SPAWN_CROWBAR | SF_SPAWN_PISTOL | SF_SPAWN_AR2 | SF_SPAWN_SMG1 | SF_SPAWN_SHOTGUN | SF_SPAWN_357 | SF_SPAWN_ALYXGUN | SF_SPAWN_CROSSBOW | SF_SPAWN_FRAG | SF_SPAWN_HEALTHKIT | SF_SPAWN_BATTERY | SF_SPAWN_BLOOD | SF_SPAWN_BANDAGE))
 		return;
 
 	// Seleccionamos una clase de arma para crear.
@@ -616,7 +646,7 @@ void CWeaponSpawn::MakeItem(const char *pItemClass)
 	pItem->SetName(MAKE_STRING("survivor_item"));
 	pItem->SetAbsAngles(angles);
 
-	// Creamos el botiquin, le decimos quien es su dios (creador) y lo activamos.
+	// Creamos el objeto, le decimos quien es su dios (creador) y lo activamos.
 	DispatchSpawn(pItem);
 	pItem->SetOwnerEntity(this);
 	pItem->Activate();
@@ -639,7 +669,7 @@ const char *CWeaponSpawn::SelectWeapon()
 	if ( pRandom == 2 && HasSpawnFlags(SF_SPAWN_PISTOL) )
 		return "weapon_pistol";
 
-	if ( pRandom == 3 && HasSpawnFlags(SF_SPAWN_RIFLE) )
+	if ( pRandom == 3 && HasSpawnFlags(SF_SPAWN_AR2) )
 		return "weapon_ar2";
 
 	if ( pRandom == 4 && HasSpawnFlags(SF_SPAWN_SMG1) )

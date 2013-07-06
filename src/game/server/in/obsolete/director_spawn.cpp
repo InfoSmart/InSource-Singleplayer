@@ -1,10 +1,11 @@
 //=====================================================================================//
 //
-// npc_zombie_marker
+// director_spawn
 //
-// Entidad encarga de crear zombis alrededor de si mismo.
-// Usado por el Director para la creación de zombis.
+// Entidad encargada de crear NPC's alrededor de si mismo.
+// Usado por el Director para la creación de NPC's.
 //
+// InfoSmart 2013. Todos los derechos reservados.
 //=====================================================================================//
 
 #include "cbase.h"
@@ -13,19 +14,26 @@
 #include "ai_behavior_passenger.h"
 
 #include "director.h"
-#include "director_zombie_spawn.h"
+#include "director_spawn.h"
+
+#include "npc_grunt.h"
 
 #include "env_sound.h"
-#include "npc_grunt.h";
+#include "TemplateEntities.h"
+#include "mapentities.h"
+
+#include "in_gamerules.h"
+#include "in_player.h"
+#include "in_utils.h"
 
 #include "tier0/memdbgon.h"
 
 /*
-		TODO Con esto susupone que tendríamos la posibilidad de que InDirector pueda crear zombis en las areas
-		de navegación computadas por el motor. O en cristiano... crear zombis sin tener que poner tantos "npc_zombie_maker"
-		claro, no funciona.
+	@TODO Con esto susupone que tendríamos la posibilidad de que InDirector pueda crear zombis en las areas
+	de navegación computadas por el motor. O en cristiano... crear zombis sin tener que poner tantos "npc_zombie_maker"
+	claro, no funciona.
 
-		[NOTA] Esto hace que los zombis se creen justo atras del usuario o en una zona computada cercana en caso de no estar en una.
+	[NOTA] Esto hace que los zombis se creen justo atras del usuario o en una zona computada cercana en caso de no estar en una.
 
 	Vector center, center_portal, delta;
 
@@ -41,33 +49,53 @@
 	pArea->ComputeClosestPointInPortal(pArea, dir, pArea->GetCenter(), &origin);
 
 	origin.z = pArea->GetZ(origin);
-	*/
-
-#define SCHED_ZOMBIE_WANDER_ANGRILY 101
-#define SCHED_ZOMBIE_WANDER_MEDIUM	95
+*/
 
 //=========================================================
 //=========================================================
-// DIRECTOR ZOMBIE MAKER
+// DIRECTOR SPAWN
 //=========================================================
 //=========================================================
+
+//=========================================================
+// Configuración
+//=========================================================
+
+// Nombres para los NPC's.
+// [NO CAMBIAR] Es utilizado por otras entidades para referirse a los NPC's creados por el director.
+#define CHILD_NAME	"director_child"
+#define BOSS_NAME	"director_boss"
 
 //=========================================================
 // Guardado y definición de datos
 //=========================================================
 
-LINK_ENTITY_TO_CLASS( director_zombie_maker, CDirectorZombieSpawn );
+LINK_ENTITY_TO_CLASS( director_spawn, CDirectorSpawn );
 
-BEGIN_DATADESC( CDirectorZombieSpawn )
+BEGIN_DATADESC( CDirectorSpawn )
+
+	DEFINE_FIELD( LastSpawn,	FIELD_FLOAT ),
+
+	DEFINE_FIELD( SpawnRadius,	FIELD_FLOAT ),
+	DEFINE_FIELD( Childs,		FIELD_INTEGER ),
+	DEFINE_FIELD( ChildsAlive,	FIELD_INTEGER ),
+	DEFINE_FIELD( ChildsKilled,	FIELD_INTEGER ),
 
 	DEFINE_KEYFIELD( Disabled,	FIELD_BOOLEAN,	"StartDisabled" ),
 
-	DEFINE_KEYFIELD( SpawnClassicZombie,	FIELD_BOOLEAN,	"SpawnClassicZombie" ),
-	DEFINE_KEYFIELD( SpawnFastZombie,		FIELD_BOOLEAN,	"SpawnFastZombie" ),
-	DEFINE_KEYFIELD( SpawnPoisonZombie,		FIELD_BOOLEAN,	"SpawnPoisonZombie" ),
-	DEFINE_KEYFIELD( SpawnZombine,			FIELD_BOOLEAN,	"SpawnZombine" ),
-	DEFINE_KEYFIELD( SpawnGrunt,			FIELD_BOOLEAN,	"SpawnGrunt" ),
-	DEFINE_KEYFIELD( SpawnRadius,			FIELD_FLOAT,	"Radius" ),
+	/* NPC'S */
+	DEFINE_KEYFIELD( iNpcs[0],	FIELD_STRING,	"cnpc1" ),
+	DEFINE_KEYFIELD( iNpcs[1],	FIELD_STRING,	"cnpc2" ),
+	DEFINE_KEYFIELD( iNpcs[2],	FIELD_STRING,	"cnpc3" ),
+	DEFINE_KEYFIELD( iNpcs[3],	FIELD_STRING,	"cnpc4" ),
+	DEFINE_KEYFIELD( iNpcs[4],	FIELD_STRING,	"cnpc5" ),
+	DEFINE_KEYFIELD( iNpcs[5],	FIELD_STRING,	"cnpc6" ),
+	DEFINE_KEYFIELD( iNpcs[6],	FIELD_STRING,	"cnpc7" ),
+	DEFINE_KEYFIELD( iNpcs[7],	FIELD_STRING,	"cnpc8" ),
+
+	DEFINE_KEYFIELD( iBoss[0],	FIELD_STRING,	"cboss1" ),
+	DEFINE_KEYFIELD( iBoss[1],	FIELD_STRING,	"cboss2" ),
+	DEFINE_KEYFIELD( iBoss[2],	FIELD_STRING,	"cboss3" ),
 
 	/* INPUTS */
 	DEFINE_INPUTFUNC( FIELD_VOID,		"Spawn",					InputSpawn ),
@@ -85,7 +113,7 @@ END_DATADESC();
 //=========================================================
 // Constructor
 //=========================================================
-CDirectorZombieSpawn::CDirectorZombieSpawn()
+CDirectorSpawn::CDirectorSpawn()
 {
 	Childs			= 0;
 	ChildsAlive		= 0;
@@ -94,9 +122,9 @@ CDirectorZombieSpawn::CDirectorZombieSpawn()
 }
 
 //=========================================================
-// Aparecer
+// Creación
 //=========================================================
-void CDirectorZombieSpawn::Spawn()
+void CDirectorSpawn::Spawn()
 {
 	BaseClass::Spawn();
 
@@ -107,30 +135,69 @@ void CDirectorZombieSpawn::Spawn()
 //=========================================================
 // Guardar los objetos necesarios en caché.
 //=========================================================
-void CDirectorZombieSpawn::Precache()
+void CDirectorSpawn::Precache()
 {
 	BaseClass::Precache();
 
-	if ( SpawnClassicZombie )
-		UTIL_PrecacheOther("npc_zombie");
+	// NPC's
+	int pNpcs = ARRAYSIZE(iNpcs) - 1;
+	for ( int i = 0; i < pNpcs; ++i )
+	{
+		if ( iNpcs[i] == NULL_STRING )
+			continue;
 
-	if ( SpawnZombine)
-		UTIL_PrecacheOther("npc_zombine");
+		// Buscamos si hay una plantilla con este nombre.
+		string_t NpcData = Templates_FindByTargetName(STRING(iNpcs[i]));
+			
+		// No, se trata de una clase.
+		if ( NpcData == NULL_STRING )
+			UTIL_PrecacheOther(STRING(iNpcs[i]));
+		else
+		{
+			// Guardamos en caché la plantilla.
+			CBaseEntity *pEntity = NULL;
+			MapEntity_ParseEntity(pEntity, STRING(NpcData), NULL);
 
-	if ( SpawnFastZombie )
-		UTIL_PrecacheOther("npc_fastzombie");
+			if ( pEntity != NULL )
+			{
+				pEntity->Precache();
+				UTIL_RemoveImmediate(pEntity);
+			}
+		}
+	}
 
-	if ( SpawnPoisonZombie )
-		UTIL_PrecacheOther("npc_poisonzombie");
+	// JEFES
+	int pBoss = ARRAYSIZE(iBoss) - 1;
+	for ( int i = 0; i < pBoss; ++i )
+	{
+		if ( iBoss[i] == NULL_STRING )
+			continue;
 
-	if ( SpawnGrunt )
-		UTIL_PrecacheOther("npc_grunt");
+		// Buscamos si hay una plantilla con este nombre.
+		string_t NpcData = Templates_FindByTargetName(STRING(iBoss[i]));
+			
+		// No, se trata de una clase.
+		if ( NpcData == NULL_STRING )
+			UTIL_PrecacheOther(STRING(iBoss[i]));
+		else
+		{
+			// Guardamos en caché la plantilla.
+			CBaseEntity *pEntity = NULL;
+			MapEntity_ParseEntity(pEntity, STRING(NpcData), NULL);
+
+			if ( pEntity != NULL )
+			{
+				pEntity->Precache();
+				UTIL_RemoveImmediate(pEntity);
+			}
+		}
+	}
 }
 
 //=========================================================
 // Activa InDirector
 //=========================================================
-void CDirectorZombieSpawn::Enable()
+void CDirectorSpawn::Enable()
 {
 	Disabled = false;
 }
@@ -138,7 +205,7 @@ void CDirectorZombieSpawn::Enable()
 //=========================================================
 // Desactiva InDirector
 //=========================================================
-void CDirectorZombieSpawn::Disable()
+void CDirectorSpawn::Disable()
 {
 	Disabled = true;
 }
@@ -147,26 +214,25 @@ void CDirectorZombieSpawn::Disable()
 // Verifica las condiciones y devuelve si es
 // conveniente/posible crear un NPC en las coordenadas.
 //=========================================================
-bool CDirectorZombieSpawn::CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult)
+bool CDirectorSpawn::CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult)
 {
 	// Desactivado
-	if ( Disabled || g_pGameRules->IsMultiplayer() )
+	// Esta entidad no funciona en Multiplayer.
+	if ( Disabled )
 	{
 		UTIL_RemoveImmediate(pNPC);
 		return false;
 	}
 
 	Vector origin;
-	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
-
-	ConVarRef indirector_force_spawn_outview("indirector_force_spawn_outview");
+	ConVarRef director_force_spawn_outview("director_force_spawn_outview");
 	
 	// Verificamos si es posible crear el NPC en el radio especificado.
-	if ( !CAI_BaseNPC::FindSpotForNPCInRadius(&origin, GetAbsOrigin(), pNPC, SpawnRadius, indirector_force_spawn_outview.GetBool()) )
+	if ( !CAI_BaseNPC::FindSpotForNPCInRadius(&origin, GetAbsOrigin(), pNPC, SpawnRadius, director_force_spawn_outview.GetBool()) )
 	{
 		if ( !CAI_BaseNPC::FindSpotForNPCInRadius(&origin, GetAbsOrigin(), pNPC, SpawnRadius, false) )
 		{
-			DevWarning("[DIRECTOR ZOMBIE MAKER] No se encontro un lugar valido para crear un zombie. \r\n");
+			DevWarning("[DIRECTOR SPAWN] No se encontro un lugar valido para crear un NPC. \r\n");
 
 			UTIL_RemoveImmediate(pNPC);
 			return false;
@@ -178,33 +244,36 @@ bool CDirectorZombieSpawn::CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult)
 
 	// Si esta activado la opción de forzar la creación fuera de la visibilidad del usuario.
 	// Hay que asegurarnos de que el usuario no esta viendo el lugar de creación...
-	if ( indirector_force_spawn_outview.GetBool() )
+	if ( director_force_spawn_outview.GetBool() )
 	{
-		CInDirector *pDirector = GetDirector();
+		CDirector *pDirector = GetDirector();
 
-		if( !pDirector )
+		if ( !pDirector )
 			return false;
 
-		if ( pDirector->GetStatus() == pDirector->CLIMAX )
-		{
-			if ( pPlayer->FVisible(origin) )
+		// En Climax con que no lo vea directamente es suficiente...
+		//if ( pDirector->GetStatus() == CLIMAX )
+		//{
+			if ( UTIL_IsPlayersVisible(origin) )
 			{
-				DevWarning("[DIRECTOR ZOMBIE MAKER] El lugar de creacion estaba en el campo de vision. \r\n");
+				DevWarning("[DIRECTOR SPAWN] El lugar de creacion estaba en el campo de vision. \r\n");
 				UTIL_RemoveImmediate(pNPC);
 
 				return false;
 			}
-		}
-		else
+		//}
+
+		// En cualquier otro modo no debe ser visible ni estar en el cono de visibilidad del jugador.
+		/*else
 		{
-			if ( pPlayer->FInViewCone(origin) || pPlayer->FVisible(origin) )
+			if ( UTIL_IsPlayersVisibleCone(origin) )
 			{
-				Warning("[DIRECTOR ZOMBIE MAKER] El lugar de creacion estaba en el campo de vision. \r\n");
+				Warning("[DIRECTOR SPAWN] El lugar de creacion estaba en el campo de vision. \r\n");
 				UTIL_RemoveImmediate(pNPC);
 
 				return false;
 			}
-		}
+		}*/
 	}
 
 	*pResult = origin;
@@ -214,14 +283,14 @@ bool CDirectorZombieSpawn::CanMakeNPC(CAI_BaseNPC *pNPC, Vector *pResult)
 //=========================================================
 // Verificaciones después de crear al NPC.
 //=========================================================
-void CDirectorZombieSpawn::ChildPostSpawn(CAI_BaseNPC *pNPC)
+bool CDirectorSpawn::PostSpawn(CAI_BaseNPC *pNPC)
 {
 	bool bStuck = true;
 
 	while ( bStuck )
 	{
 		trace_t tr;
-		UTIL_TraceHull( pNPC->GetAbsOrigin(), pNPC->GetAbsOrigin(), pNPC->WorldAlignMins(), pNPC->WorldAlignMaxs(), MASK_NPCSOLID, pNPC, COLLISION_GROUP_NONE, &tr );
+		UTIL_TraceHull(pNPC->GetAbsOrigin(), pNPC->GetAbsOrigin(), pNPC->WorldAlignMins(), pNPC->WorldAlignMaxs(), MASK_NPCSOLID, pNPC, COLLISION_GROUP_NONE, &tr);
 
 		if (tr.fraction != 1.0 && tr.m_pEnt)
 		{
@@ -241,315 +310,341 @@ void CDirectorZombieSpawn::ChildPostSpawn(CAI_BaseNPC *pNPC)
 				// No... no podemos eliminar una pared...
 				// Removemos el NPC para evitar eventos sobrenaturales.
 				UTIL_RemoveImmediate(pNPC);
-				continue;
+				return false;
 			}
 		}
 
 		bStuck = false;
 	}
+
+	return true;
+}
+
+//=========================================================
+// Añade salud del personaje.
+//=========================================================
+void CDirectorSpawn::AddHealth(CAI_BaseNPC *pNPC)
+{
+	// Aumentamos la salud dependiendo del nivel de dificultad.
+	int MoreHealth = 3;
+
+	// Normal: 5 más de salud.
+	if ( GameRules()->IsSkillLevel(SKILL_MEDIUM) ) 
+		MoreHealth = 5;
+
+	// Dificil: 8 más de salud.
+	if ( GameRules()->IsSkillLevel(SKILL_HARD) )
+		MoreHealth = 8;
+
+	// Establecemos la nueva salud.
+	pNPC->SetMaxHealth(pNPC->GetMaxHealth() + MoreHealth);
+	pNPC->SetHealth(pNPC->GetMaxHealth());
+}
+
+//=========================================================
+// Devuelve la creación de un NPC desde su clase/plantilla
+//=========================================================
+CAI_BaseNPC *CDirectorSpawn::VerifyClass(const char *pClass)
+{
+	// Buscamos si hay una plantilla con este nombre.
+	string_t NpcData		= Templates_FindByTargetName(pClass);
+	CAI_BaseNPC *pNPC		= NULL;
+
+	// No, se trata de una clase.
+	if ( NpcData == NULL_STRING )
+	{
+		// Creamos al NPC.
+		pNPC = (CAI_BaseNPC *)CreateEntityByName(pClass);
+	}
+	else
+	{
+		// Creamos al NPC a partir de la plantilla.
+		CBaseEntity *pEntity = NULL;
+		MapEntity_ParseEntity(pEntity, STRING(NpcData), NULL);
+
+		if ( pEntity != NULL )
+			pNPC = (CAI_BaseNPC *)pEntity;
+	}
+
+	return pNPC;
 }
 
 //=========================================================
 // Crea un Zombi.
 //=========================================================
-CAI_BaseNPC *CDirectorZombieSpawn::MakeNPC(bool Horde, bool disclosePlayer)
+CAI_BaseNPC *CDirectorSpawn::MakeNPC(bool Horde, bool disclosePlayer, bool checkRadius)
 {
-	if ( Disabled || g_pGameRules->IsMultiplayer() )
+	// Desactivado
+	// Esta entidad no funciona en Multiplayer.
+	if ( Disabled )
 		return NULL;
 
-	// Seleccionamos una clase de zombi para crear.
-	const char *pZombieClass	= SelectRandomZombie();
-
-	// Creamos al zombi.
-	CAI_BaseNPC *pZombie		= (CAI_BaseNPC *)CreateEntityByName(pZombieClass);
+	// Seleccionamos una clase de NPC para crear.
+	const char *pClass	= SelectRandom();
+	CAI_BaseNPC *pNPC	= VerifyClass(pClass);
 
 	// Emm... ¿puso todas las clases en "no crear"? :genius:
-	if ( !pZombie )
+	if ( !pNPC )
 	{
-		Warning("[DIRECTOR ZOMBIE MAKER] Ha ocurrido un problema al intentar crear un zombie. \r\n");
+		Warning("[DIRECTOR SPAWN] Ha ocurrido un problema al intentar crear un NPC. \r\n");
 		return NULL;
 	}
 
 	Vector origin;
 
-	if ( !CanMakeNPC(pZombie, &origin) )
-		return NULL;
+	// Verificamos si podemos crear un zombi en el radio.
+	if ( checkRadius )
+	{
+		if ( !CanMakeNPC(pNPC, &origin) )
+			return NULL;
+	}
 
 	// Lugar de creación.
-	pZombie->SetAbsOrigin(origin);
-
-	// Nombre del zombie.
-	// [¡NO CAMBIAR!] Es utilizado por otras entidades para referirse a los zombis creados por el director.
-	pZombie->SetName(MAKE_STRING("director_zombie"));
+	pNPC->SetAbsOrigin(origin);
 
 	QAngle angles	= GetAbsAngles();
 	angles.x		= 0.0;
 	angles.z		= 0.0;
 
-	pZombie->SetAbsAngles(angles);
+	pNPC->SetAbsAngles(angles);
 
-	// Nombre del esquadron.
-	//pZombie->SetSquadName(MAKE_STRING("DIRECTOR_ZOMBIES"));
 	// Tiene que caer al suelo.
-	pZombie->AddSpawnFlags(SF_NPC_FALL_TO_GROUND);
+	pNPC->AddSpawnFlags(SF_NPC_FALL_TO_GROUND);
 	// Su cuerpo tiene que desaparecer al morir.
-	pZombie->AddSpawnFlags(SF_NPC_FADE_CORPSE);
+	pNPC->AddSpawnFlags(SF_NPC_FADE_CORPSE);
 
-	// Creamos al zombi, le decimos quien es su dios (creador) y lo activamos.
-	DispatchSpawn(pZombie);
-	pZombie->SetOwnerEntity(this);
-	DispatchActivate(pZombie);
+	// Creamos al NPC, le decimos quien es su dios (creador) y lo activamos.
+	DispatchSpawn(pNPC);
+	pNPC->SetOwnerEntity(this);
+	DispatchActivate(pNPC);
 
+	// Al parecer se atoro en una pared.
+	if ( !PostSpawn(pNPC) )
+		return NULL;
+
+	// Nombre del NPC.
+	pNPC->SetName(MAKE_STRING(CHILD_NAME));
+
+#ifdef APOCALYPSE
 	// Skin al azar.
-	pZombie->m_nSkin = random->RandomInt(1, 4);
+	if ( pNPC->GetClassname() == "npc_zombie" )	
+		pNPC->m_nSkin = random->RandomInt(1, 4);
+#endif
 
-	// Es un zombi para la horda ¡woot!
+	// Es un NPC para la horda ¡woot!
 	if ( Horde )
 	{
-		int MoreHealth = 3;
+		AddHealth(pNPC);
 
-		// Aumentamos la salud dependiendo del nivel de dificultad.
-		if ( GameRules()->IsSkillLevel(SKILL_MEDIUM) ) 
-			MoreHealth = 5;
-
-		if ( GameRules()->IsSkillLevel(SKILL_HARD) )
-			MoreHealth = 8;
-
-		// Más salud.
-		pZombie->SetMaxHealth(pZombie->GetMaxHealth() + MoreHealth);
-		pZombie->SetHealth(pZombie->GetMaxHealth());
-
+#ifdef APOCALYPSE
 		// Más rápido.
-		pZombie->SetAddAccel(40);
+		pNPC->SetAddAccel(40);
 
-		// No colisionan con otros NPC's. (Zombis)
-		pZombie->SetCollisionGroup(COLLISION_GROUP_SPECIAL_NPC);
+		// No colisiona con otros NPC's. (Zombis)
+		if ( random->RandomInt(1, 4) == 2 )
+			pNPC->SetCollisionGroup(COLLISION_GROUP_SPECIAL_NPC);
+#endif
 	}
 
 	// Debe conocer la ubicación del jugador (Su enemigo)
 	if ( disclosePlayer )
 	{
-		CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+		CIN_Player *pPlayer = UTIL_GetRandomInPlayer();
 
-		//pZombie->SetEnemy(pPlayer);
-		pZombie->UpdateEnemyMemory(pPlayer, pPlayer->GetAbsOrigin());
+		if ( pPlayer )
+			pNPC->UpdateEnemyMemory(pPlayer, pPlayer->GetAbsOrigin());
 	}
 
 	Childs++;
 	ChildsAlive++;
 	LastSpawn = gpGlobals->curtime;
 
-	OnSpawnNPC.FireOutput(pZombie, this);
-	return pZombie;
+	OnSpawnNPC.FireOutput(pNPC, this);
+	return pNPC;
 }
 
 //=========================================================
 // Crea un Zombi sin colisiones.
 //=========================================================
-CAI_BaseNPC *CDirectorZombieSpawn::MakeNoCollisionNPC(bool Horde, bool disclosePlayer)
+CAI_BaseNPC *CDirectorSpawn::MakeNoCollisionNPC(bool Horde, bool disclosePlayer)
 {
-	if( Disabled )
+	// Desactivado
+	if ( Disabled )
 		return NULL;
 
-	// Seleccionamos una clase de zombi para crear.
-	const char *pZombieClass	= SelectRandomZombie();
-
-	// Creamos al zombi.
-	CAI_BaseNPC *pZombie		= (CAI_BaseNPC *)CreateEntityByName(pZombieClass);
+	// Creamos el NPC normalmente.
+	CAI_BaseNPC *pNPC = MakeNPC(Horde, disclosePlayer, false);
 
 	// Emm... ¿puso todas las clases en "no crear"? :genius:
-	if ( !pZombie )
+	if ( !pNPC )
 	{
-		Warning("[DIRECTOR ZOMBIE MAKER] Ha ocurrido un problema al intentar crear un zombie. \r\n");
+		Warning("[DIRECTOR NPC] Ha ocurrido un problema al intentar crear un zombie. \r\n");
 		return NULL;
 	}
 
 	// Lugar de creación.
-	pZombie->SetAbsOrigin(GetAbsOrigin());
+	pNPC->SetAbsOrigin(GetAbsOrigin());
+	// No colisiona con otros NPC's.
+	pNPC->SetCollisionGroup(COLLISION_GROUP_SPECIAL_NPC);
 
-	// Nombre del zombie.
-	// [¡NO CAMBIAR!] Es utilizado por otras entidades para referirse a los zombis creados por el director.
-	pZombie->SetName(MAKE_STRING("director_zombie"));
-
-	QAngle angles	= GetAbsAngles();
-	angles.x		= 0.0;
-	angles.z		= 0.0;
-
-	pZombie->SetAbsAngles(angles);
-
-	// Nombre del esquadron.
-	//pZombie->SetSquadName(MAKE_STRING("DIRECTOR_ZOMBIES"));
-	// Tiene que caer al suelo.
-	pZombie->AddSpawnFlags(SF_NPC_FALL_TO_GROUND);
-	// Su cuerpo tiene que desaparecer al morir.
-	pZombie->AddSpawnFlags(SF_NPC_FADE_CORPSE);
-	// No colisionan con otros NPC's. (Zombis)
-	pZombie->SetCollisionGroup(COLLISION_GROUP_SPECIAL_NPC);
-
-	// Creamos al zombi, le decimos quien es su dios (creador) y lo activamos.
-	DispatchSpawn(pZombie);
-	pZombie->SetOwnerEntity(this);
-	DispatchActivate(pZombie);
-
-	// Es un zombi para la horda ¡woot!
-	if ( Horde )
-	{
-		int MoreHealth = 3;
-
-		// Aumentamos la salud dependiendo del nivel de dificultad.
-		if ( GameRules()->IsSkillLevel(SKILL_MEDIUM) ) 
-			MoreHealth = 5;
-
-		if ( GameRules()->IsSkillLevel(SKILL_HARD) )
-			MoreHealth = 8;
-
-		// Más salud.
-		pZombie->SetMaxHealth(pZombie->GetMaxHealth() + MoreHealth);
-		pZombie->SetHealth(pZombie->GetMaxHealth());
-
-		// Más rápido.
-		pZombie->SetAddAccel(50);
-	}
-
-	// Debe conocer la ubicación del jugador (Su enemigo)
-	if ( disclosePlayer )
-	{
-		CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
-
-		//pZombie->SetEnemy(pPlayer);
-		pZombie->UpdateEnemyMemory(pPlayer, pPlayer->GetAbsOrigin());
-	}
-
-	Childs++;
-	ChildsAlive++;
-	LastSpawn = gpGlobals->curtime;
-
-	OnSpawnNPC.FireOutput(pZombie, this);
-	return pZombie;
+	return pNPC;
 }
 
 //=========================================================
-// Crea un NPC Grunt.
+// Crea un Jefe.
 //=========================================================
-CAI_BaseNPC *CDirectorZombieSpawn::MakeGrunt()
+CAI_BaseNPC *CDirectorSpawn::MakeBoss()
 {
-	if( Disabled )
+	// Desactivado
+	if ( Disabled )
 		return NULL;
 
-	CAI_BaseNPC *pGrunt = (CAI_BaseNPC *)CreateEntityByName("npc_grunt");
+	// Seleccionamos una clase de NPC para crear.
+	const char *pClass	= SelectRandomBoss();
+	CAI_BaseNPC *pNPC	= VerifyClass(pClass);
 
 	// Ocurrio algún problema.
-	if ( !pGrunt )
+	if ( !pNPC )
 	{
-		Warning("[DIRECTOR ZOMBIE MAKER] Ha ocurrido un problema al intentar crear un grunt. \r\n");
+		Warning("[DIRECTOR SPAWN] Ha ocurrido un problema al intentar crear un Jefe. \r\n");
 		return NULL;
 	}
 
 	Vector origin;
 
-	if ( !CanMakeNPC(pGrunt, &origin) )
+	// Verificamos si podemos crear el Grunt en el radio.
+	if ( !CanMakeNPC(pNPC, &origin) )
 		return NULL;
 
 	// Lugar de creación.
-	pGrunt->SetAbsOrigin(origin);
+	pNPC->SetAbsOrigin(origin);
 
-	// Nombre del Grunt.
-	// [¡NO CAMBIAR!] Es utilizado por otras entidades para referirse a los zombis creados por el director.
-	pGrunt->SetName(MAKE_STRING("director_grunt"));
+	// Nombre del Jefe.
+	pNPC->SetName(MAKE_STRING(BOSS_NAME));
 
 	QAngle angles	= GetAbsAngles();
 	angles.x		= 0.0;
 	angles.z		= 0.0;
 
-	pGrunt->SetAbsAngles(angles);
+	pNPC->SetAbsAngles(angles);
 
 	// Tiene que caer al suelo.
-	pGrunt->AddSpawnFlags(SF_NPC_FALL_TO_GROUND);
+	pNPC->AddSpawnFlags(SF_NPC_FALL_TO_GROUND);
 
-	// Creamos al grunt, le decimos quien es su dios (creador) y lo activamos.
-	DispatchSpawn(pGrunt);
-	pGrunt->SetOwnerEntity(this);
-	DispatchActivate(pGrunt);
+	// Creamos al Jefe, le decimos quien es su dios (creador) y lo activamos.
+	DispatchSpawn(pNPC);
+	pNPC->SetOwnerEntity(this);
+	DispatchActivate(pNPC);
+
+	// Al parecer se atoro en una pared.
+	if ( !PostSpawn(pNPC) )
+		return NULL;
 
 	// Debe conocer la ubicación del jugador (Su enemigo)
-	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+	CIN_Player *pPlayer = UTIL_GetRandomInPlayer();
 
-	pGrunt->SetEnemy(pPlayer);
-	pGrunt->UpdateEnemyMemory(pPlayer, pPlayer->GetAbsOrigin());
+	if ( pPlayer )
+	{
+		// Ataca al jugador YA
+		pNPC->SetEnemy(pPlayer);
+		pNPC->UpdateEnemyMemory(pPlayer, pPlayer->GetAbsOrigin());
+	}
 
-	// Preparaciones después de la creación.
-	ChildPostSpawn(pGrunt);
+	return pNPC;
+}
 
-	return pGrunt;
+//=========================================================
+// Devuelve si este creador puede crear un jefe.
+//=========================================================
+bool CDirectorSpawn::CanMakeBoss()
+{
+	for ( int i = 0; i <= ARRAYSIZE(iBoss) - 1; ++i )
+	{
+		if ( iBoss[i] == NULL_STRING )
+			continue;
+
+		return true;
+	}
+
+	return false;
 }
 
 //=========================================================
 // Ha muerto un NPC que he creado.
 //=========================================================
-void CDirectorZombieSpawn::DeathNotice(CBaseEntity *pVictim)
+void CDirectorSpawn::DeathNotice(CBaseEntity *pVictim)
 {
 	ChildsAlive--;
 	ChildsKilled++;
 
-	CInDirector *pDirector = GetDirector();
+	CDirector *pDirector = GetDirector();
 
 	if ( pDirector )
 	{
-		// ¡Han matado a un Zombie!
-		if ( pVictim->GetEntityName() == MAKE_STRING("director_zombie") )
-			pDirector->ZombieKilled();
+		// ¡Han matado a un NPC!
+		if ( pVictim->GetEntityName() == MAKE_STRING(CHILD_NAME) )
+			pDirector->ChildKilled(pVictim);
 			
-		// ¡Han matado a un Grunt!
-		if ( pVictim->GetEntityName() == MAKE_STRING("director_grunt") )
-			pDirector->GruntKilled();
+		// ¡Han matado a un Jefe!
+		if ( pVictim->GetEntityName() == MAKE_STRING(BOSS_NAME) )
+			pDirector->MBossKilled(pVictim);
 	}
 
 	OnChildDead.FireOutput(pVictim, this);
 }
 
 //=========================================================
-// Selecciona una clase de zombi.
+// Selecciona una clase de NPC.
 //=========================================================
-const char *CDirectorZombieSpawn::SelectRandomZombie()
+const char *CDirectorSpawn::SelectRandom()
 {
-	int pRandom = random->RandomInt(1, 5);
+	int pRandom = random->RandomInt(0, ARRAYSIZE(iNpcs) - 1);
 
-	if ( pRandom == 1 )
-		return (SpawnClassicZombie) ? "npc_zombie" : SelectRandomZombie();
+	if ( iNpcs[pRandom] == NULL_STRING )
+		return SelectRandom();
 
-	if ( pRandom == 2 )
-		return (SpawnZombine) ? "npc_zombine" : SelectRandomZombie();
-
-	if ( pRandom == 3 )
-		return (SpawnFastZombie) ? "npc_fastzombie" : SelectRandomZombie();
-
-	if ( pRandom == 4 )
-		return (SpawnPoisonZombie) ? "npc_poisonzombie" : SelectRandomZombie();
-
-	return SelectRandomZombie();
+	return STRING(iNpcs[pRandom]);
 }
 
-int CDirectorZombieSpawn::DrawDebugTextOverlays()
+//=========================================================
+// Selecciona una clase de Jefe.
+//=========================================================
+const char *CDirectorSpawn::SelectRandomBoss()
 {
-	CBasePlayer *pPlayer	= UTIL_GetLocalPlayer();
-	int text_offset = BaseClass::DrawDebugTextOverlays();
+	int pRandom = random->RandomInt(0, ARRAYSIZE(iBoss) - 1);
+
+	if ( iBoss[pRandom] == NULL_STRING )
+		return SelectRandomBoss();
+
+	return STRING(iBoss[pRandom]);
+}
+
+
+int CDirectorSpawn::DrawDebugTextOverlays()
+{
+	int text_offset			= BaseClass::DrawDebugTextOverlays();
 
 	if (m_debugOverlays & OVERLAY_TEXT_BIT) 
 	{
 		char message[512];
 		Q_snprintf(message, sizeof(message), 
-			"Zombis creados: %i", 
+			"NPC's creados: %i", 
 		Childs);
 
-		if ( pPlayer )
+		if ( !InGameRules()->IsMultiplayer() )
 		{
-			// Calculamos la distancia del creador al jugador.
-			Vector distToMaker	= GetAbsOrigin() - pPlayer->GetAbsOrigin();
-			float dist			= VectorNormalize(distToMaker);
+			CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
 
-			Q_snprintf(message, sizeof(message), 
-				"Distancia: %i", 
-			dist);
+			if ( pPlayer )
+			{
+				// Calculamos la distancia del creador al jugador.
+				Vector distToMaker	= GetAbsOrigin() - pPlayer->GetAbsOrigin();
+				float dist			= VectorNormalize(distToMaker);
+
+				Q_snprintf(message, sizeof(message), 
+					"Distancia: %i", 
+				dist);
+			}
 		}
 
 		EntityText(text_offset++, message, 0);
@@ -564,48 +659,48 @@ int CDirectorZombieSpawn::DrawDebugTextOverlays()
 //=========================================================
 //=========================================================
 
-void CDirectorZombieSpawn::InputSpawn(inputdata_t &inputdata)
+void CDirectorSpawn::InputSpawn(inputdata_t &inputdata)
 {
 	MakeNPC();
 }
 
-void CDirectorZombieSpawn::InputSpawnCount(inputdata_t &inputdata)
+void CDirectorSpawn::InputSpawnCount(inputdata_t &inputdata)
 {
 	int i;
-	CAI_BaseNPC *pZombie = NULL;
+	CAI_BaseNPC *pNPC = NULL;
 
-	ConVarRef indirector_force_spawn_outview("indirector_force_spawn_outview");
-	int oldValue = indirector_force_spawn_outview.GetInt();
+	ConVarRef director_force_spawn_outview("director_force_spawn_outview");
+	int oldValue = director_force_spawn_outview.GetInt();
 
-	indirector_force_spawn_outview.SetValue(0);
+	director_force_spawn_outview.SetValue(0);
 
-	for ( i = 0; i <= inputdata.value.Int(); i = i + 1)
+	for ( i = 0; i <= inputdata.value.Int(); ++i )
 	{
-		pZombie = MakeNoCollisionNPC();
+		pNPC = MakeNoCollisionNPC();
 
-		if ( !pZombie )
+		if ( !pNPC )
 		{
-			DevMsg("[DIRECTOR ZOMBIE MAKER] No se ha podido crear el zombi %i \r\n", i);
+			DevWarning("[DIRECTOR SPAWN] No se ha podido crear el NPC (%i) \r\n", i);
 			continue;
 		}
 	}
 
-	indirector_force_spawn_outview.SetValue(oldValue);
+	director_force_spawn_outview.SetValue(oldValue);
 }
 
-void CDirectorZombieSpawn::InputEnable(inputdata_t &inputdata)
+void CDirectorSpawn::InputEnable(inputdata_t &inputdata)
 {
 	Enable();
 }
 
-void CDirectorZombieSpawn::InputDisable(inputdata_t &inputdata)
+void CDirectorSpawn::InputDisable(inputdata_t &inputdata)
 {
 	Disable();
 }
 
-void CDirectorZombieSpawn::InputToggle(inputdata_t &inputdata)
+void CDirectorSpawn::InputToggle(inputdata_t &inputdata)
 {
-	if( Disabled )
+	if ( Disabled )
 		Enable();
 	else
 		Disable();

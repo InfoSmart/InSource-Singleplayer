@@ -24,7 +24,7 @@
 #include "ai_behavior.h"
 
 #include "npc_grunt.h"
-#include "hl2_player.h"
+#include "in_player.h"
 
 #include "npcevent.h"
 #include "activitylist.h"
@@ -33,36 +33,41 @@
 #include "entitylist.h"
 #include "engine/ienginesound.h"
 
-#include "weapon_brickbat.h"
+//#include "weapon_brickbat.h"
 #include "ammodef.h"
-#include "grenade_spit.h"
-#include "grenade_brickbat.h"
+//#include "grenade_spit.h"
+//#include "grenade_brickbat.h"
 
-//#include "player.h"
-//#include "in_player.h"
-#include "gamerules.h"
+#include "in_gamerules.h"
+#include "in_utils.h"
 #include "shake.h"
 
-#include "gib.h"
+//#include "gib.h"
 #include "physobj.h"
 #include "collisionutils.h"
-#include "coordsize.h"
+//#include "coordsize.h"
 #include "vstdlib/random.h"
 #include "movevars_shared.h"
-#include "particle_parse.h"
+//#include "particle_parse.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-//extern void CreateConcussiveBlast( const Vector &origin, const Vector &surfaceNormal, CBaseEntity *pOwner, float magnitude );
+extern void CreateConcussiveBlast( const Vector &origin, const Vector &surfaceNormal, CBaseEntity *pOwner, float magnitude );
 
 //=========================================================
-// Definición de variables para la configuración.
+// Definición de comandos para la consola.
 //=========================================================
 
 ConVar sk_grunt_health		("sk_grunt_health",			"0", 0, "Salud del Grunt");
 ConVar sk_grunt_dmg_high	("sk_grunt_dmg_high",		"0", 0, "Daño causado por un golpe alto");
 ConVar sk_grunt_dmg_low		("sk_grunt_dmg_low",		"0", 0, "Daño causado por un golpe bajo");
+
+ConVar sk_grunt_throw_delay		("sk_grunt_throw_delay",	"1",	0, "Segundos antes de poder lanzar otro objeto.");
+ConVar sk_grunt_throw_dist		("sk_grunt_throw_dist",		"300",	0, "Distancia de lanzamiento.");
+ConVar sk_grunt_throw_minmass	("sk_grunt_throw_minmass",	"200",	0, "Minimo peso que puede lanzar.");
+ConVar sk_grunt_throw_maxmass	("sk_grunt_throw_maxmass",	"1000",	0, "Máximo peso que puede lanzar.");
+ConVar sk_grunt_throw_maxthink  ("sk_grunt_throw_maxthink", "5",	0, "Cantidad de tiempo que puede manter un objeto como lanzable");
 
 //=========================================================
 // Configuración del NPC
@@ -73,7 +78,7 @@ ConVar sk_grunt_dmg_low		("sk_grunt_dmg_low",		"0", 0, "Daño causado por un golp
 
 // ¿Qué capacidades tendrá?
 // Moverse en el suelo - Ataque cuerpo a cuerpo 1 - Ataque cuerpo a cuerpo 2 - Saltar (No completo) - Girar la cabeza
-#define CAPABILITIES	bits_CAP_MOVE_GROUND | bits_CAP_INNATE_MELEE_ATTACK1 | bits_CAP_INNATE_MELEE_ATTACK2 | bits_CAP_MOVE_JUMP | bits_CAP_TURN_HEAD
+#define CAPABILITIES	bits_CAP_MOVE_GROUND | bits_CAP_INNATE_MELEE_ATTACK1 | bits_CAP_INNATE_MELEE_ATTACK2 | bits_CAP_MOVE_JUMP | bits_CAP_MOVE_CLIMB | bits_CAP_TURN_HEAD | bits_CAP_ANIMATEDFACE
 
 // Color de la sangre.
 #define BLOOD			BLOOD_COLOR_MECH
@@ -91,18 +96,13 @@ ConVar sk_grunt_dmg_low		("sk_grunt_dmg_low",		"0", 0, "Daño causado por un golp
 // No disolverse (Con la bola de energía) - No morir con la super arma de gravedad.
 #define EFLAGS			EFL_NO_DISSOLVE | EFL_NO_MEGAPHYSCANNON_RAGDOLL
 
-// Lanzar objetos
-#define THROW_PHYSICS_FARTHEST_OBJECT	40.0*12.0
-#define THROW_PHYSICS_SEARCH_DEPTH		100
-#define THROW_PHYSICS_MAX_MASS			8000
-#define THROW_PHYSICS_SWATDIST			80
-#define THROW_DELAY						5
-
+// Ataque cuerpo a cuerpo #1
 #define MELEE_ATTACK1_DIST				130
 #define MELEE_ATTACK1_IMPULSE			400
 #define MELEE_ATTACK1_MIN_PUNCH			60
 #define MELEE_ATTACK1_MAX_PUNCH			100
 
+// Ataque cuerpo a cuerpo #2
 #define MELEE_ATTACK2_DIST				80
 #define MELEE_ATTACK2_IMPULSE			200
 #define MELEE_ATTACK2_MIN_PUNCH			40
@@ -115,7 +115,8 @@ enum
 {
 	SCHED_THROW = LAST_SHARED_SCHEDULE,
 	SCHED_MOVE_THROWITEM,
-	SCHED_CHANGE_POSITION
+	SCHED_CHANGE_POSITION,
+	SCHED_CANNON_ATTACK
 };
 
 //=========================================================
@@ -125,7 +126,9 @@ enum
 {
 	TASK_GET_PATH_TO_PHYSOBJ = LAST_SHARED_TASK,
 	TASK_THROW_PHYSOBJ,
-	TASK_DELAY_THROW
+	TASK_DELAY_THROW,
+	TASK_CANNON_AIM,
+	TASK_CANNON_FIRE
 };
 
 //=========================================================
@@ -144,6 +147,10 @@ enum
 int AE_AGRUNT_MELEE_ATTACK_HIGH;
 int AE_AGRUNT_MELEE_ATTACK_LOW;
 int AE_AGRUNT_RANGE_ATTACK1;
+
+int AE_GRUNT_STEP_LEFT;
+int AE_GRUNT_STEP_RIGHT;
+
 int AE_SWAT_OBJECT;
 
 //=========================================================
@@ -151,6 +158,7 @@ int AE_SWAT_OBJECT;
 //=========================================================
 
 int CNPC_Grunt::ACT_SWATLEFTMID;
+int CNPC_Grunt::ACT_AGRUNT_RAGE;
 
 int ImpactEffectTexture = -1;
 
@@ -162,13 +170,17 @@ LINK_ENTITY_TO_CLASS( npc_grunt, CNPC_Grunt );
 
 BEGIN_DATADESC( CNPC_Grunt )
 
-	DEFINE_FIELD( LastHurtTime,				FIELD_TIME ),
-	DEFINE_FIELD( NextAlertSound,			FIELD_TIME ),
-	DEFINE_FIELD( NextPainSound,			FIELD_TIME ),
-	DEFINE_FIELD( NextThrow,				FIELD_TIME ),
+	DEFINE_FIELD( m_fLastHurtTime,			FIELD_TIME ),
+	DEFINE_FIELD( m_fNextAlertSound,		FIELD_TIME ),
+	DEFINE_FIELD( m_fNextPainSound,			FIELD_TIME ),
+	DEFINE_FIELD( m_fNextSuccessDance,		FIELD_TIME ),
+	DEFINE_FIELD( m_fExpireThrow,			FIELD_TIME ),
 
-	DEFINE_FIELD( PhysicsEnt,			FIELD_EHANDLE ),
-	DEFINE_FIELD( PhysicsCanThrow,		FIELD_BOOLEAN ),
+	DEFINE_FIELD( m_fNextRangeAttack1,		FIELD_TIME ),
+
+	DEFINE_FIELD( m_fNextThrow,				FIELD_TIME ),
+	DEFINE_FIELD( m_ePhysicsEnt,			FIELD_EHANDLE ),
+	DEFINE_FIELD( m_bPhysicsCanThrow,		FIELD_BOOLEAN ),
 
 END_DATADESC()
 
@@ -191,7 +203,6 @@ void CNPC_Grunt::Spawn()
 	// Navegación, estado físico y opciones extra.
 	SetSolid(SOLID_BBOX);
 	AddSolidFlags(FSOLID_NOT_STANDABLE);
-	//SetNavType(NAV_GROUND);	
 	SetMoveType(MOVETYPE_STEP);
 	
 	SetRenderColor(RENDER_COLOR);
@@ -204,12 +215,20 @@ void CNPC_Grunt::Spawn()
 	m_flFieldOfView			= FOV;
 
 	// Más información
-	NextThrow				= gpGlobals->curtime;
-	NextAlertSound			= gpGlobals->curtime + 3;
-	NextPainSound			= gpGlobals->curtime;
-	NextRangeAttack1		= gpGlobals->curtime + 5;
-	PhysicsEnt				= NULL;
-	PhysicsCanThrow			= false;
+	m_fNextThrow				= gpGlobals->curtime;		// Proxima vez que lanzaremos un objeto cercano.
+	m_fNextAlertSound			= gpGlobals->curtime;		// Proxima vez que haremos el sonido de alerta.
+	m_fNextPainSound			= gpGlobals->curtime;		// Proxima vez que haremos el sonido de dolor.
+	m_fNextRangeAttack1			= gpGlobals->curtime + 30;	// Proxima vez que haremos un ataque con nuestra pistola biologica.
+	m_fNextSuccessDance			= gpGlobals->curtime;		// Próxima vez que haremos el baile del éxito.
+	m_fExpireThrow				= 0;						// Tiempo en el que expira el lanzamiento de un objeto.
+
+	m_ePhysicsEnt				= NULL;
+	m_bPhysicsCanThrow			= false;
+
+#ifdef APOCALYPSE
+	AttackTimer.Invalidate();
+	AttackTimer.Start(BOSS_MINTIME_TO_ATTACK);
+#endif
 
 	// Capacidades
 	CapabilitiesClear();
@@ -223,7 +242,7 @@ void CNPC_Grunt::Spawn()
 }
 
 //=========================================================
-// Guardar los objetos necesarios en caché.
+// Guarda los objetos necesarios en caché.
 //=========================================================
 void CNPC_Grunt::Precache()
 {
@@ -237,21 +256,34 @@ void CNPC_Grunt::Precache()
 	PrecacheScriptSound("NPC_Grunt.Death");
 	PrecacheScriptSound("NPC_Grunt.HighAttack");
 	PrecacheScriptSound("NPC_Grunt.LowAttack");
-	PrecacheScriptSound("NPC_Grunt.BackgroundMusic");
+	PrecacheScriptSound("NPC_Grunt.Fail");
+	PrecacheScriptSound("NPC_Grunt.Yell");
 	PrecacheScriptSound("NPC_Grunt.Step");
+
+	PrecacheScriptSound("NPC_Strider.Shoot");
+	PrecacheScriptSound("NPC_Strider.Charge");
 
 	BaseClass::Precache();
 }
 
+//=========================================================
+// Bucle de ejecución de tareas.
+//=========================================================
 void CNPC_Grunt::Think()
 {
 	BaseClass::Think();
 
-	// Al menos en Apocalypse Singleplayer, siempre debe conocer la ubicación
-	// del jugador.
-	if ( GetEnemy() == NULL && !g_pGameRules->IsMultiplayer() )
+#ifdef APOCALYPSE
+
+	// El modelo actual no envía al código cuando el Grunt camina, por lo que usaremos "IsMoving" para detectarlo.
+	// Si se esta moviendo ¡hacer temblar el suelo!
+	if ( IsMoving() )
+		UTIL_ScreenShake(WorldSpaceCenter(), 5.0f, 2.0f, 1.0f, 600.0f, SHAKE_START);
+
+	// Siempre conocer la ubicación del jugador (nuestro enemigo favorito)
+	if ( !GetEnemy() && !HasCondition(COND_CAN_THROW) )
 	{
-		CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+		CIN_Player *pPlayer = UTIL_GetRandomInPlayer();
 
 		if ( !pPlayer || !pPlayer->IsAlive() )
 			return;
@@ -259,6 +291,13 @@ void CNPC_Grunt::Think()
 		SetEnemy(pPlayer);
 		UpdateEnemyMemory(pPlayer, pPlayer->GetAbsOrigin());
 	}
+
+	// Ha pasado mucho tiempo desde que golpeo a un jugador, si nadie lo esta viendo sencillamente eliminarlo.
+	// Con esto podremos evitar que la música (y el estado en el Director) se queden si el Jefe se ha quedado "bugeado" (Atorado en una pared o debajo del suelo)
+	if ( AttackTimer.HasStarted() && AttackTimer.IsElapsed() && !UTIL_IsPlayersVisibleCone(this) )
+		UTIL_RemoveImmediate(this);
+
+#endif
 }
 
 //=========================================================
@@ -271,7 +310,13 @@ Class_T	CNPC_Grunt::Classify()
 }
 
 //=========================================================
-// IdleSound()
+//=========================================================
+Disposition_t CNPC_Grunt::IRelationType(CBaseEntity *pTarget)
+{
+	return BaseClass::IRelationType(pTarget);
+}
+
+//=========================================================
 // Reproducir sonido al azar de descanso.
 //=========================================================
 void CNPC_Grunt::IdleSound()
@@ -280,33 +325,30 @@ void CNPC_Grunt::IdleSound()
 }
 
 //=========================================================
-// PainSound()
 // Reproducir sonido de dolor.
 //=========================================================
 void CNPC_Grunt::PainSound(const CTakeDamageInfo &info)
 {
-	if ( gpGlobals->curtime >= NextPainSound )
+	if ( gpGlobals->curtime >= m_fNextPainSound )
 	{
 		EmitSound("NPC_Grunt.Pain");
-		NextPainSound = gpGlobals->curtime + random->RandomFloat(1.0, 3.0);
+		m_fNextPainSound = gpGlobals->curtime + random->RandomFloat(1.0, 3.0);
 	}
 }
 
 //=========================================================
-// AlertSound()
 // Reproducir sonido de alerta.
 //=========================================================
 void CNPC_Grunt::AlertSound()
 {
-	if ( gpGlobals->curtime >= NextAlertSound )
+	if ( gpGlobals->curtime >= m_fNextAlertSound )
 	{
 		EmitSound("NPC_Grunt.Alert");
-		NextAlertSound = gpGlobals->curtime + random->RandomFloat(.5, 2.0);
+		m_fNextAlertSound = gpGlobals->curtime + random->RandomFloat(.5, 2.0);
 	}
 }
 
 //=========================================================
-// DeathSound()
 // Reproducir sonido de muerte.
 //=========================================================
 void CNPC_Grunt::DeathSound(const CTakeDamageInfo &info)
@@ -315,7 +357,6 @@ void CNPC_Grunt::DeathSound(const CTakeDamageInfo &info)
 }
 
 //=========================================================
-// AttackSound()
 // Reproducir sonido al azar de ataque alto/fuerte.
 //=========================================================
 void CNPC_Grunt::AttackSound(bool highAttack)
@@ -324,6 +365,22 @@ void CNPC_Grunt::AttackSound(bool highAttack)
 		EmitSound("NPC_Grunt.HighAttack");
 	else
 		EmitSound("NPC_Grunt.LowAttack");
+}
+
+//=========================================================
+// Reproducir sonido de ataque fallido.
+//=========================================================
+void CNPC_Grunt::FailSound()
+{
+	EmitSound("NPC_Grunt.Fail");
+}
+
+//=========================================================
+// Reproducir sonido de ataque éxitoso.
+//=========================================================
+void CNPC_Grunt::YellSound()
+{
+	EmitSound("NPC_Grunt.Yell");
 }
 
 //=========================================================
@@ -354,8 +411,8 @@ float CNPC_Grunt::MaxYawSpeed()
 //=========================================================
 void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 {
-	const char *pName = EventList_NameForIndex(pEvent->event);
-	DevMsg("[GRUNT] Se ha producido el evento %s \n", pName);
+	//const char *pName = EventList_NameForIndex(pEvent->event);
+	//DevMsg("[GRUNT] Se ha producido el evento %s \n", pName);
 
 	// Ataque de fuerza mayor.
 	if ( pEvent->event == AE_AGRUNT_MELEE_ATTACK_HIGH )
@@ -371,49 +428,42 @@ void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 		return;
 	}
 
-	// Disparo
-	/*
-	if( pEvent->event == AE_AGRUNT_RANGE_ATTACK1 )
-	{
-		RangeAttack1();
-		return;
-	}
-	*/
-
-	// Aventando objeto.
+	// Lanzando objeto.
 	if ( pEvent->event == AE_SWAT_OBJECT )
 	{
 		CBaseEntity *pEnemy = GetEnemy();
 
-		if( pEnemy )
-		{
-			Vector v;
-			CBaseEntity *pPhysicsEntity = PhysicsEnt;
+		// No tenemos ningún enemigo a quien lanzar.
+		if ( !pEnemy )
+			return;
+		
+		Vector v;
+		CBaseEntity *pPhysicsEntity = m_ePhysicsEnt;
 
-			if( !pPhysicsEntity )
-				return;
+		if ( !pPhysicsEntity )
+			return;
 
-			IPhysicsObject *pPhysObj = pPhysicsEntity->VPhysicsGetObject();
+		IPhysicsObject *pPhysObj = pPhysicsEntity->VPhysicsGetObject();
 
-			if( !pPhysObj )
-				return;
+		if ( !pPhysObj )
+			return;
 
-			PhysicsImpactSound(pEnemy, pPhysObj, CHAN_BODY, pPhysObj->GetMaterialIndex(), physprops->GetSurfaceIndex("flesh"), 0.5, 1800);
+		PhysicsImpactSound(pEnemy, pPhysObj, CHAN_BODY, pPhysObj->GetMaterialIndex(), physprops->GetSurfaceIndex("flesh"), 0.5, 1800);
 
-			Vector PhysicsCenter	= pPhysicsEntity->WorldSpaceCenter();
-			v						= pEnemy->WorldSpaceCenter() - PhysicsCenter;
+		Vector PhysicsCenter	= pPhysicsEntity->WorldSpaceCenter();
+		v						= pEnemy->WorldSpaceCenter() - PhysicsCenter;
 
-			VectorNormalize(v);
+		VectorNormalize(v);
 
-			v	= v * 1800;
-			v.z += 400;
+		v	= v * 1800;
+		v.z += 400;
 
-			AngularImpulse AngVelocity(random->RandomFloat(-180, 180), 20, random->RandomFloat(-360, 360));
-			pPhysObj->AddVelocity(&v, &AngVelocity);
+		AngularImpulse AngVelocity(random->RandomFloat(-180, 180), 20, random->RandomFloat(-360, 360));
+		pPhysObj->AddVelocity(&v, &AngVelocity);
 
-			PhysicsEnt	= NULL;
-			NextThrow	= gpGlobals->curtime + THROW_DELAY;
-		}
+		m_ePhysicsEnt	= NULL;
+		m_fNextThrow	= gpGlobals->curtime + sk_grunt_throw_delay.GetFloat();
+		m_fExpireThrow  = 0;
 
 		return;
 	}
@@ -421,6 +471,9 @@ void CNPC_Grunt::HandleAnimEvent(animevent_t *pEvent)
 	BaseClass::HandleAnimEvent(pEvent);
 }
 
+//=========================================================
+// Calcula si el salto que realizará es válido.
+//=========================================================
 bool CNPC_Grunt::IsJumpLegal(const Vector &startPos, const Vector &apex, const Vector &endPos) const
 {
 	const float MAX_JUMP_RISE		= 220.0f;
@@ -439,7 +492,6 @@ void CNPC_Grunt::MeleeAttack(bool highAttack)
 	if ( !GetEnemy() )
 		return;
 
-	CBasePlayer *pPlayer	= UTIL_GetLocalPlayer();
 	CBaseEntity *pVictim	= NULL;
 	float pDamage			= ( highAttack ) ? sk_grunt_dmg_high.GetFloat() : sk_grunt_dmg_low.GetFloat();
 	int pTypeDamage			= DMG_SLASH | DMG_ALWAYSGIB;
@@ -457,107 +509,195 @@ void CNPC_Grunt::MeleeAttack(bool highAttack)
 	// Siempre debemos atacar a un Bullseye
 	if ( GetEnemy()->Classify() == CLASS_BULLSEYE )
 	{
-		pVictim = GetEnemy();
 		CTakeDamageInfo info(this, this, vec3_origin, GetAbsOrigin(), pDamage, pTypeDamage);
-		pVictim->TakeDamage(info);
-	}
-	// Intentamos realizar un ataque verdadero contra el jugador o varios NPC.
-	else
-		pVictim = CheckTraceHullAttack(Melee_Attack_Dist, vecMins, vecMaxs, pDamage, pTypeDamage, 1.0, false);
+		GetEnemy()->TakeDamage(info);
 
-	if ( pVictim )
-	{
-		// Grrr! te he dado.
+		// Grrr!
 		AttackSound(highAttack);
-		
+		return;
+	}
+
+	// Es un aliado del jugador.
+	if ( GetEnemy()->Classify() == CLASS_PLAYER_ALLY || GetEnemy()->Classify() == CLASS_PLAYER_ALLY_VITAL )
+	{
+		CTakeDamageInfo info(this, this, vec3_origin, GetAbsOrigin(), (pDamage / 2), pTypeDamage);
+		GetEnemy()->TakeDamage(info);
+
 		Vector forward, up;
 		AngleVectors(GetAbsAngles(), &forward, NULL, &up);
-
 		Vector pImpulse = Melee_Attack_Impulse * (up + 2 * forward);
 
-		// Nuestra victima es el jugador.
-		if ( pVictim->IsPlayer() )
+		// Lanzamos por los aires
+		GetEnemy()->ApplyAbsVelocityImpulse(pImpulse);
+
+		// Grrr!
+		AttackSound(highAttack);
+		return;
+	}
+
+	bool pAllVictims			= false;
+	CBaseEntity *pLastVictim	= NULL;
+
+	int pTrys		= 0; // Intentos.
+	int pVictims	= 0; // Victimas
+
+	// No hemos golpeado a todos los enemigos.
+	while ( !pAllVictims )
+	{
+		// Obtenemos al desafortunado que he matado...
+		// Le establecemos 0 de daño para que no mate a los NPC antes de lanzarlos. (El daño se lo proporcionamos manualmente)
+		pVictim = CheckTraceHullAttack(Melee_Attack_Dist, vecMins, vecMaxs, 0, pTypeDamage, 1.0, true);
+		++pTrys;
+
+		// 5 intentos máximo.
+		if ( pTrys >= 5 )
 		{
-			int pPunch = random->RandomInt(Melee_Attack_Min_Punch, Melee_Attack_Max_Punch);
+			pAllVictims = true;
+			break;
+		}
 
-			// Desorientar
-			pVictim->ViewPunch(QAngle(pPunch, 0, -pPunch));
+		// ¡Le he dado!
+		if ( pVictim && pVictim->IsAlive() )
+		{
+			if ( pVictim == pLastVictim )
+				continue;
 
-			// Lanzarlo por los aires.
-			pVictim->ApplyAbsVelocityImpulse(pImpulse);
+			++pVictims;
+			pLastVictim = pVictim;
 
-			// Esta función por ahora la desactivamos en Multiplayer
-			if ( !g_pGameRules->IsMultiplayer() )
+			// Grrr!
+			AttackSound(highAttack);
+		
+			Vector forward, up;
+			AngleVectors(GetAbsAngles(), &forward, NULL, &up);
+
+			Vector pImpulse = Melee_Attack_Impulse * (up + 2 * forward);
+
+			// Nuestra victima es un jugador.
+			if ( pVictim->IsPlayer() )
 			{
-				// El jugador tiene un arma.
-				if ( pPlayer->GetActiveWeapon() && !GameRules()->IsSkillLevel(SKILL_EASY) )
+				int pPunch = random->RandomInt(Melee_Attack_Min_Punch, Melee_Attack_Max_Punch);
+
+#ifdef APOCALYPSE
+				// Reiniciar el cronometro.
+				AttackTimer.Start(BOSS_MINTIME_TO_ATTACK);
+#endif
+
+				// Desorientar
+				pVictim->ViewPunch(QAngle(pPunch, 0, -pPunch));
+
+				// Lanzarlo por los aires.
+				pVictim->ApplyAbsVelocityImpulse(pImpulse);
+
+				// Daño
+				CTakeDamageInfo damage;
+				damage.SetAttacker(this);
+				damage.SetInflictor(this);
+				damage.SetDamage(pDamage);
+				damage.SetDamageType(pTypeDamage);
+
+				pVictim->TakeDamage(damage);
+
+#ifdef APOCALYPSE
+				CIN_Player *pPlayer = ToInPlayer(pVictim);
+
+				// El jugador tiene un arma y no esta oculta.
+				// además no esta en dificultad fácil.
+				if ( pPlayer && pPlayer->GetActiveWeapon() && pPlayer->GetActiveWeapon()->IsWeaponVisible() && !GameRules()->IsSkillLevel(SKILL_EASY) )
 				{
-					// !!!REFERENCE
-					// En Left4Dead cuando un Tank avienta por los aires a un jugador el mismo
-					// "desactiva" su arma hasta que cae, después se crea la animación de levantar y activar
-					// el arma. (Mientras esta desactivada no se puede disparar)
+						// !!!REFERENCE
+						// En Left4Dead cuando un Tank avienta por los aires a un jugador el mismo
+						// "desactiva" su arma hasta que cae, después se crea la animación de levantar y activar
+						// el arma. (Mientras esta desactivada no se puede disparar)
 
-					// Ocultar el arma del jugador.
-					// FIXME: Incluso con el arma oculta es posible disparar.
-					// FIXME 2: Si el arma ya esta "oculta" el juego lanza una excepción (Se va al carajo...)
-					//pPlayer->GetActiveWeapon()->Holster();
+						// Ocultar el arma del jugador.
+						// FIXME 2: Si el arma ya esta "oculta" el juego lanza una excepción (Se va al carajo...)
+						
+						//DevMsg("[GRUNT] pPUNCH: %i \r\n", pPunch);
 
-					// El lanzamiento fue muy poderoso, hacer que el jugador suelte el arma.
-					// FIXME: Si el jugador al momento de soltar el arma tenia 100 balas de un máximo de 200
-					// al recojer el arma su munición se restaura a 200. (Balas gratis)
-					if ( pPunch > 80 && random->RandomInt(0, 1) == 1 )
-						pPlayer->GetActiveWeapon()->Drop(pImpulse * 1.5);
+						// El lanzamiento fue muy poderoso, hacer que el jugador suelte el arma.
+						// FIXME: Si el jugador al momento de soltar el arma tenia 100 balas de un máximo de 200
+						// al recojer el arma su munición se restaura a 200. (Balas gratis)
+						// FIXME2: En ocaciones el arma no es quitada ¿razón? y ocaciona un crash
+						//if ( pPunch > 80 && random->RandomInt(0, 1) == 1 )
+							//pPlayer->GetActiveWeapon()->Drop(pImpulse * 1.5);
+						//else
+						//{
+						pPlayer->m_bGruntAttack = true;
+						pPlayer->GetActiveWeapon()->Holster();
+						//}
+					
 				}
+#endif
+			}
+
+			// Nuestra victima es un NPC (o algo así...)
+			else
+			{
+				// Los Grunt son nuestros amigos.
+				if ( pVictim->Classify() == CLASS_GRUNT )
+					continue;
+
+				// Lanzamos por los aires
+				pVictim->ApplyAbsVelocityImpulse(pImpulse);
+
+				// ¡GRRR! Quitense de mi camino. (Matamos al NPC)
+				CTakeDamageInfo damage;
+				damage.SetAttacker(this);
+				damage.SetInflictor(this);
+				damage.SetDamage(300);
+				damage.SetDamageType(pTypeDamage);
+
+				pVictim->TakeDamage(damage);
 			}
 		}
-		// Nuestra victima es un NPC (o algo así...)
 		else
 		{
-			// Lanzamos por los aires
-			pVictim->ApplyAbsVelocityImpulse(pImpulse * 3);
-			pVictim->VelocityPunch(pImpulse * 2);
-
-			// ¡GRRR! Quitense de mi camino. (Matamos al NPC)
-			CTakeDamageInfo damage;
-
-			damage.SetAttacker(this);
-			damage.SetInflictor(this);
-			damage.SetDamage(pVictim->GetHealth());
-			damage.SetDamageType(pTypeDamage);
-
-			pVictim->TakeDamage(damage);
+			// Todos los enemigos han sigo golpeados.
+			pAllVictims = true;
 		}
 	}
+
+	// He fallado...
+	if ( pVictims == 0 )
+		FailSound();
+
+	// Jaja, chupate esa!
 	else
 	{
-		// @TODO
-		//FailAttackSound();
+		// ¡Baile del éxito!
+		if ( m_fNextSuccessDance <= gpGlobals->curtime )
+		{
+			YellSound();
+			SetIdealActivity((Activity)ACT_AGRUNT_RAGE);
+
+			m_fNextSuccessDance = gpGlobals->curtime + random->RandomInt(5, 15); // Hacerlo de nuevo en 5 a 15 segs.
+		}
 	}
 }
 
-/*
-void CNPC_Grunt::RangeAttack1()
+//=========================================================
+// Dispara el cañon biologico de materia oscura.
+//=========================================================
+void CNPC_Grunt::FireCannon()
 {
-	if( gpGlobals->curtime <= NextRangeAttack1 )
+	// Aun no toca...
+	if ( gpGlobals->curtime <= m_fNextRangeAttack1 )
 		return;
 
 	trace_t tr;
 	Vector vecShootPos;
+
+	// Obtenemos la ubicación de la boquilla de nuestra arma.
 	GetAttachment(LookupAttachment("muzzle"), vecShootPos);
 
 	Vector vecShootDir;
 	vecShootDir	= GetEnemy()->WorldSpaceCenter() - vecShootPos;
 
-	FireBullets(5, vecShootPos, vecShootDir, VECTOR_CONE_PRECALCULATED, MAX_TRACE_LENGTH, 1, 2, entindex(), 0);
-
-	/*
 	Vector m_blastHit;
 	Vector m_blastNormal;
 
-	
-
-	
-	float flDist	= VectorNormalize(vecShootDir);
+	float flDist = VectorNormalize(vecShootDir);
 
 	AI_TraceLine(vecShootPos, vecShootPos + vecShootDir * flDist, MASK_SHOT, this, COLLISION_GROUP_NONE, &tr);
 	m_blastHit		= tr.endpos;
@@ -572,12 +712,9 @@ void CNPC_Grunt::RangeAttack1()
 	CPASAttenuationFilter filter2(this, "NPC_Strider.Shoot");
 	EmitSound(filter2, entindex(), "NPC_Strider.Shoot");
 
-	CreateConcussiveBlast(m_blastHit, m_blastNormal, this, 1.5);
-	--
-
-	NextRangeAttack1 = gpGlobals->curtime + random->RandomFloat(5.0, 10.0);
+	CreateConcussiveBlast(m_blastHit, m_blastNormal, this, 0.1);
+	m_fNextRangeAttack1 = gpGlobals->curtime + random->RandomFloat(15.0, 30.0);
 }
-*/
 
 //=========================================================
 // Verifica si es conveniente hacer un ataque cuerpo a cuerpo.
@@ -586,7 +723,7 @@ void CNPC_Grunt::RangeAttack1()
 int CNPC_Grunt::MeleeAttack1Conditions(float flDot, float flDist)
 {
 	// El Grunt es muy poderoso, no podemos matar a los personajes vitales.
-	if ( GetEnemy()->Classify() == CLASS_PLAYER_ALLY_VITAL )
+	if ( GetEnemy()->Classify() == CLASS_PLAYER_ALLY_VITAL || HasCondition(COND_CAN_THROW) )
 		return COND_NONE;
 	
 	// Distancia y angulo correcto, ¡ataque!
@@ -617,33 +754,41 @@ int CNPC_Grunt::MeleeAttack1Conditions(float flDot, float flDist)
 }
 
 //=========================================================
-// MeleeAttack2Conditions()
 // Verifica si es conveniente hacer un ataque cuerpo a cuerpo.
 // En este caso: Golpe bajo
 //=========================================================
 int CNPC_Grunt::MeleeAttack2Conditions(float flDot, float flDist)
 {
-	if( flDist <= 50 && flDot >= 0.7 )
+	if ( HasCondition(COND_CAN_THROW) )
+		return COND_NONE;
+
+	if ( flDist <= 50 && flDot >= 0.7 )
 		return COND_CAN_MELEE_ATTACK2;
 	
 	return COND_TOO_FAR_TO_ATTACK;
 }
 
-/*
+//=========================================================
+// Verifica si es conveniente hacer un ataque a distancia.
+// En este caso: Cañon biologico de materia oscura.
+//=========================================================
 int CNPC_Grunt::RangeAttack1Conditions(float flDot, float flDist)
 {
-	if( gpGlobals->curtime <= NextRangeAttack1 )
+	// Automaticamente esto se traduce a TASK_CANNON_AIM y TASK_CANNON_FIRE
+
+	// Aún no toca disparar nuestro cañon
+	if ( gpGlobals->curtime <= m_fNextRangeAttack1 )
 		return COND_NONE;
 
-	if( flDist <= 800 && flDot >= 0.7 )
+	// Perfecta distancia.
+	if ( flDist <= 800 && flDot >= 0.7 )
 		return COND_CAN_RANGE_ATTACK1;
 
+	// Muy lejos.
 	return COND_TOO_FAR_TO_ATTACK;
 }
-*/
 
 //=========================================================
-// OnTakeDamage_Alive()
 // 
 //=========================================================
 int CNPC_Grunt::OnTakeDamage_Alive(const CTakeDamageInfo &inputInfo)
@@ -660,34 +805,57 @@ void CNPC_Grunt::Event_Killed(const CTakeDamageInfo &info)
 }
 
 //=========================================================
-// GatherConditions()
 // 
 //=========================================================
 void CNPC_Grunt::GatherConditions()
 {
 	BaseClass::GatherConditions();
 
-	if(gpGlobals->curtime >= NextThrow && PhysicsEnt == NULL)
+	// Toca lanzar un objeto, buscamos uno.
+	if ( gpGlobals->curtime >= m_fNextThrow && m_ePhysicsEnt == NULL )
 	{
-		FindNearestPhysicsObject();
-		NextThrow = gpGlobals->curtime + 2.0;
+		// ¡Hemos encontrado un objeto!
+		if ( FindNearestPhysicsObject() )
+		{
+			// Si nos estamos moviendo cancelar el objetivo para ir a la ubicación del objeto.
+			if ( IsMoving() )
+			{
+				GetNavigator()->StopMoving();
+				GetNavigator()->ClearGoal();
+			}
+
+			m_fExpireThrow = gpGlobals->curtime + sk_grunt_throw_maxthink.GetInt();
+		}
 	}
 
-	if( PhysicsEnt != NULL && gpGlobals->curtime >= NextThrow && HasCondition(COND_SEE_ENEMY) )
+	// Ya tenemos al objeto a lanzar.
+	if ( m_ePhysicsEnt != NULL )
+	{
+		// Al parecer algo salio mal y no pudimos lanzar el objeto.
+		if ( m_fExpireThrow <= gpGlobals->curtime && m_fExpireThrow != 0 )
+		{
+			m_fExpireThrow	= 0;
+			m_ePhysicsEnt	= NULL;
+
+			return;
+		}
+
 		SetCondition(COND_CAN_THROW);
+	}
 	else
 		ClearCondition(COND_CAN_THROW);
 }
 
 //=========================================================
-// SelectCombatSchedule()
 // Selecciona una tarea programada dependiendo del combate
 //=========================================================
 int CNPC_Grunt::SelectCombatSchedule()
 {
-	if( HasCondition(COND_CAN_THROW) )
+	// Iniciar la ejecución para lanzar un objeto.
+	if ( HasCondition(COND_CAN_THROW) )
 		return SCHED_THROW;
 
+	// Hemos perdido al enemigo, buscarlo o perseguirlo.
 	if ( HasCondition(COND_ENEMY_OCCLUDED) || HasCondition(COND_ENEMY_TOO_FAR) || HasCondition(COND_TOO_FAR_TO_ATTACK) || HasCondition(COND_NOT_FACING_ATTACK) )
 		return SCHED_CHASE_ENEMY;
 
@@ -699,25 +867,18 @@ int CNPC_Grunt::SelectCombatSchedule()
 //=========================================================
 int CNPC_Grunt::SelectSchedule()
 {
-	if( BehaviorSelectSchedule() )
+	if ( BehaviorSelectSchedule() )
 		return BaseClass::SelectSchedule();
 
-	switch( m_NPCState )
+	// Hora de usar nuestro cañon.
+	//if ( HasCondition(COND_CAN_RANGE_ATTACK1) )
+		//return SCHED_CANNON_ATTACK;
+
+	switch ( m_NPCState )
 	{
 		case NPC_STATE_COMBAT:
 		{
 			return SelectCombatSchedule();
-			break;
-		}
-
-		case NPC_STATE_IDLE:
-		{
-			int Idle = BaseClass::SelectSchedule();
-
-			if( Idle == SCHED_IDLE_STAND )
-				return SCHED_CHANGE_POSITION;
-
-			return Idle;
 			break;
 		}
 	}
@@ -731,11 +892,17 @@ int CNPC_Grunt::TranslateSchedule(int scheduleType)
 {
 	switch ( scheduleType )
 	{
+		// Lanzar un objeto: Lanzarlo o movernos a la ubicación del mismo.
 		case SCHED_THROW:
-			if( DistToPhysicsEnt() > THROW_PHYSICS_SWATDIST )
+			if ( DistToPhysicsEnt() > sk_grunt_throw_dist.GetFloat() )
 				return SCHED_MOVE_THROWITEM;
 			else
 				return SCHED_THROW;
+		break;
+
+		// RANGE_ATTACK es lo mismo a nuestro cañon.
+		case SCHED_RANGE_ATTACK1:
+			return SCHED_CANNON_ATTACK;
 		break;
 	}
 
@@ -743,24 +910,17 @@ int CNPC_Grunt::TranslateSchedule(int scheduleType)
 }
 
 //=========================================================
-// SelectIdealState()
 // 
 //=========================================================
 NPC_STATE CNPC_Grunt::SelectIdealState()
 {
-	switch (m_NPCState)
+	switch ( m_NPCState )
 	{
 		case NPC_STATE_COMBAT:
 		{
-			if (GetEnemy() == NULL)
+			if ( GetEnemy() == NULL )
 				return NPC_STATE_ALERT;
 
-			break;
-		}
-
-		case NPC_STATE_DEAD:
-		{
-			return NPC_STATE_DEAD;
 			break;
 		}
 	}
@@ -769,51 +929,81 @@ NPC_STATE CNPC_Grunt::SelectIdealState()
 }
 
 //=========================================================
-// StartTask()
 // Realiza los calculos necesarios al iniciar una tarea.
 //=========================================================
 void CNPC_Grunt::StartTask(const Task_t *pTask)
 {
-	switch (pTask->iTask)
+	switch ( pTask->iTask )
 	{
+		// Retrasamos lanzamiento de un objeto.
 		case TASK_DELAY_THROW:
 		{
-			NextThrow = gpGlobals->curtime + pTask->flTaskData;
+			m_fNextThrow = gpGlobals->curtime + pTask->flTaskData;
 			TaskComplete();
 
 			break;
 		}
 
+		// Obtenemos la ruta hacia el objeto a lanzar.
 		case TASK_GET_PATH_TO_PHYSOBJ:
 		{
-			if( PhysicsEnt == NULL )
+			if ( m_ePhysicsEnt == NULL )
 				TaskFail("No hay ningun objeto para lanzar");
 
 			Vector vecGoalPos;
 			Vector vecDir;
 
-			vecDir		= GetLocalOrigin() - PhysicsEnt->GetLocalOrigin();
+			vecDir		= GetLocalOrigin() - m_ePhysicsEnt->GetLocalOrigin();
 			VectorNormalize(vecDir);
 			vecDir.z	= 0;
 
-			AI_NavGoal_t goal( PhysicsEnt->WorldSpaceCenter() );
-			goal.pTarget = PhysicsEnt;
+			AI_NavGoal_t goal( m_ePhysicsEnt->WorldSpaceCenter() );
+			goal.pTarget = m_ePhysicsEnt;
 			GetNavigator()->SetGoal(goal);
 
 			TaskComplete();
 			break;
 		}
 
+		// ¡Lanzar objeto!
 		case TASK_THROW_PHYSOBJ:
 		{
-			if( PhysicsEnt == NULL )
+			if ( m_ePhysicsEnt == NULL )
 				TaskFail("No hay ningun objeto para lanzar");
 
-			else if( DistToPhysicsEnt() > THROW_PHYSICS_SWATDIST )
+			else if ( DistToPhysicsEnt() > sk_grunt_throw_dist.GetFloat() )
 				TaskFail("El objeto ya no esta a mi alcanze");
 
 			else
 				SetIdealActivity((Activity)ACT_SWATLEFTMID);
+
+			break;
+		}
+
+		// Reproducir sonido de carga del cañon.
+		case TASK_CANNON_AIM:
+		{
+			SetWait(pTask->flTaskData);
+
+			Vector vecShootPos;
+			GetAttachment(LookupAttachment("muzzle"), vecShootPos);
+
+			EntityMessageBegin( this, true );
+				WRITE_BYTE( 2 );
+				WRITE_VEC3COORD( vecShootPos );
+			MessageEnd();
+
+			CPASAttenuationFilter filter2(this, "NPC_Strider.Charge");
+			EmitSound(filter2, entindex(), "NPC_Strider.Charge");
+
+			break;
+		}
+
+		// ¡¡Disparar cañon!!
+		case TASK_CANNON_FIRE:
+		{
+			FireCannon();
+			TaskComplete();
 
 			break;
 		}
@@ -831,11 +1021,24 @@ void CNPC_Grunt::StartTask(const Task_t *pTask)
 //=========================================================
 void CNPC_Grunt::RunTask(const Task_t *pTask)
 {
-	switch(pTask->iTask)
+	switch ( pTask->iTask )
 	{
+		// Lanzar objeto.
 		case TASK_THROW_PHYSOBJ:
-			if( IsActivityFinished() )
+
+			// Actividad finalizada.
+			if ( IsActivityFinished() )
 				TaskComplete();
+
+		break;
+
+		// Reproducir sonido de carga del cañon.
+		case TASK_CANNON_AIM:
+
+			// El tiempo de espera ha acabado.
+			if ( IsWaitFinished() )
+				TaskComplete();
+
 		break;
 
 		default:
@@ -852,139 +1055,113 @@ void CNPC_Grunt::RunTask(const Task_t *pTask)
 //=========================================================
 //=========================================================
 
-//----------------------------------------------------
-// FindNearestPhysicsObject()
-// Encontrar el objeto más cercano ideal a lanzar
-// Debe estar tanto cerca del zombi como del enemigo.
-//----------------------------------------------------
+//=========================================================
+// Trata de encontrar el objeto "lanzable" más cercano.
+//=========================================================
 bool CNPC_Grunt::FindNearestPhysicsObject()
 {
-	CBaseEntity		*pList[THROW_PHYSICS_SEARCH_DEPTH];
-	CBaseEntity		*pNearest = NULL;
-	IPhysicsObject	*pPhysObj;
-
-	Vector			vecDirToEnemy;
-	Vector			vecDirToObject;
-
-	if( !GetEnemy() )
+	// No tenemos a ningun enemigo a quien lanzar.
+	if ( !GetEnemy() )
 	{
-		PhysicsEnt = NULL;
+		m_ePhysicsEnt = NULL;
 		return false;
 	}
 
-	// Calcular la distancia al enemigo.
-	vecDirToEnemy	= GetEnemy()->GetAbsOrigin() - GetAbsOrigin();
-	float dist		= VectorNormalize(vecDirToEnemy);
-	vecDirToEnemy.z = 0;
+	CBaseEntity *pFinalEntity	= NULL;
+	CBaseEntity *pThrowEntity	= NULL;
+	float flNearestDist			= 0;
 
-	float flNearestDist = min(dist, THROW_PHYSICS_FARTHEST_OBJECT * 0.5);
-	Vector vecDelta(flNearestDist, flNearestDist, GetHullHeight() * 2.0);
-
-	class CGruntSwatEntitiesEnum : public CFlaggedEntitiesEnum
+	// Buscamos los objetos que podemos lanzar.
+	do
 	{
-		public:
-			CGruntSwatEntitiesEnum(CBaseEntity **pList, int listMax, int iMaxMass) : CFlaggedEntitiesEnum(pList, listMax, 0), m_iMaxMass(iMaxMass)
-			{
-			}
-
-			virtual IterationRetval_t EnumElement(IHandleEntity *pHandleEntity)
-			{
-				CBaseEntity *pEntity = gEntList.GetBaseEntity(pHandleEntity->GetRefEHandle());
-
-				if ( pEntity && 
-					 pEntity->VPhysicsGetObject() && 
-					 pEntity->VPhysicsGetObject()->GetMass() <= m_iMaxMass && 
-					 pEntity->VPhysicsGetObject()->IsAsleep() && 
-					 pEntity->VPhysicsGetObject()->IsMoveable() )
-				{
-					return CFlaggedEntitiesEnum::EnumElement(pHandleEntity );
-				}
-
-				return ITERATION_CONTINUE;
-			}
-
-			int m_iMaxMass;
-	};
-
-	CGruntSwatEntitiesEnum swatEnum(pList, THROW_PHYSICS_SEARCH_DEPTH, THROW_PHYSICS_MAX_MASS);
-	int count = UTIL_EntitiesInBox(GetAbsOrigin() - vecDelta, GetAbsOrigin() + vecDelta, &swatEnum);
-
-	Vector vecGruntKnees;
-	CollisionProp()->NormalizedToWorldSpace(Vector(0.5f, 0.5f, 0.25f), &vecGruntKnees);
-
-	float flDist;
-
-	for( int i = 0 ; i < count ; i++ )
-	{
-		pPhysObj = pList[i]->VPhysicsGetObject();
-
-		Assert(!(!pPhysObj || pPhysObj->GetMass() > THROW_PHYSICS_MAX_MASS || !pPhysObj->IsAsleep()));
-
-		Vector center	= pList[i]->WorldSpaceCenter();
-		flDist			= UTIL_DistApprox2D(GetAbsOrigin(), center);
-
-		if( flDist >= flNearestDist )
+		// Objetos con físicas.
+		pThrowEntity = gEntList.FindEntityByClassnameWithin(pThrowEntity, "prop_physics", GetAbsOrigin(), sk_grunt_throw_dist.GetFloat());
+	
+		// Ya no existe.
+		if ( !pThrowEntity )
 			continue;
 
+		// No lo podemos ver.
+		if ( !FVisible(pThrowEntity) )
+			continue;
+
+		// No se ha podido acceder a la información de su fisica.
+		if ( !pThrowEntity->VPhysicsGetObject() )
+			continue;
+
+		// No se puede mover o en si.. lanzar.
+		if ( !pThrowEntity->VPhysicsGetObject()->IsMoveable() )
+			continue;
+
+		Vector v_center	= pThrowEntity->WorldSpaceCenter();
+		float flDist	= UTIL_DistApprox2D(GetAbsOrigin(), v_center);
+
+		// Esta más lejos que el objeto anterior.
+		if ( flDist > flNearestDist && flNearestDist != 0 )
+			continue;
+
+		// Calcular la distancia al enemigo.
+		Vector vecDirToEnemy	= GetEnemy()->GetAbsOrigin() - GetAbsOrigin();
+		float dist				= VectorNormalize(vecDirToEnemy);
+		vecDirToEnemy.z			= 0;
+
 		// Este objeto esta muy cerca... pero ¿esta entre el npc y el enemigo?
-		vecDirToObject = pList[i]->WorldSpaceCenter() - GetAbsOrigin();
+		Vector vecDirToObject = pThrowEntity->WorldSpaceCenter() - GetAbsOrigin();
 		VectorNormalize(vecDirToObject);
 		vecDirToObject.z = 0;
 
-		if(DotProduct(vecDirToEnemy, vecDirToObject) < 0.8)
+		// Obtenemos su peso.
+		float pEntityMass = pThrowEntity->VPhysicsGetObject()->GetMass();
+
+		// Muy liviano.
+		if ( pEntityMass < sk_grunt_throw_minmass.GetFloat() )
+			continue;
+			
+		// ¡Muy pesado!
+		if ( pEntityMass > sk_grunt_throw_maxmass.GetFloat() )
 			continue;
 
-		if( flDist >= UTIL_DistApprox2D(center, GetEnemy()->GetAbsOrigin()) )
-			continue;
-
-		// No lanzar objetos que esten más arriba de mis rodillas.
-		if ((center.z + pList[i]->BoundingRadius()) < vecGruntKnees.z)
+		if ( DotProduct(vecDirToEnemy, vecDirToObject) < 0.8 )
 			continue;
 
 		// No lanzar objetos que esten sobre mi cabeza.
-		if(center.z > EyePosition().z)
+		if ( v_center.z > EyePosition().z )
 			continue;
 
-		vcollide_t *pCollide = modelinfo->GetVCollide(pList[i]->GetModelIndex());
+		Vector vecGruntKnees;
+		CollisionProp()->NormalizedToWorldSpace(Vector(0.5f, 0.5f, 0.25f), &vecGruntKnees);
+
+		vcollide_t *pCollide = modelinfo->GetVCollide(pThrowEntity->GetModelIndex());
 		
 		Vector objMins, objMaxs;
-		physcollision->CollideGetAABB(&objMins, &objMaxs, pCollide->solids[0], pList[i]->GetAbsOrigin(), pList[i]->GetAbsAngles());
+		physcollision->CollideGetAABB(&objMins, &objMaxs, pCollide->solids[0], pThrowEntity->GetAbsOrigin(), pThrowEntity->GetAbsAngles());
 
 		if ( objMaxs.z < vecGruntKnees.z )
 			continue;
 
-		if ( !FVisible(pList[i]) )
-			continue;
-
-		if( !GetEnemy()->FVisible(pList[i]) )
-			continue;
-
-		// No lanzar cadaveres de ningún tipo...
-		if ( FClassnameIs(pList[i], "physics_prop_ragdoll") )
-			continue;
-			
-		if ( FClassnameIs(pList[i], "prop_ragdoll") )
-			continue;
-
-		// El objeto es pefecto para lanzar, cumple lo necesario.
-		pNearest		= pList[i];
+		// Este objeto es perfecto, guardamos su distancia por si encontramos otro más cerca.
 		flNearestDist	= flDist;
+		pFinalEntity	= pThrowEntity;
+
+	} while(pThrowEntity);
+
+	// No pudimos encontrar ningún objeto.
+	if ( !pFinalEntity )
+	{
+		m_ePhysicsEnt = NULL;
+		return false;
 	}
 
-	PhysicsEnt = pNearest;
-
-	if( PhysicsEnt == NULL )
-		return false;
-	
+	m_ePhysicsEnt = pFinalEntity;
 	return true;
 }
 
 float CNPC_Grunt::DistToPhysicsEnt()
 {
-	if ( PhysicsEnt != NULL )
-		return UTIL_DistApprox2D(GetAbsOrigin(), PhysicsEnt->WorldSpaceCenter());
+	if ( m_ePhysicsEnt != NULL )
+		return UTIL_DistApprox2D(GetAbsOrigin(), m_ePhysicsEnt->WorldSpaceCenter());
 
-	return THROW_PHYSICS_SWATDIST + 1;
+	return sk_grunt_throw_dist.GetFloat() + 1;
 }
 
 bool CNPC_Grunt::IsPhysicsObject(CBaseEntity *pEntity)
@@ -1010,6 +1187,8 @@ AI_BEGIN_CUSTOM_NPC( npc_grunt, CNPC_Grunt )
 	DECLARE_TASK( TASK_GET_PATH_TO_PHYSOBJ )
 	DECLARE_TASK( TASK_THROW_PHYSOBJ )
 	DECLARE_TASK( TASK_DELAY_THROW )
+	DECLARE_TASK( TASK_CANNON_AIM )
+	DECLARE_TASK( TASK_CANNON_FIRE )
 
 	DECLARE_CONDITION( COND_CAN_THROW )
 	DECLARE_CONDITION( COND_MELEE_OBSTRUCTION )
@@ -1017,9 +1196,12 @@ AI_BEGIN_CUSTOM_NPC( npc_grunt, CNPC_Grunt )
 	DECLARE_ANIMEVENT( AE_AGRUNT_MELEE_ATTACK_HIGH )
 	DECLARE_ANIMEVENT( AE_AGRUNT_MELEE_ATTACK_LOW )
 	DECLARE_ANIMEVENT( AE_AGRUNT_RANGE_ATTACK1 )
+	DECLARE_ANIMEVENT( AE_GRUNT_STEP_LEFT )
+	DECLARE_ANIMEVENT( AE_GRUNT_STEP_RIGHT )
 	DECLARE_ANIMEVENT( AE_SWAT_OBJECT )
 
 	DECLARE_ACTIVITY( ACT_SWATLEFTMID )
+	DECLARE_ACTIVITY( ACT_AGRUNT_RAGE )
 
 	DEFINE_SCHEDULE
 	(
@@ -1035,8 +1217,9 @@ AI_BEGIN_CUSTOM_NPC( npc_grunt, CNPC_Grunt )
 		"		TASK_THROW_PHYSOBJ				0"
 		"	"
 		"	Interrupts"
+		"		COND_CAN_MELEE_ATTACK1"
+		"		COND_CAN_MELEE_ATTACK2"
 		"		COND_ENEMY_DEAD"
-		"		COND_NEW_ENEMY"
 	)
 
 	DEFINE_SCHEDULE
@@ -1051,7 +1234,6 @@ AI_BEGIN_CUSTOM_NPC( npc_grunt, CNPC_Grunt )
 		"	"
 		"	Interrupts"
 		"		COND_ENEMY_DEAD"
-		"		COND_NEW_ENEMY"
 	)
 
 	DEFINE_SCHEDULE
@@ -1067,8 +1249,24 @@ AI_BEGIN_CUSTOM_NPC( npc_grunt, CNPC_Grunt )
 		"	Interrupts"
 		"		COND_CAN_MELEE_ATTACK1"
 		"		COND_CAN_MELEE_ATTACK2"
-		"		COND_HEAR_DANGER"
 		"		COND_NEW_ENEMY"
+
+	)
+
+	DEFINE_SCHEDULE
+	(
+		SCHED_CANNON_ATTACK,
+
+		"	Tasks"
+		"		TASK_STOP_MOVING							0"
+		"		TASK_SET_ACTIVITY							ACTIVITY:ACT_IDLE"
+		"		TASK_WAIT									1"
+		"		TASK_CANNON_AIM								1.25"
+		"		TASK_CANNON_FIRE							0"
+		"		TASK_WAIT									1"
+		"	Interrupts"
+		"		COND_CAN_MELEE_ATTACK1"
+		"		COND_CAN_MELEE_ATTACK2"
 
 	)
 

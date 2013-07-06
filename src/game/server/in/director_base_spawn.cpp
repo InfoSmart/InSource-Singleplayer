@@ -12,6 +12,8 @@
 
 #include "cbase.h"
 #include "director_base_spawn.h"
+#include "director.h"
+#include "in_utils.h"
 
 #include "tier0/memdbgon.h"
 
@@ -28,7 +30,8 @@ BEGIN_DATADESC( CDirectorBaseSpawn )
 	DEFINE_INPUTFUNC( FIELD_VOID, "Disable",	InputDisable ),
 	DEFINE_INPUTFUNC( FIELD_VOID, "Toggle",		InputToggle ),
 
-	DEFINE_KEYFIELD( Disabled, FIELD_BOOLEAN, "StartDisabled" )
+	DEFINE_KEYFIELD( Disabled, FIELD_BOOLEAN, "StartDisabled" ),
+	DEFINE_FIELD( SpawnCount, FIELD_BOOLEAN ),
 
 END_DATADESC();
 
@@ -65,7 +68,6 @@ void CDirectorBaseSpawn::Spawn()
 //=========================================================
 // Guardar los objetos necesarios en caché.
 //=========================================================
-
 void CDirectorBaseSpawn::Precache()
 {
 	BaseClass::Precache();
@@ -91,6 +93,7 @@ void CDirectorBaseSpawn::Disable()
 //=========================================================
 bool CDirectorBaseSpawn::CanSpawn(CBaseEntity *pItem, Vector *pResult)
 {
+	// Desactivado.
 	if ( Disabled )
 	{
 		UTIL_RemoveImmediate(pItem);
@@ -99,16 +102,16 @@ bool CDirectorBaseSpawn::CanSpawn(CBaseEntity *pItem, Vector *pResult)
 
 	Vector origin;
 
+	// Tratamos de encontrar un lugar en el radio indicado.
 	if ( !FindSpotInRadius(&origin, GetAbsOrigin(), pItem, SPAWN_RADIUS) )
-		origin = GetAbsOrigin();
+		origin		= GetAbsOrigin();
 	else
-		origin.z = GetAbsOrigin().z;
+		origin.z	= GetAbsOrigin().z; // A la misma altura que el creador (evitamos que los NPC's aparezcan abajo del suelo)
 
+	// No se debe crear mientras este en la vista del jugador.
 	if ( HasSpawnFlags(SF_NO_SPAWN_VIEWCONE) )
 	{
-		CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
-
-		if ( pPlayer->FInViewCone(origin) || pPlayer->FVisible(origin) )
+		if ( UTIL_IsPlayersVisibleCone(origin) )
 		{
 			DevWarning("[DIRECTOR SPAWN] El lugar de creación estaba en el campo de vision. \r\n");
 			UTIL_RemoveImmediate(pItem);
@@ -126,7 +129,6 @@ bool CDirectorBaseSpawn::CanSpawn(CBaseEntity *pItem, Vector *pResult)
 //=========================================================
 bool CDirectorBaseSpawn::FindSpotInRadius(Vector *pResult, const Vector &vStartPos, CBaseEntity *pItem, float radius)
 {
-	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
 	QAngle fan;
 
 	fan.x = 0;

@@ -1,181 +1,170 @@
-#ifndef INDIRECTOR_H
+//=====================================================================================//
+//
+// Inteligencia artificial encargada de la creación de enemigos al rededor del jugador.
+//
+// Inspiración: I.A. Director de Left 4 Dead 2
+//
+//=====================================================================================//
 
-#define INDIRECTOR_H
+#ifndef DIRECTOR_H
+
+#define DIRECTOR_H
 
 #ifdef _WIN32
 #pragma once
 #endif
 
-#include "scripted.h"
+#include "env_music.h"
 
-class CInDirector : public CLogicalEntity
+//=========================================================
+// Configuración
+//=========================================================
+
+#define CHILD_NAME		"director_child"
+#define BOSS_NAME		"director_boss"
+
+#define BOSS_MINTIME_TO_ATTACK 30
+
+//=========================================================
+// Estados del Director
+//=========================================================
+enum DirectorStatus
 {
-public:
-	DECLARE_CLASS(CInDirector, CLogicalEntity);
-
-	CInDirector();
-	~CInDirector();
-
-	void Spawn();
-	void Precache();
-	void Think();
-
-	void Enable();
-	void Disable();
-
-	int GetStatus() { return Status; };
-	void SetStatus(int status);
-
-	int GetAngryLevel() { return AngryLevel; };
-	int CalculateAngryLevel();
-
-	void Relaxed();
-	void Horde(bool super = false, bool triggered = false);
-	void Climax(bool mini = false);
-
-	const char *MS();
-	const char *GetStatusName(int status);
-	const char *GetStatusName();
-
-	/* FUNCIONES RELACIONADAS A LA ENTRADA (INPUTS) */
-	void InputForceRelax(inputdata_t &inputdata);
-	void InputForceExalted(inputdata_t &inputdata);
-	void InputForceHorde(inputdata_t &inputdata);
-	void InputForceTriggeredHorde(inputdata_t &inputdata);
-	void InputForceGrunt(inputdata_t &inputdata);
-	void InputForceClimax(inputdata_t &inputdata);
-	void InputForceSpawnGrunt(inputdata_t &inputdata);
-
-	void InputDisclosePlayer(inputdata_t &inputdata);
-	void InputKillZombies(inputdata_t &inputdata);
-	void InputKillNoVisibleZombies(inputdata_t &inputdata);
-
-	void InputSetDisabledFor(inputdata_t &inputdata);
-	void InputSetMakerDistance(inputdata_t &inputdata);
-	void InputSetHordeQueue(inputdata_t &inputdata);
-
-	void InputEnable(inputdata_t &inputdata);
-	void InputDisable(inputdata_t &inputdata);
-	void InputToggle(inputdata_t &inputdata);
-
-	/* FUNCIONES RELACIONADAS A LOS ZOMBIS */
-	int GetMaxZombiesScale();
-	int CountZombies();
-	bool MayQueueZombies();
-	bool MayQueueHordeZombies();
-	void CheckZombies();
-	void SpawnZombies();
-	void ZombieKilled() { ZombiesKilled++; };
-	void KillZombies(bool onlyNoVisible = false);
-
-	/* FUNCIONES RELACIONADAS AL IA DEL DIRECTOR */
-	void DisclosePlayer();
-
-	/* FUNCIONES RELACIONADAS AL GRUNT */
-	bool MayQueueGrunt();
-	int CountGrunts();
-	void CheckGrunts();
-	void SpawnGrunt();
-	void GruntKilled() { GruntsKilled++; };
-
-	/* FUNCIONES RELACIONADAS AL SONIDO/MUSICA */
-	void EmitHordeMusic(bool A, bool B);
-	void FadeoutHordeMusic();
-	void FadeoutGruntMusic();
-
-	/* FUNCIONES RELACIONADAS A OTROS */
-	int DrawDebugTextOverlays();
-
-	//=========================================================
-	// Estados de InDirector
-	//=========================================================
-	enum
-	{
-		RELAXED = 0,	// Relajado: Vamos con calma.
-		EXALTED,		// Exaltado: Algunos zombis por aquí y una música aterradora.
-		HORDE,			// Horda: ¡Ataquen mis valientes!
-		GRUNT,			// Grunt: Estado especial indicando la aparición de un Grunt.
-		CLIMAX			// Climax: ¡¡Se nos va!! ¡Ataquen sin compasión carajo!
-	};
-
-	//=========================================================
-	// Estados de enojo de InDirector
-	//=========================================================
-	enum
-	{
-		HAPPY = 0,
-		UNCOMFORTABLE,
-		ANGRY,
-		FURIOUS
-	};
-
-	DECLARE_DATADESC();
-
-private:
-
-	CSoundPatch *pSound;
-
-	int		Status;
-	int		AngryLevel;
-	int		Left4Exalted;
-	int		Left4Horde;
-	bool	TriggerHorde;
-	bool	Disabled;
-	int		SpawnBlocked;
-	int		DirectorDisabled;
-
-	int			GruntsAlive;
-	bool		GruntsMusic;
-	CSoundPatch *Sound_GruntMusic;
-	bool		GruntSpawnPending;
-	int			GruntsKilled;
-
-	bool		PlayingHordeMusic;
-	CSoundPatch *Sound_HordeMusic;
-	bool		PlayingHorde_A_Music;
-	CSoundPatch *Sound_Horde_A_Music;
-	bool		PlayingHorde_B_Music;
-	CSoundPatch *Sound_Horde_B_Music;
-
-	int MaxZombiesAlive;
-	int	LastSpawnZombies;
-	int HordeQueue;
-	int HordesPassed;
-
-	int ZombiesAlive;
-	int ZombiesKilled;
-	int ZombiesTargetPlayer;
-	int SpawnQueue;
-	int ZombiesSpawned;
-	int ZombiesExaltedSpawned;
-	bool ZombieChoir;
-
-	int ZombiesClassicAlive;
-	int ZombinesAlive;
-	int ZombiesFastAlive;
-	int ZombiesPoisonAlive;
+	RELAXED = 1,		// Relajado
+	EXALTED,		// Exaltado
+	PANIC,			// ¡Panico!
+	BOSS,			// Jefe
+	CLIMAX,			// Climax
+	LAST			// Debe ser el último
 };
 
-inline CInDirector *ToBaseDirector(CBaseEntity *pEntity)
+class EnvMusic;
+
+//=========================================================
+// CDirector
+//=========================================================
+class CDirector : public CLogicalEntity
 {
-	if ( !pEntity )
-		return NULL;
+public:
+	DECLARE_CLASS(CDirector, CLogicalEntity);
+	DECLARE_DATADESC();
 
-	#if _DEBUG
-		return dynamic_cast<CInDirector *>(pEntity);
-	#else
-		return static_cast<CInDirector *>(pEntity);
-	#endif
-}
+	// Constructores
+	CDirector();
+	~CDirector();
 
-inline CInDirector *GetDirector()
+	// Devoluciones
+	int GetQueue() { return SpawnQueue; }
+
+	// Inicialización
+	virtual void Init();
+	virtual void InitMusic();
+
+	virtual void Spawn();
+	virtual void Precache();
+	virtual void Think();
+
+	virtual void DeathNotice(CBaseEntity *pVictim);
+
+	// Reinicios y utilidades.
+	virtual void RestartExalted();
+	virtual void RestartPanic();
+
+	virtual bool IsTooFar(CAI_BaseNPC *pNPC);
+	virtual bool IsTooClose(CAI_BaseNPC *pNPC);
+
+	// Provocación de estado.
+	virtual void Relaxed();
+	virtual void Panic(bool super = false, bool infinite = false);
+	virtual void Climax(bool mini = false);
+
+	// Estado
+	virtual const char *Ms();
+	virtual void SetStatus(DirectorStatus status);
+	virtual const char *GetStatus(DirectorStatus status);
+	virtual const char *GetStatus();
+
+	// Hijos
+	virtual float GetMaxChilds();
+	virtual int CountChilds();
+
+	virtual bool QueueChilds();
+	virtual bool QueuePanic();
+	virtual void HandleChilds();
+
+	// Jefes
+	virtual int CountBoss();
+
+	virtual bool QueueBoss();
+	virtual void HandleBoss();
+
+	// Música
+	virtual void HandleMusic();
+
+	virtual void EmitDangerMusic(bool A = false, bool B = false);
+	virtual void StopDangerMusic();
+
+	// Depuración
+	virtual int DrawDebugTextOverlays();
+
+public:
+
+	// Outputs
+	COutputEvent OnClimax;
+
+	// Estado
+	DirectorStatus Status;
+	bool Spawning;
+
+	// Inicialización
+	int Disabled4Seconds;
+	bool Disabled;
+	int LastDisclose;
+
+	// Relajado y Exaltado.
+	CountdownTimer Left4Exalted;
+
+	// Horda/Panico
+	CountdownTimer Left4Panic;
+	int PanicQueue;
+	int PanicChilds;
+	bool InfinitePanic;
+	int PanicCount;
+
+	// Hijos
+	int SpawnQueue;
+	int ChildsSpawned;
+	int ChildsAlive;
+	int ChildsTooClose;
+	int ChildsKilled;
+
+	// Jefes
+	bool BossPendient;
+	int BossSpawned;
+	int BossAlive;
+	int BossKilled;
+
+	// Sonidos
+	string_t Sounds[10];
+
+	EnvMusic *DangerMusic;
+	EnvMusic *DangerMusic_A;
+	EnvMusic *DangerMusic_B;
+
+	EnvMusic *HordeMusic;
+
+	EnvMusic *ClimaxMusic;
+	EnvMusic *BossMusic;
+};
+
+inline CDirector *Director()
 {
-	CInDirector *pDirector = (CInDirector *)gEntList.FindEntityByClassname(NULL, "info_director");
+	CDirector *pDirector = (CDirector *)gEntList.FindEntityByClassname(NULL, "info_director");
 
-	if( !pDirector )
+	if ( !pDirector )
 		return NULL;
 
 	return pDirector;
 }
 
-#endif // INDIRECTOR_H
+#endif // DIRECTOR_H

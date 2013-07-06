@@ -11,6 +11,7 @@
 #include "engine/IEngineSound.h"
 #include "in_player.h"
 #include "items.h"
+#include "in_gamerules.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -74,7 +75,7 @@ void CHealthKit::Precache()
 bool CHealthKit::MyTouch(CBasePlayer *pPlayer)
 {
 	// En modo Survival esto solo se puede usar desde el inventario.
-	if ( g_pGameRules->IsMultiplayer() )
+	if ( InGameRules()->IsSurvival() )
 		return false;
 
 	if ( pPlayer->TakeHealth(sk_healthkit.GetFloat(), DMG_GENERIC) )
@@ -106,7 +107,7 @@ bool CHealthKit::MyTouch(CBasePlayer *pPlayer)
 void CHealthKit::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value)
 {
 	// En modo Historia esto hace lo que tiene que hacer.
-	if ( !g_pGameRules->IsMultiplayer() )
+	if ( !InGameRules()->IsSurvival() )
 	{
 		BaseClass::Use(pActivator, pCaller, useType, value);
 		return;
@@ -170,7 +171,7 @@ void CHealthVial::Precache()
 bool CHealthVial::MyTouch(CBasePlayer *pPlayer)
 {
 	// En modo Survival esto solo se puede usar desde el inventario.
-	if ( g_pGameRules->IsMultiplayer() )
+	if ( InGameRules()->IsSurvival() )
 		return false;
 
 	if ( pPlayer->TakeHealth(sk_healthvial.GetFloat(), DMG_GENERIC) )
@@ -202,7 +203,7 @@ bool CHealthVial::MyTouch(CBasePlayer *pPlayer)
 void CHealthVial::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value)
 {
 	// En modo Historia esto hace lo que tiene que hacer.
-	if ( !g_pGameRules->IsMultiplayer() )
+	if ( !InGameRules()->IsSurvival() )
 	{
 		BaseClass::Use(pActivator, pCaller, useType, value);
 		return;

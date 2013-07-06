@@ -15,6 +15,7 @@
 
 #include "director.h"
 #include "items.h"
+#include "in_utils.h"
 
 #include "tier0/memdbgon.h"
 
@@ -22,11 +23,12 @@
 // Definición de variables de configuración.
 //=========================================================
 
-ConVar indirector_minhealth_tospawn_healthkit("indirector_minhealth_tospawn_healthkit", "80");
+ConVar director_min_health_tospawn_healthkit("director_min_health_tospawn_healthkit", "80");
 
-#define MINHEALTH_EASY		indirector_minhealth_tospawn_healthkit.GetInt()
-#define MINHEALTH_MEDIUM	(MINHEALTH_EASY - 20)
-#define MINHEALTH_HARD		(MINHEALTH_MEDIUM - 10)
+#define ITEM_NAME			"director_healthkit"
+#define MINHEALTH_EASY		director_min_health_tospawn_healthkit.GetInt()
+#define MINHEALTH_MEDIUM	( MINHEALTH_EASY - 20 )
+#define MINHEALTH_HARD		( MINHEALTH_MEDIUM - 10 )
 
 //=========================================================
 // Guardado y definición de datos
@@ -74,14 +76,13 @@ void CDirectorHealthSpawn::Make()
 	if ( !CanSpawn(pItem, &origin) )
 		return;
 
-	QAngle angles	= GetAbsAngles();
+	QAngle angles = GetAbsAngles();
 
 	// Lugar de creación.
 	pItem->SetAbsOrigin(origin);
 
 	// Nombre de la entidad.
-	// Iván: ¡NO CAMBIAR SIN AVISAR! Es utilizado por otras entidades para referirse a los botiquines creados por el director.
-	pItem->SetName(MAKE_STRING("director_healthkit"));
+	pItem->SetName(MAKE_STRING(ITEM_NAME));
 	pItem->SetAbsAngles(angles);
 
 	// Creamos el botiquin, le decimos quien es su dios (creador) y lo activamos.
@@ -94,26 +95,29 @@ void CDirectorHealthSpawn::Make()
 //=========================================================
 const char *CDirectorHealthSpawn::SelectClass()
 {
-	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+	CDirector *pDirector = Director();
 
 	switch ( GameRules()->GetSkillLevel() )
 	{
+		// Fácil
 		case SKILL_EASY:
-			if ( random->RandomInt(1, pPlayer->GetHealth()) > 50 )
+			if ( random->RandomInt(1, UTIL_GetPlayersHealth()) > 50 )
 				return "item_healthvial";
 			else
 				return "item_healthkit";
 		break;
 
+		// Normal
 		case SKILL_MEDIUM:
-			if ( random->RandomInt(1, pPlayer->GetHealth()) > 40 )
+			if ( random->RandomInt(1, UTIL_GetPlayersHealth()) > 40 )
 				return "item_healthvial";
 			else
 				return "item_healthkit";
 		break;
 
+		// Dificil
 		case SKILL_HARD:
-			if ( random->RandomInt(1, pPlayer->GetHealth()) > 30 )
+			if ( random->RandomInt(1, UTIL_GetPlayersHealth()) > 30 )
 				return "item_healthvial";
 			else
 				return "item_healthkit";
@@ -128,22 +132,25 @@ const char *CDirectorHealthSpawn::SelectClass()
 //=========================================================
 bool CDirectorHealthSpawn::MaySpawn()
 {
-	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+	CDirector *pDirector = Director();
 
 	switch ( GameRules()->GetSkillLevel() )
 	{
+		// Fácil
 		case SKILL_EASY:
-			if ( pPlayer->GetHealth() < MINHEALTH_EASY )
+			if ( UTIL_GetPlayersHealth() < MINHEALTH_EASY )
 				return true;
 		break;
-
+			
+		// Normal
 		case SKILL_MEDIUM:
-			if ( pPlayer->GetHealth() < MINHEALTH_MEDIUM )
+			if ( UTIL_GetPlayersHealth() < MINHEALTH_MEDIUM )
 				return true;
 		break;
-
+			
+		// Dificil
 		case SKILL_HARD:
-			if ( pPlayer->GetHealth() < MINHEALTH_HARD )
+			if ( UTIL_GetPlayersHealth() < MINHEALTH_HARD )
 				return true;
 		break;
 	}

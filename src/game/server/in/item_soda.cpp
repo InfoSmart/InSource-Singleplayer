@@ -1,17 +1,13 @@
 //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
-// Sangre
-// Todos necesitamos litros y litros de sangre para vivir.
+// Soda.
+// Por obvias razones, un objeto para aliviar la sed.
 //
-// Iván Bravo Bravo
-// InfoSmart. Todos los derechos reservados.
+// InfoSmart 2013. Todos los derechos reservados.
 //=============================================================================//
 
 #include "cbase.h"
 #include "gamerules.h"
-#include "in_buttons.h"
-#include "engine/IEngineSound.h"
-
 #include "in_player.h"
 #include "items.h"
 
@@ -19,59 +15,55 @@
 #include "tier0/memdbgon.h"
 
 //=========================================================
+// CSoda
 //=========================================================
-// Bolsa de sangre.
-//=========================================================
-//=========================================================
-class CBloodKit : public CItem
+class CSoda : public CItem
 {
 public:
-	DECLARE_CLASS(CBloodKit, CItem);
+	DECLARE_CLASS(CSoda, CItem);
 
-	virtual void Spawn();
+	void Spawn();
 	void Precache();
 
-	virtual bool MyTouch(CBasePlayer *pPlayer);
-	virtual void Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value);
+	bool MyTouch(CBasePlayer *pPlayer);
+	void Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value);
 };
 
-LINK_ENTITY_TO_CLASS(item_bloodkit, CBloodKit);
-PRECACHE_REGISTER(item_bloodkit);
+LINK_ENTITY_TO_CLASS(item_soda, CSoda);
+PRECACHE_REGISTER(item_soda);
 
 //=========================================================
 // Configuración
 //=========================================================
 
-ConVar sk_bloodkit			("sk_bloodkit",			"0", FCVAR_REPLICATED,	"¿Cuanta sangre daran las bolsas de sangre?");
-ConVar sk_bloodkit_insp		("sk_bloodkit_insp",	"0", 0,					"¿La bolsa de sangre se podrá usar en Singleplayer?"); // @TODO: Incorporar
+ConVar sk_soda("sk_soda", "0", FCVAR_REPLICATED,	"¿Cuanta sed quitaran las latas de soda?");
 
-#define MODEL "models/items/healthkit.mdl"
+#define MODEL "models/props_junk/popcan01a.mdl" // @TODO: Crear/encontrar uno mejor.
 
 //=========================================================
 // Crea el objeto.
 //=========================================================
-void CBloodKit::Spawn()
+void CSoda::Spawn()
 {
 	Precache();
 	SetModel(MODEL);
-	m_nSkin = 1;
 
 	BaseClass::Spawn();
 }
 
-
 //=========================================================
 // Guarda los objetos necesarios en caché.
 //=========================================================
-void CBloodKit::Precache()
+void CSoda::Precache()
 {
 	PrecacheModel(MODEL);
+	PrecacheScriptSound("Player.Drink");
 }
 
 //=========================================================
 // Se activa cuando el usuario toca el objeto.
 //=========================================================
-bool CBloodKit::MyTouch(CBasePlayer *pPlayer)
+bool CSoda::MyTouch(CBasePlayer *pPlayer)
 {
 	// En modo Survival esto solo se puede usar desde el inventario.
 	if ( g_pGameRules->IsMultiplayer() )
@@ -82,7 +74,7 @@ bool CBloodKit::MyTouch(CBasePlayer *pPlayer)
 	if ( !pPlayer )
 		return false;
 
-	if ( pInPlayer->TakeBlood(sk_bloodkit.GetFloat()) != 0 )
+	if ( pInPlayer->TakeThirst(sk_soda.GetFloat()) != 0 )
 	{
 		CSingleUserRecipientFilter user(pInPlayer);
 		user.MakeReliable();
@@ -90,6 +82,9 @@ bool CBloodKit::MyTouch(CBasePlayer *pPlayer)
 		UserMessageBegin(user, "ItemPickup");
 			WRITE_STRING(GetClassname());
 		MessageEnd();
+
+		CPASAttenuationFilter filter(pInPlayer, "Player.Drink");
+		EmitSound(filter, entindex(), "Player.Drink");
 
 		if ( g_pGameRules->ItemShouldRespawn(this) )
 			Respawn();
@@ -105,7 +100,7 @@ bool CBloodKit::MyTouch(CBasePlayer *pPlayer)
 //=========================================================
 // Se activa cuando el usuario usa (+USE) el objeto.
 //=========================================================
-void CBloodKit::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value)
+void CSoda::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value)
 {
 	// En modo Historia esto hace lo que tiene que hacer.
 	if ( !g_pGameRules->IsMultiplayer() )
@@ -114,7 +109,7 @@ void CBloodKit::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useT
 		return;
 	}
 
-    CIN_Player *pPlayer = (CIN_Player *)pActivator;
+   CIN_Player *pPlayer = (CIN_Player *)pActivator;
 
 	if ( !pPlayer )
 		return;
@@ -122,7 +117,6 @@ void CBloodKit::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useT
 	// Lo agregamos al inventario.
 	int slot = pPlayer->Inventory_AddItem(GetClassname());
 
-	// Todo salio correcto, removerlo del mapa.
 	if ( slot != 0 )
 		Remove();
 }
@@ -130,35 +124,24 @@ void CBloodKit::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useT
 
 //=========================================================
 //=========================================================
-// Bolsa de sangre vacia.
-// Una bolsa que no hace absolutamente nada. (Decoración)
+// Lata de soda vacia.
+// Una lata que no hace absolutamente nada. (Decoración)
 //=========================================================
 //=========================================================
-class CEmptyBloodKit : public CBloodKit
+class CEmptySoda : public CSoda
 {
 public:
-	DECLARE_CLASS(CEmptyBloodKit, CBloodKit);
-
-	void Spawn();
+	DECLARE_CLASS(CEmptySoda, CSoda);
 	bool MyTouch(CBasePlayer *pPlayer);
 };
 
-LINK_ENTITY_TO_CLASS(item_empty_bloodkit, CBloodKit);
-PRECACHE_REGISTER(item_empty_bloodkit);
-
-//=========================================================
-// Crea el objeto.
-//=========================================================
-void CEmptyBloodKit::Spawn()
-{
-	BaseClass::Spawn();
-	m_nSkin = 2; // @TODO: ¿Algo mejor?
-}
+LINK_ENTITY_TO_CLASS(item_empty_soda, CEmptySoda);
+PRECACHE_REGISTER(item_empty_soda);
 
 //=========================================================
 // Se activa cuando el usuario toca el objeto.
 //=========================================================
-bool CEmptyBloodKit::MyTouch(CBasePlayer *pPlayer)
+bool CEmptySoda::MyTouch(CBasePlayer *pPlayer)
 {
 	return false;
 }

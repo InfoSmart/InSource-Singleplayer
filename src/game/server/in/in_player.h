@@ -3,19 +3,21 @@
 #define IN_PLAYER_H
 #pragma once
 
+class CIN_Player;
+
+#include "hl2_playerlocaldata.h"
 #include "hl2_player.h"
+
 #include "director.h"
+#include "singleplayer_animstate.h"
 
-#define ENVELOPE_CONTROLLER (CSoundEnvelopeController::GetController())
+#include "player_pickup.h"
+#include "in_player_shared.h"
 
- // Los slots es el tamaño total de la variable que almacena los objetos del inventario (Si lo cambias, también deberías cambiarlo en c_in_player.h del ClientSide)
+#include "ai_speech.h"
+#include "ai_basenpc.h"
 
-enum
-{
-	INVENTORY_POCKET = 1,
-	INVENTORY_BACKPACK,
-	INVENTORY_ALL
-};
+//CAI_ExpresserHost
 
 class CIN_Player : public CHL2_Player
 {
@@ -33,66 +35,108 @@ public:
 
 	DECLARE_SERVERCLASS();
 	DECLARE_DATADESC();
+	DECLARE_PREDICTABLE();
 
+	// FUNCIONES INTERNAS
 	const char *GetConVar(const char *pConVar);
 	void ExecCommand(const char *pCommand);
 
+	// FUNCIONES DE DEVOLUCIÓN DE DATOS
 	float GetBlood() { return m_iBlood; }
 	float GetHunger() { return m_iHunger; }
 	float GetThirst() { return m_iThirst; }
+	bool AutoHealthRegeneration() { return false; }
+	bool PlayingDyingSound() { return ( pDyingSound == NULL ) ? false : true; }
 
-	void Precache();
-	void Spawn();
-	void StartDirector();
-	CBaseEntity *EntSelectSpawnPoint();
+	// FUNCIONES PRINCIPALES
+	virtual void UpdateOnRemove();
+	virtual void Precache();
+	virtual void Spawn();
 
-	void PreThink();
-	void PostThink();
-	void PlayerDeathThink();
+	virtual void PostConstructor(const char *szClassname);
+	virtual CBaseEntity *EntSelectSpawnPoint();
+
+	virtual void Event_Killed(const CTakeDamageInfo &info);
+	virtual void Event_Dying();	
+
+	virtual bool WantsLagCompensationOnEntity(const CBaseEntity *pEntity, const CUserCmd *pCmd, const CBitVec<MAX_EDICTS> *pEntityTransmitBits) const;
+
+	// FUNCIONES DE PENSAMIENTO
+	virtual void PreThink();
+	virtual void PostThink();
+	virtual void PlayerDeathThink();
+
+	virtual void TiredThink();
+	virtual void TimescaleThink();
 
 	void BloodThink();
 	void HungerThink();
 	void ThirstThink();
 
 	// FUNCIONES RELACIONADAS AL MOVIMIENTO
-	void HandleSpeedChanges();
-	void StartSprinting();
-	void StopSprinting();
-	void StartWalking();
-	void StopWalking();
+	virtual void HandleSpeedChanges();
+	virtual void StartSprinting();
+	virtual void StopSprinting();
+	virtual void StartWalking();
+	virtual void StopWalking();
 
 	// FUNCIONES RELACIONADAS A LAS ARMAS
+	int Accuracy();
 	void FlashlightTurnOn();
-	float CalcWeaponSpeed(CBaseCombatWeapon *pWeapon = NULL, float speed = 0);
+
+	float CalculateSpeed(CBaseCombatWeapon *pWeapon = NULL, float speed = 0); // Shared!
 	bool Weapon_CanSwitchTo(CBaseCombatWeapon *pWeapon);
 
+	void FireBullets(const FireBulletsInfo_t &info);
+
 	//  FUNCIONES RELACIONADAS AL DAÑO/SALUD
+	virtual void HealthRegeneration();
 	virtual int OnTakeDamage(const CTakeDamageInfo &inputInfo);
 
 	virtual int TakeBlood(float flBlood);
 	virtual bool ScarredBloodWound();
 
 	virtual int TakeHunger(float flHunger);
+	virtual int TakeThirst(float flThirst);
 
 	// FUNCIONES RELACIONADAS A LAS ANIMACIONES Y MODELO
-	virtual void CreateRagdollEntity();
+	virtual int	 Restore(IRestore &restore);
+	virtual void DoAnimationEvent(PlayerAnimEvent_t event, int nData = 0);
+	virtual void SetAnimation(PLAYER_ANIM playerAnim);
+
+	virtual bool BecomeRagdollOnClient(const Vector &force); 
+	virtual void CreateRagdollEntity(const CTakeDamageInfo &info);
+
+	virtual void SetupBones(matrix3x4_t *pBoneToWorld, int boneMask);
+
+	virtual bool IsModelValid(const char *ppModel);
+	virtual const char *GetRandomModel();
+
+	//virtual CAI_Expresser *CreateExpresser();
+	//CAI_Expresser *GetExpresser();
+
+	virtual void ModifyOrAppendCriteria(AI_CriteriaSet& criteriaSet);
+	Activity TranslateActivity(Activity baseAct, bool *pRequired);
+
+	// FUNCIONES RELACIONADAS A LA VOZ/CHAT
+	virtual bool SpeakIfAllowed(AIConcept_t concept, const char *modifiers, char *pszOutResponseChosen, size_t bufsize, IRecipientFilter *filter);
+	virtual bool CanHearAndReadChatFrom(CBasePlayer *pPlayer);
 
 	// FUNCIONES DE UTILIDAD
-	virtual int PlayerGender();
+	virtual PlayerGender Gender();
 	virtual bool ClientCommand(const CCommand &args);
+	virtual void CheatImpulseCommands(int iImpulse);
 
-	// Música
-	// [FIXME] Mover a un mejor lugar.
-	CSoundPatch *EmitMusic(const char *pName);
-	void StopMusic(CSoundPatch *pMusic);
-	void VolumeMusic(CSoundPatch *pMusic, float newVolume);
-	void FadeoutMusic(CSoundPatch *pMusic, float range = 1.5f);
+	// FUNCIONES RELACIONADAS A STEAM
+#ifndef NO_STEAM
+	bool		GetSteamID(CSteamID *pID);
+	uint64		GetSteamIDAsUInt64();
+#endif
 
 	//=========================================================
 	// FUNCIONES RELACIONADAS AL INVENTARIO
 	//=========================================================
 
-	virtual int Inventory_GetItemID(const char *pName);	
 	virtual bool Inventory_HasItem(int pEntity, int pSection = INVENTORY_POCKET);
 	virtual int Inventory_AddItem(const char *pName, int pSection = INVENTORY_POCKET);
 
@@ -119,20 +163,36 @@ public:
 	virtual void Inventory_UseItemByPos(int Position, int pSection = INVENTORY_POCKET);
 	virtual void Inventory_UseItemByName(const char *pName, int pSection = INVENTORY_POCKET);
 
-	CNetworkQAngle( m_angEyeAngles );
+	//=========================================================
+	// FUNCIONES RELACIONADAS AL LOOT
+	//=========================================================
 
-private:
+	virtual void Inventory_LootItemByName(int pLoot, const char *pName);
+
+	CNetworkQAngle( m_angEyeAngles );
+	Vector m_vecTotalBulletForce;	//Accumulator for bullet force in a single frame
+
+public:
 	// Variables
 	const char *Items[60];
 
-	CInDirector		Director;
-	CBaseEntity		*LastSpawn;
+	CDirector		Director;
+	CBaseEntity		*m_LastSpawn;
 
-	float			NextPainSound;
-	float			NextHealthRegeneration;
-	float			BodyHurt;
-	float			TasksTimer;
-	int				StressLevel;
+	CSoundPatch		*pDyingSound;
+
+	// Tracks our ragdoll entity.
+	CNetworkHandle( CBaseEntity, m_hRagdoll );
+
+#ifdef APOCALYPSE
+	bool			m_bGruntAttack;
+	float			m_fRecoverGruntAttack;
+#endif
+
+	float			m_fNextPainSound;
+	float			m_fNextHealthRegeneration;
+	float			m_fBodyHurt;
+	int				m_iStressLevel;
 
 	bool			m_bBloodWound;
 	int				m_iBloodTime;	// Última vez en el que una herida de "sangre" se ha abierto.
@@ -144,6 +204,41 @@ private:
 
 	int				m_iThirstTime;
 	float			m_iThirst;
+
+	CSinglePlayerAnimState *m_PlayerAnimState;
+	CAI_Expresser *m_pExpresser;
+
+	int m_iIgnoreGlobalChat;
+
+	CUtlVector<const char*> m_pPlayerModels;
+};
+
+class CINRagdoll : public CBaseAnimatingOverlay, public CDefaultPlayerPickupVPhysics
+{
+public:
+	DECLARE_CLASS(CINRagdoll, CBaseAnimatingOverlay);
+	DECLARE_SERVERCLASS();
+	DECLARE_DATADESC();
+
+	CINRagdoll()
+	{
+		m_hPlayer.Set(NULL);
+		m_vecRagdollOrigin.Init();
+		m_vecRagdollVelocity.Init();
+	}
+
+	// Transmit ragdolls to everyone.
+	virtual int UpdateTransmitState()
+	{
+		return SetTransmitState(FL_EDICT_ALWAYS);
+	}
+
+	// In case the client has the player entity, we transmit the player index.
+	// In case the client doesn't have it, we transmit the player's model index, origin, and angles
+	// so they can create a ragdoll in the right place.
+	CNetworkHandle( CBaseEntity, m_hPlayer );	// networked entity handle 
+	CNetworkVector( m_vecRagdollVelocity );
+	CNetworkVector( m_vecRagdollOrigin );
 };
 
 inline CIN_Player *GetInPlayer(CBasePlayer *pEntity)

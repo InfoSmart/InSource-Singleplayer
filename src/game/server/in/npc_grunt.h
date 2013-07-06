@@ -28,13 +28,17 @@ public:
 	void Spawn();
 	void Precache();
 	void Think();
+
 	Class_T	Classify();
+	Disposition_t IRelationType(CBaseEntity *pTarget);
 
 	void IdleSound();
 	void PainSound(const CTakeDamageInfo &info);
 	void AlertSound();
 	void DeathSound(const CTakeDamageInfo &info);
 	void AttackSound(bool highAttack = false);
+	void FailSound();
+	void YellSound();
 
 	float MaxYawSpeed();
 	void HandleAnimEvent(animevent_t *pEvent);
@@ -42,11 +46,11 @@ public:
 	bool IsJumpLegal(const Vector &startPos, const Vector &apex, const Vector &endPos) const;
 
 	void MeleeAttack(bool highAttack = false);
-	//void RangeAttack1();
+	void FireCannon();
 
 	int MeleeAttack1Conditions(float flDot, float flDist);
 	int MeleeAttack2Conditions(float flDot, float flDist);
-	//int RangeAttack1Conditions(float flDot, float flDist);
+	int RangeAttack1Conditions(float flDot, float flDist);
 
 	int OnTakeDamage_Alive(const CTakeDamageInfo &inputInfo);
 	void Event_Killed(const CTakeDamageInfo &info);
@@ -67,19 +71,26 @@ public:
 	DEFINE_CUSTOM_AI;
 
 	static int ACT_SWATLEFTMID;
+	static int ACT_AGRUNT_RAGE;
 
 protected:
-	EHANDLE PhysicsEnt;
+	EHANDLE m_ePhysicsEnt;
 
 private:
-	float LastHurtTime;
-	float NextAlertSound;
-	float NextPainSound;
+	float m_fLastHurtTime;
+	float m_fNextAlertSound;
+	float m_fNextPainSound;
+	float m_fNextSuccessDance;
+	float m_fExpireThrow;
 
-	float NextRangeAttack1;
+	float m_fNextRangeAttack1;
 
-	float NextThrow;
-	bool PhysicsCanThrow;
+	float m_fNextThrow;
+	bool m_bPhysicsCanThrow;
+
+#ifdef APOCALYPSE
+	CountdownTimer AttackTimer;
+#endif
 };
 
 #endif // NPC_GRUNT_H

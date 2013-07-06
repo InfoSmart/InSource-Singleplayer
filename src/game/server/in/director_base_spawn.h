@@ -1,12 +1,11 @@
 #ifndef DIRECTOR_BASE_SPAWN_H
-
 #define DIRECTOR_BASE_SPAWN_H
 
 #ifdef _WIN32
 #pragma once
 #endif
 
-// Opciones de aparición.
+// Opciones de creación.
 #define SF_NO_SPAWN_VIEWCONE	2
 
 class CDirectorBaseSpawn : public CLogicalEntity
@@ -21,8 +20,8 @@ public:
 	virtual void Spawn();
 	virtual void Precache();
 
-	virtual void Make() { };
-	virtual bool MaySpawn() { return true; };
+	virtual void Make() { }
+	virtual bool MaySpawn() { return true; }
 
 	void Enable();
 	void Disable();

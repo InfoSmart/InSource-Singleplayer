@@ -1,12 +1,12 @@
 //=====================================================================================//
 //
-// Creador de armas
+// Creador de baterias
 //
-// Entidad que trabajara en conjunto con InDirector para la creación de armas según
+// Entidad que trabajara en conjunto con Director para la creación de baterias según
 // el nivel y estres del jugador.
 //
 // Inspiración: Left 4 Dead 2
-//
+// InfoSmart 2013. Todos los derechos reservados.
 //=====================================================================================//
 
 #include "cbase.h"
@@ -15,6 +15,7 @@
 
 #include "director.h"
 #include "items.h"
+#include "in_utils.h"
 
 #include "tier0/memdbgon.h"
 
@@ -22,11 +23,12 @@
 // Definición de variables de configuración.
 //=========================================================
 
-ConVar indirector_minenergy_tospawn_battery("indirector_minenergy_tospawn_battery", "80");
+ConVar director_min_energy_tospawn_battery("director_min_energy_tospawn_battery", "80", 0, "Energia minima para la creación de baterias.");
 
-#define MINHEALTH_EASY		indirector_minenergy_tospawn_battery.GetInt()
-#define MINHEALTH_MEDIUM	(MINHEALTH_EASY - 20)
-#define MINHEALTH_HARD		(MINHEALTH_MEDIUM - 10)
+#define ITEM_NAME			"director_battery"
+#define MINHEALTH_EASY		director_min_energy_tospawn_battery.GetInt()
+#define MINHEALTH_MEDIUM	( MINHEALTH_EASY - 20 )
+#define MINHEALTH_HARD		( MINHEALTH_MEDIUM - 10 )
 
 //=========================================================
 // Guardado y definición de datos
@@ -57,7 +59,7 @@ void CDirectorBatterySpawn::Make()
 	if ( !MaySpawn() )
 		return;
 
-	// Creamos la salud.
+	// Creamos la bateria.
 	CItem *pItem = (CItem *)CreateEntityByName("item_battery");
 
 	// Hubo un problema al crear el objeto.
@@ -78,11 +80,10 @@ void CDirectorBatterySpawn::Make()
 	pItem->SetAbsOrigin(origin);
 
 	// Nombre de la entidad.
-	// Iván: ¡NO CAMBIAR SIN AVISAR! Es utilizado por otras entidades para referirse a las baterias creados por el director.
-	pItem->SetName(MAKE_STRING("director_battery"));
+	pItem->SetName(MAKE_STRING(ITEM_NAME));
 	pItem->SetAbsAngles(angles);
 
-	// Creamos el botiquin, le decimos quien es su dios (creador) y lo activamos.
+	// Creamos la bateria, le decimos quien es su dios (creador) y lo activamos.
 	DispatchSpawn(pItem);
 	pItem->SetOwnerEntity(this);
 	pItem->Activate();
@@ -92,22 +93,25 @@ void CDirectorBatterySpawn::Make()
 //=========================================================
 bool CDirectorBatterySpawn::MaySpawn()
 {
-	CBasePlayer *pPlayer = UTIL_GetLocalPlayer();
+	CDirector *pDirector = Director();
 
 	switch ( GameRules()->GetSkillLevel() )
 	{
+		// Fácil
 		case SKILL_EASY:
-			if ( pPlayer->GetBattery() < MINHEALTH_EASY )
+			if ( UTIL_GetPlayersBattery() < MINHEALTH_EASY )
 				return true;
 		break;
 
+		// Normal
 		case SKILL_MEDIUM:
-			if ( pPlayer->GetBattery() < MINHEALTH_MEDIUM )
+			if ( UTIL_GetPlayersBattery() < MINHEALTH_MEDIUM )
 				return true;
 		break;
 
+		// Dificil
 		case SKILL_HARD:
-			if ( pPlayer->GetBattery() < MINHEALTH_HARD )
+			if ( UTIL_GetPlayersBattery() < MINHEALTH_HARD )
 				return true;
 		break;
 	}

@@ -1,14 +1,13 @@
 //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
-// Benda.
-// Objeto para dejar de sangrar.
+// Lata de comida.
+// Todos tenemos hambre.
 //
+// InfoSmart 2013. Todos los derechos reservados.
 //=============================================================================//
 
 #include "cbase.h"
 #include "gamerules.h"
-#include "in_buttons.h"
-#include "engine/IEngineSound.h"
 #include "in_player.h"
 #include "items.h"
 
@@ -16,12 +15,12 @@
 #include "tier0/memdbgon.h"
 
 //=========================================================
-// CBandage
+// CSoda
 //=========================================================
-class CBandage : public CItem
+class CFood : public CItem
 {
 public:
-	DECLARE_CLASS(CBandage, CItem);
+	DECLARE_CLASS(CFood, CItem);
 
 	void Spawn();
 	void Precache();
@@ -30,19 +29,21 @@ public:
 	void Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value);
 };
 
-LINK_ENTITY_TO_CLASS(item_bandage, CBandage);
-PRECACHE_REGISTER(item_bandage);
+LINK_ENTITY_TO_CLASS(item_food, CFood);
+PRECACHE_REGISTER(item_food);
 
 //=========================================================
 // Configuración
 //=========================================================
 
-#define MODEL "models/props_junk/cardboardbox01b.mdl" // @TODO: Crear/encontrar uno mejor.
+ConVar sk_food("sk_food", "0", FCVAR_REPLICATED,	"¿Cuanta hambre quitaran las latas de comida?");
+
+#define MODEL "models/props_junk/garbage_metalcan001a.mdl" // @TODO: Crear/encontrar uno mejor.
 
 //=========================================================
 // Crea el objeto.
 //=========================================================
-void CBandage::Spawn()
+void CFood::Spawn()
 {
 	Precache();
 	SetModel(MODEL);
@@ -53,16 +54,16 @@ void CBandage::Spawn()
 //=========================================================
 // Guarda los objetos necesarios en caché.
 //=========================================================
-void CBandage::Precache()
+void CFood::Precache()
 {
 	PrecacheModel(MODEL);
-	PrecacheScriptSound("Player.Bandage");
+	PrecacheScriptSound("Player.Eat");
 }
 
 //=========================================================
 // Se activa cuando el usuario toca el objeto.
 //=========================================================
-bool CBandage::MyTouch(CBasePlayer *pPlayer)
+bool CFood::MyTouch(CBasePlayer *pPlayer)
 {
 	// En modo Survival esto solo se puede usar desde el inventario.
 	if ( g_pGameRules->IsMultiplayer() )
@@ -73,17 +74,17 @@ bool CBandage::MyTouch(CBasePlayer *pPlayer)
 	if ( !pPlayer )
 		return false;
 
-	if ( pInPlayer->ScarredBloodWound() )
+	if ( pInPlayer->TakeHunger(sk_food.GetFloat()) != 0 )
 	{
 		CSingleUserRecipientFilter user(pInPlayer);
 		user.MakeReliable();
 
 		UserMessageBegin(user, "ItemPickup");
-		WRITE_STRING(GetClassname());
+			WRITE_STRING(GetClassname());
 		MessageEnd();
 
-		CPASAttenuationFilter filter(pInPlayer, "Player.Bandage");
-		EmitSound(filter, entindex(), "Player.Bandage");
+		CPASAttenuationFilter filter(pInPlayer, "Player.Eat");
+		EmitSound(filter, entindex(), "Player.Eat");
 
 		if ( g_pGameRules->ItemShouldRespawn(this) )
 			Respawn();
@@ -99,7 +100,7 @@ bool CBandage::MyTouch(CBasePlayer *pPlayer)
 //=========================================================
 // Se activa cuando el usuario usa (+USE) el objeto.
 //=========================================================
-void CBandage::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value)
+void CFood::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useType, float value)
 {
 	// En modo Historia esto hace lo que tiene que hacer.
 	if ( !g_pGameRules->IsMultiplayer() )
@@ -118,4 +119,29 @@ void CBandage::Use(CBaseEntity *pActivator, CBaseEntity *pCaller, USE_TYPE useTy
 
 	if ( slot != 0 )
 		Remove();
+}
+
+
+//=========================================================
+//=========================================================
+// Lata de comida vacia.
+// Una lata que no hace absolutamente nada. (Decoración)
+//=========================================================
+//=========================================================
+class CEmptyFood : public CFood
+{
+public:
+	DECLARE_CLASS(CEmptyFood, CFood);
+	bool MyTouch(CBasePlayer *pPlayer);
+};
+
+LINK_ENTITY_TO_CLASS(item_empty_food, CEmptyFood);
+PRECACHE_REGISTER(item_empty_food);
+
+//=========================================================
+// Se activa cuando el usuario toca el objeto.
+//=========================================================
+bool CEmptyFood::MyTouch(CBasePlayer *pPlayer)
+{
+	return false;
 }

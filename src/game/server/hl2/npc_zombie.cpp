@@ -47,19 +47,6 @@ static const char *RandomModels[] =
 	// Valve - HL2
 	"classic.mdl",
 
-	// Zombie Master
-	/*"zm_classic.mdl",
-	"zm_classic_01.mdl",
-	"zm_classic_02.mdl",
-	"zm_classic_03.mdl",
-	"zm_classic_04.mdl",
-	"zm_classic_05.mdl",
-	"zm_classic_06.mdl",
-	"zm_classic_07.mdl",
-	"zm_classic_08.mdl",
-	"zm_classic_09.mdl",
-	"zm_classic_10.mdl",*/
-
 	// Black Mesa
 	"zombie_guard.mdl",
 	"zombie_sci.mdl",

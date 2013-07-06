@@ -51,7 +51,6 @@ public:
 	void	BlipSound() { EmitSound( "Grenade.Blip" ); }
 	void	DelayThink();
 	void	VPhysicsUpdate( IPhysicsObject *pPhysics );
-	void	OnPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGunPickup_t reason );
 	void	SetCombineSpawned( bool combineSpawned ) { m_combineSpawned = combineSpawned; }
 	bool	IsCombineSpawned( void ) const { return m_combineSpawned; }
 	void	SetPunted( bool punt ) { m_punted = punt; }
@@ -59,7 +58,10 @@ public:
 
 	// this function only used in episodic.
 #ifdef HL2_EPISODIC
+#ifndef EXCLUDE_HL2_1
 	bool	HandleInteraction(int interactionType, void *data, CBaseCombatCharacter* sourceEnt);
+	void	OnPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGunPickup_t reason );
+#endif
 #endif 
 
 	void	InputSetTimer( inputdata_t &inputdata );
@@ -376,7 +378,7 @@ int CGrenadeFrag::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 	return BaseClass::OnTakeDamage( inputInfo );
 }
 
-#ifdef HL2_EPISODIC
+#ifndef EXCLUDE_HL2_1
 extern int	g_interactionBarnacleVictimGrab; ///< usually declared in ai_interactions.h but no reason to haul all of that in here.
 extern int g_interactionBarnacleVictimBite;
 extern int g_interactionBarnacleVictimReleased;

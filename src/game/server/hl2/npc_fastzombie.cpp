@@ -667,14 +667,14 @@ void CFastZombie::SoundInit()
 
 	CPASAttenuationFilter filter(this);
 
-	if ( !m_pLayer2 )
+	/*if ( !m_pLayer2 )
 	{
 		// Set up layer2
 		m_pLayer2 = ENVELOPE_CONTROLLER.SoundCreate(filter, entindex(), CHAN_VOICE, "NPC_FastZombie.Gurgle", ATTN_NORM);
 
 		// Start silent.
 		ENVELOPE_CONTROLLER.Play(m_pLayer2, 0.0, 100);
-	}
+	}*/
 
 	SetIdleSoundState();
 }
@@ -1060,11 +1060,11 @@ void CFastZombie::HandleAnimEvent( animevent_t *pEvent )
 {
 	if ( pEvent->event == AE_FASTZOMBIE_CLIMB_LEFT || pEvent->event == AE_FASTZOMBIE_CLIMB_RIGHT )
 	{
-		if( ++m_iClimbCount % 3 == 0 )
+		/*if( ++m_iClimbCount % 3 == 0 )
 		{
 			ENVELOPE_CONTROLLER.SoundChangePitch( m_pLayer2, random->RandomFloat( 100, 150 ), 0.0 );
 			ENVELOPE_CONTROLLER.SoundPlayEnvelope( m_pLayer2, SOUNDCTRL_CHANGE_VOLUME, envFastZombieVolumeClimb, ARRAYSIZE(envFastZombieVolumeClimb) );
-		}
+		}*/
 
 		return;
 	}
@@ -1584,7 +1584,7 @@ bool CFastZombie::IsJumpLegal(const Vector &startPos, const Vector &apex, const 
 	const float MAX_JUMP_DISTANCE	= 512.0f;
 	const float MAX_JUMP_DROP		= 384.0f;
 
-	if ( BaseClass::IsJumpLegal( startPos, apex, endPos, MAX_JUMP_RISE, MAX_JUMP_DROP, MAX_JUMP_DISTANCE ) )
+	if ( CAI_BlendingHost::IsJumpLegal( startPos, apex, endPos, MAX_JUMP_RISE, MAX_JUMP_DROP, MAX_JUMP_DISTANCE ) )
 	{
 		// Hang onto the jump distance. The AI is going to want it.
 		m_flJumpDist = (startPos - endPos).Length();
@@ -1732,7 +1732,7 @@ void CFastZombie::BeginNavJump()
 	m_fIsNavJumping = true;
 	m_fHitApex = false;
 
-	ENVELOPE_CONTROLLER.SoundPlayEnvelope( m_pLayer2, SOUNDCTRL_CHANGE_VOLUME, envFastZombieVolumeJump, ARRAYSIZE(envFastZombieVolumeJump) );
+	//ENVELOPE_CONTROLLER.SoundPlayEnvelope( m_pLayer2, SOUNDCTRL_CHANGE_VOLUME, envFastZombieVolumeJump, ARRAYSIZE(envFastZombieVolumeJump) );
 }
 
 //=========================================================

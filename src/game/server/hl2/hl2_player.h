@@ -8,9 +8,6 @@
 #ifndef HL2_PLAYER_H
 	#define HL2_PLAYER_H
 	#pragma once
-
-	#include "singleplayer_animstate.h"
-	//#include "inmp_playeranimstate.h"
 	#include "player.h"
 	#include "hl2_playerlocaldata.h"
 	#include "simtimer.h"
@@ -296,9 +293,6 @@ public:
 	CSoundPatch *m_sndLeeches;
 	CSoundPatch *m_sndWaterSplashes;
 
-	// Tracks our ragdoll entity.
-	CNetworkHandle( CBaseEntity, m_hRagdoll );	// networked entity handle 
-
 	// This player's HL2 specific data that should only be replicated to 
 	//  the player and not to other players.
 	CNetworkVarEmbedded( CHL2PlayerLocalData, m_HL2Local );
@@ -314,8 +308,6 @@ protected:
 	virtual void		PlayUseDenySound();
 
 private:
-	CSinglePlayerAnimState *m_pPlayerAnimState;
-
 	bool				CommanderExecuteOne( CAI_BaseNPC *pNpc, const commandgoal_t &goal, CAI_BaseNPC **Allies, int numAllies );
 
 	void				OnSquadMemberKilled( inputdata_t &data );
@@ -380,27 +372,6 @@ private:
 	float				m_flTimeNextLadderHint;	// Next time we're eligible to display a HUD hint about a ladder.
 	
 	friend class CHL2GameMovement;
-};
-
-class CHL2Ragdoll : public CBaseAnimatingOverlay
-{
-public:
-	DECLARE_CLASS( CHL2Ragdoll, CBaseAnimatingOverlay );
-	DECLARE_SERVERCLASS();
-
-	// Transmit ragdolls to everyone.
-	virtual int UpdateTransmitState()
-	{
-		return SetTransmitState( FL_EDICT_ALWAYS );
-	}
-
-public:
-	// In case the client has the player entity, we transmit the player index.
-	// In case the client doesn't have it, we transmit the player's model index, origin, and angles
-	// so they can create a ragdoll in the right place.
-	CNetworkHandle( CBaseEntity, m_hPlayer );	// networked entity handle 
-	CNetworkVector( m_vecRagdollVelocity );
-	CNetworkVector( m_vecRagdollOrigin );
 };
 
 //-----------------------------------------------------------------------------

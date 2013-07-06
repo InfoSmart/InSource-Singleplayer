@@ -38,7 +38,9 @@ const char *GetMassEquivalent(float flMass);
 //Debug visualization
 ConVar	g_debug_turret( "g_debug_turret", "0" );
 
+#ifndef EXCLUDE_HL2_1
 extern ConVar physcannon_tracelength;
+#endif
 
 // Interactions
 int	g_interactionTurretStillStanding	= 0;
@@ -575,6 +577,7 @@ bool CNPC_FloorTurret::OnAttemptPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGu
 		Vector vecForce = (pPhysGunUser->GetAbsOrigin() - GetAbsOrigin());
 		float flDistance = VectorNormalize( vecForce );
 
+#ifndef EXCLUDE_HL2_1
 		// If it's over the physcannon tracelength, we're pulling it
 		if ( flDistance > physcannon_tracelength.GetFloat() )
 		{
@@ -582,6 +585,7 @@ bool CNPC_FloorTurret::OnAttemptPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGu
 			if ( flDot > 0.5 )
 				return false;
 		}
+#endif
 	}
 
 	return true;

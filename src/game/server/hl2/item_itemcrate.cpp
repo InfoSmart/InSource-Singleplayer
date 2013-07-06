@@ -37,7 +37,10 @@ public:
 	void InputKill( inputdata_t &data );
 
 	virtual void VPhysicsCollision( int index, gamevcollisionevent_t *pEvent );
+
+#ifndef EXCLUDE_HL2_1
 	virtual void OnPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGunPickup_t reason );
+#endif
 
 protected:
 	virtual void OnBreak( const Vector &vecVelocity, const AngularImpulse &angVel, CBaseEntity *pBreaker );
@@ -251,6 +254,7 @@ void CItem_ItemCrate::OnBreak( const Vector &vecVelocity, const AngularImpulse &
 	}
 }
 
+#ifndef EXCLUDE_HL2_1
 void CItem_ItemCrate::OnPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGunPickup_t reason )
 {
 	BaseClass::OnPhysGunPickup( pPhysGunUser, reason );
@@ -274,3 +278,4 @@ void CItem_ItemCrate::OnPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGunPickup_
 		TakeDamage( CTakeDamageInfo( pPhysGunUser, pPhysGunUser, GetHealth(), DMG_GENERIC ) );
 	}
 }
+#endif

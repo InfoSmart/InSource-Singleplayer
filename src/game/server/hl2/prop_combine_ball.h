@@ -37,8 +37,11 @@ public:
 	virtual void UpdateOnRemove();
 	void StopLoopingSounds();
 
+#ifndef EXCLUDE_HL2_1
 	virtual void OnPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGunPickup_t reason );
 	virtual void OnPhysGunDrop( CBasePlayer *pPhysGunUser, PhysGunDrop_t Reason );
+#endif
+
 	virtual void VPhysicsCollision( int index, gamevcollisionevent_t *pEvent );
 
 	virtual bool OverridePropdata();

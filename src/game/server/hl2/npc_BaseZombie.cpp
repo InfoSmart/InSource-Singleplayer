@@ -77,6 +77,7 @@ ConVar	zombie_ambushdist		("zombie_ambushdist",		"16000");
 ConVar	zombie_fool				("zombie_fool",					"1",	0, "¿Los zombis son tontos? Desactivarlo evitara que los zombis hagan acciones sin pensarlo.");
 ConVar	zombie_release_headcrab	("zombie_release_headcrab",		"1",	0, "¿Liberar los headcrabs cuando sea posible? Desactivarlo evitara que los headcrabs sean liberados.");
 ConVar  zombie_attach_headcrab	("zombie_attach_headcrab",		"1",	0, "¿Debe tener el headcrab en su cabeza? 0 = Si, 1 = No");
+ConVar	zombie_sprite_effect	("zombie_sprite_effect",		"0",	0, "¿Acoplar una luz en los zombis?");
 
 //=========================================================
 // Información de daño
@@ -89,7 +90,9 @@ ConVar  zombie_attach_headcrab	("zombie_attach_headcrab",		"1",	0, "¿Debe tener 
 // Configuración y acciones especiales.
 //=========================================================
 
-#define ZOMBIE_CAPABILITIES bits_CAP_MOVE_GROUND | bits_CAP_INNATE_MELEE_ATTACK1
+#define	SPRITE			"sprites/redglow1.vmt"
+
+#define ZOMBIE_CAPABILITIES bits_CAP_MOVE_GROUND | bits_CAP_INNATE_MELEE_ATTACK1 | bits_CAP_MOVE_JUMP
 
 // Sangre los zombis
 #define ZOMBIE_BLOOD BLOOD_COLOR_RED
@@ -253,7 +256,9 @@ int CNPC_BaseZombie::NumZombies = 0;
 //=========================================================
 CNPC_BaseZombie::CNPC_BaseZombie()
 {
-	pMoanSound = NumZombies;
+	pMoanSound		= NumZombies;
+	m_hGlowSprite	= NULL;
+
 	NumZombies++;
 }
 
@@ -263,6 +268,12 @@ CNPC_BaseZombie::CNPC_BaseZombie()
 CNPC_BaseZombie::~CNPC_BaseZombie()
 {
 	NumZombies--;
+
+	if ( m_hGlowSprite != NULL )
+	{
+		UTIL_Remove(m_hGlowSprite);
+		m_hGlowSprite = NULL;
+	}
 }
 
 //=========================================================
@@ -532,7 +543,7 @@ int CNPC_BaseZombie::MeleeAttack1Conditions(float flDot, float flDist)
 		if ( GetEnemy() != NULL )
 		{
 			// El enemigo es el jugador ¡yey!
-			if( GetEnemy()->IsPlayer() )
+			if ( GetEnemy()->IsPlayer() )
 			{
 				CBasePlayer *pPlayer = ToBasePlayer(GetEnemy());
 				Assert(pPlayer != NULL);
@@ -540,13 +551,15 @@ int CNPC_BaseZombie::MeleeAttack1Conditions(float flDot, float flDist)
 				// ¿El jugador esta cargando algo?
 				CBaseEntity *pObject = GetPlayerHeldEntity(pPlayer);
 
+#ifndef EXCLUDE_HL2_1
 				// Al parecer no...
 				// Pero... ¿el jugador esta cargando algo con la pistola de gravedad?
-				if( !pObject )
+				if ( !pObject )
 					pObject = PhysCannonGetHeldEntity(pPlayer->GetActiveWeapon());
+#endif
 
 				// Al parecer si
-				if( pObject )
+				if ( pObject )
 				{
 					float flDist = pObject->WorldSpaceCenter().DistTo(WorldSpaceCenter());
 
@@ -1619,6 +1632,26 @@ void CNPC_BaseZombie::Spawn()
 	// Zombies get to cheat for 6 seconds (sjb)
 	GetEnemies()->SetFreeKnowledgeDuration(6.0);
 	m_ActBusyBehavior.SetUseRenderBounds(true);
+
+	// Acoplar el efecto de luz.
+	if ( zombie_sprite_effect.GetBool() )
+	{
+		// Ubicamos el pecho.
+		// @TODO: Ubicar justamente en los ojos del zombi.
+		int pAttachment = LookupAttachment("chest");
+
+		// Este modelo no tiene el acoplamiento.
+		if ( pAttachment == 0 )
+			return;
+
+		// Creamos una luz roja pequeña.		
+		m_hGlowSprite = CSprite::SpriteCreate(SPRITE, GetAbsOrigin(), false);
+		m_hGlowSprite->SetAttachment(this, pAttachment);
+		m_hGlowSprite->SetTransparency(kRenderTransAdd, 255, 255, 255, 210, kRenderFxNone);
+		m_hGlowSprite->SetBrightness(255, 1.0f);
+		m_hGlowSprite->SetScale(0.1f, 0.5f);
+		m_hGlowSprite->TurnOn();
+	}
 }
 
 //=========================================================
@@ -1638,6 +1671,18 @@ void CNPC_BaseZombie::Precache()
 	PrecacheParticleSystem("blood_impact_zombie_01");
 
 	BaseClass::Precache();
+}
+
+//=========================================================
+//
+//=========================================================
+bool CNPC_BaseZombie::IsJumpLegal(const Vector &startPos, const Vector &apex, const Vector &endPos) const
+{
+	const float MAX_JUMP_RISE		= 480.0f;
+	const float MAX_JUMP_DISTANCE	= 212.0f;
+	const float MAX_JUMP_DROP		= 520.0f;
+
+	return BaseClass::IsJumpLegal(startPos, apex, endPos, MAX_JUMP_RISE, MAX_JUMP_DROP, MAX_JUMP_DISTANCE);
 }
 
 //=========================================================
@@ -2103,6 +2148,12 @@ void CNPC_BaseZombie::Event_Killed(const CTakeDamageInfo &info)
 
 		// Big blood splat
 		UTIL_BloodSpray(WorldSpaceCenter(), vecDamageDir, ZOMBIE_BLOOD, 8, FX_BLOODSPRAY_CLOUD);
+	}
+
+	if ( m_hGlowSprite != NULL )
+	{
+		UTIL_Remove(m_hGlowSprite);
+		m_hGlowSprite = NULL;
 	}
 
    	BaseClass::Event_Killed(info);

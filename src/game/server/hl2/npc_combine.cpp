@@ -1239,13 +1239,14 @@ void CNPC_Combine::Event_Killed( const CTakeDamageInfo &info )
 					pObj->AddVelocity( &vel, &angImp );
 				}
 
+#ifndef EXCLUDE_HL2_1
 				// In the Citadel we need to dissolve this
 				if ( PlayerHasMegaPhysCannon() )
 				{
 					CBaseCombatWeapon *pWeapon = static_cast<CBaseCombatWeapon *>(pItem);
-
 					pWeapon->Dissolve( NULL, gpGlobals->curtime, false, ENTITY_DISSOLVE_NORMAL );
 				}
+#endif
 			}
 		}
 	}
@@ -1901,7 +1902,11 @@ int CNPC_Combine::SelectFailSchedule( int failedSchedule, int failedTask, AI_Tas
 //-----------------------------------------------------------------------------
 bool CNPC_Combine::ShouldChargePlayer()
 {
+#ifdef SCP
+	return GetEnemy() && GetEnemy()->IsPlayer() && !IsLimitingHintGroups();
+#else
 	return GetEnemy() && GetEnemy()->IsPlayer() && PlayerHasMegaPhysCannon() && !IsLimitingHintGroups();
+#endif
 }
 
 

@@ -65,9 +65,9 @@ extern ConVar autoaim_max_dist;
 
 ConVar sv_autojump							("sv_autojump", "0");
 
-ConVar hl2_walkspeed						("hl2_walkspeed", "170", FCVAR_REPLICATED, "Velocidad al caminar (Teniendo el traje de protección)");
-ConVar hl2_normspeed						("hl2_normspeed", "210", FCVAR_REPLICATED, "Velocidad al caminar");
-ConVar hl2_sprintspeed						("hl2_sprintspeed", "320", FCVAR_REPLICATED, "Velocidad al correr");
+ConVar hl2_walkspeed						("hl2_walkspeed", "130", FCVAR_REPLICATED, "Velocidad al caminar (Teniendo el traje de protección)");
+ConVar hl2_normspeed						("hl2_normspeed", "150", FCVAR_REPLICATED, "Velocidad al caminar");
+ConVar hl2_sprintspeed						("hl2_sprintspeed", "240", FCVAR_REPLICATED, "Velocidad al correr");
 ConVar hl2_darkness_flashlight_factor		("hl2_darkness_flashlight_factor", "1", 0, "");
 
 ConVar player_showpredictedposition			("player_showpredictedposition", "0");
@@ -285,8 +285,8 @@ static ConCommand toggle_duck("toggle_duck", CC_ToggleDuck, "Toggles duck");
 //=========================================================
 
 #ifndef INSOURCE
-LINK_ENTITY_TO_CLASS(player, CHL2_Player);
-PRECACHE_REGISTER(player);
+	LINK_ENTITY_TO_CLASS(player, CHL2_Player);
+	PRECACHE_REGISTER(player);
 #endif
 
 CBaseEntity *FindEntityForward(CBasePlayer *pMe, bool fHull);
@@ -361,14 +361,10 @@ BEGIN_DATADESC(CHL2_Player)
 	DEFINE_FIELD(m_hLocatorTargetEntity, FIELD_EHANDLE),
 	DEFINE_FIELD(m_flTimeNextLadderHint, FIELD_TIME),
 
-	DEFINE_FIELD(m_hRagdoll, FIELD_EHANDLE),
-
 END_DATADESC()
 
 CHL2_Player::CHL2_Player()
 {
-	m_pPlayerAnimState = CreatePlayerAnimationState(this);
-
 	m_nNumMissPositions	= 0;
 	m_pPlayerAISquad	= 0;
 	m_bSprintEnabled	= true;
@@ -400,7 +396,6 @@ CSuitPowerDevice SuitDeviceBreather( bits_SUIT_DEVICE_BREATHER, 6.7f );		// 100 
 IMPLEMENT_SERVERCLASS_ST(CHL2_Player, DT_HL2_Player)
 	SendPropDataTable(SENDINFO_DT(m_HL2Local), &REFERENCE_SEND_TABLE(DT_HL2Local), SendProxy_SendLocalDataTable),
 	SendPropBool( SENDINFO(m_fIsSprinting) ),
-	SendPropEHandle( SENDINFO(m_hRagdoll) ),
 END_SEND_TABLE()
 
 //=========================================================
@@ -430,11 +425,12 @@ void CHL2_Player::Precache()
 //=========================================================
 void CHL2_Player::CheckSuitZoom()
 {
-	if (IsSuitEquipped())
+	if ( IsSuitEquipped() )
 	{
-		if (m_afButtonReleased & IN_ZOOM)
+		if ( m_afButtonReleased & IN_ZOOM )
 			StopZooming();
-		else if (m_afButtonPressed & IN_ZOOM)
+
+		else if ( m_afButtonPressed & IN_ZOOM )
 			StartZooming();
 	}
 }
@@ -453,7 +449,7 @@ void CHL2_Player::EquipSuit(bool bPlayEffects)
 	m_HL2Local.m_bDisplayReticle = true;
 
 	// Admiración activada.
-	if (bPlayEffects == true)
+	if ( bPlayEffects == true )
 		StartAdmireGlovesAnimation();
 
 	// Reproducir mensajes de bienvenida.
@@ -487,7 +483,6 @@ void CHL2_Player::RemoveSuit()
 void CHL2_Player::HandleSpeedChanges()
 {
 	// Movido a CIN_Player::HandleSpeedChanges()
-	// in/in_player.cpp
 }
 
 //=========================================================-------------------------
@@ -672,15 +667,13 @@ void CHL2_Player::PreThink()
 	CheckSuitZoom();
 	VPROF_SCOPE_END();
 
-	if (m_lifeState >= LIFE_DYING)
+	if ( m_lifeState >= LIFE_DYING )
 	{
 		PlayerDeathThink();
 		return;
 	}
 
-#ifdef HL2_EPISODIC
 	CheckFlashlight();
-#endif	// HL2_EPISODIC
 
 	// So the correct flags get sent to client asap.
 	//
@@ -814,35 +807,6 @@ void CHL2_Player::PreThink()
 
 	// Update weapon's ready status
 	UpdateWeaponPosture();
-
-	/*
-		Apocalypse - Utils - Disparar en Zoom
-
-	if ( IsX360() )
-	{
-		if ( IsZooming() )
-		{
-			if( GetActiveWeapon() && !GetActiveWeapon()->IsWeaponZoomed() )
-			{
-				// If not zoomed because of the weapon itself, do not attack.
-				m_nButtons &= ~(IN_ATTACK|IN_ATTACK2);
-			}
-		}
-	}
-	else
-	{
-		if ( m_nButtons & IN_ZOOM )
-		{
-			//FIXME: Held weapons like the grenade get sad when this happens
-	#ifdef HL2_EPISODIC
-			// Episodic allows players to zoom while using a func_tank
-			CBaseCombatWeapon* pWep = GetActiveWeapon();
-			if ( !m_hUseEntity || ( pWep && pWep->IsWeaponVisible() ) )
-	#endif
-			m_nButtons &= ~(IN_ATTACK|IN_ATTACK2);
-		}
-	}
-	*/
 }
 
 void CHL2_Player::PostThink()
@@ -851,12 +815,6 @@ void CHL2_Player::PostThink()
 
 	if ( !g_fGameOver && !IsPlayerLockedInPlace() && IsAlive() )
 		 HandleAdmireGlovesAnimation();
-
-	QAngle angles = GetLocalAngles();
-	angles[PITCH] = 0;
-	SetLocalAngles(angles);
-
-	m_pPlayerAnimState->Update();
 }
 
 void CHL2_Player::StartAdmireGlovesAnimation( void )
@@ -971,6 +929,8 @@ Class_T  CHL2_Player::Classify ( void )
 //=========================================================-------------------------
 bool CHL2_Player::HandleInteraction(int interactionType, void *data, CBaseCombatCharacter* sourceEnt)
 {
+
+#ifndef SCP
 	if ( interactionType == g_interactionBarnacleVictimDangle )
 		return false;
 	
@@ -998,6 +958,8 @@ bool CHL2_Player::HandleInteraction(int interactionType, void *data, CBaseCombat
 		ClearUseEntity();
 		return true;
 	}
+#endif
+
 	return false;
 }
 
@@ -1073,7 +1035,7 @@ void CHL2_Player::Spawn()
 	if ( !GameRules()->IsMultiplayer() )
 		m_Local.m_iHideHUD |= HIDEHUD_CHAT;
 
-	m_pPlayerAISquad	= g_AI_SquadManager.FindCreateSquad(AllocPooledString(PLAYER_SQUADNAME));
+	m_pPlayerAISquad = g_AI_SquadManager.FindCreateSquad(AllocPooledString(PLAYER_SQUADNAME));
 
 	InitSprinting();
 
@@ -1151,7 +1113,7 @@ void CHL2_Player::StartSprinting()
 		return;
 	}
 
-	if(!SuitPower_AddDevice(SuitDeviceSprint))
+	if ( !SuitPower_AddDevice(SuitDeviceSprint) )
 		return;
 
 	CPASAttenuationFilter filter(this);
@@ -1307,14 +1269,9 @@ void CHL2_Player::InitVCollision( const Vector &vecAbsOrigin, const Vector &vecA
 }
 
 
-CHL2_Player::~CHL2_Player( void )
+CHL2_Player::~CHL2_Player()
 {
-	// Clears the animation state.
-	if (m_pPlayerAnimState != NULL)
-	{
-		m_pPlayerAnimState->Release();
-		m_pPlayerAnimState = NULL;
-	}
+	
 }
 
 //=========================================================-------------------------
@@ -1331,7 +1288,12 @@ bool CHL2_Player::CommanderFindGoal( commandgoal_t *pGoal )
 	
 	//---------------------------------
 	// MASK_SHOT on purpose! So that you don't hit the invisible hulls of the NPCs.
+
+#ifdef EXCLUDE_HL2_1
+	CTraceFilterSkipTwoEntities filter( this, NULL, COLLISION_GROUP_INTERACTIVE_DEBRIS );
+#else
 	CTraceFilterSkipTwoEntities filter( this, PhysCannonGetHeldEntity( GetActiveWeapon() ), COLLISION_GROUP_INTERACTIVE_DEBRIS );
+#endif
 
 	UTIL_TraceLine( EyePosition(), EyePosition() + forward * MAX_COORD_RANGE, MASK_SHOT, &filter, &tr );
 
@@ -1625,50 +1587,50 @@ void CHL2_Player::CheatImpulseCommands( int iImpulse )
 {
 	switch( iImpulse )
 	{
-	case 50:
-	{
-		CommanderMode();
-		break;
-	}
-
-	case 51:
-	{
-		// Cheat to create a dynamic resupply item
-		Vector vecForward;
-		AngleVectors( EyeAngles(), &vecForward );
-		CBaseEntity *pItem = (CBaseEntity *)CreateEntityByName( "item_dynamic_resupply" );
-		if ( pItem )
+		case 50:
 		{
-			Vector vecOrigin = GetAbsOrigin() + vecForward * 256 + Vector(0,0,64);
-			QAngle vecAngles( 0, GetAbsAngles().y - 90, 0 );
-			pItem->SetAbsOrigin( vecOrigin );
-			pItem->SetAbsAngles( vecAngles );
-			pItem->KeyValue( "targetname", "resupply" );
-			pItem->Spawn();
-			pItem->Activate();
-		}
-		break;
-	}
-
-	case 52:
-	{
-		// Rangefinder
-		trace_t tr;
-		UTIL_TraceLine( EyePosition(), EyePosition() + EyeDirection3D() * MAX_COORD_RANGE, MASK_SHOT, this, COLLISION_GROUP_NONE, &tr );
-
-		if( tr.fraction != 1.0 )
-		{
-			float flDist = (tr.startpos - tr.endpos).Length();
-			float flDist2D = (tr.startpos - tr.endpos).Length2D();
-			DevMsg( 1,"\nStartPos: %.4f %.4f %.4f --- EndPos: %.4f %.4f %.4f\n", tr.startpos.x,tr.startpos.y,tr.startpos.z,tr.endpos.x,tr.endpos.y,tr.endpos.z );
-			DevMsg( 1,"3D Distance: %.4f units  (%.2f feet) --- 2D Distance: %.4f units  (%.2f feet)\n", flDist, flDist / 12.0, flDist2D, flDist2D / 12.0 );
+			CommanderMode();
+			break;
 		}
 
-		break;
-	}
+		case 51:
+		{
+			// Cheat to create a dynamic resupply item
+			Vector vecForward;
+			AngleVectors( EyeAngles(), &vecForward );
+			CBaseEntity *pItem = (CBaseEntity *)CreateEntityByName( "item_dynamic_resupply" );
+			if ( pItem )
+			{
+				Vector vecOrigin = GetAbsOrigin() + vecForward * 256 + Vector(0,0,64);
+				QAngle vecAngles( 0, GetAbsAngles().y - 90, 0 );
+				pItem->SetAbsOrigin( vecOrigin );
+				pItem->SetAbsAngles( vecAngles );
+				pItem->KeyValue( "targetname", "resupply" );
+				pItem->Spawn();
+				pItem->Activate();
+			}
+			break;
+		}
 
-	default:
-		BaseClass::CheatImpulseCommands( iImpulse );
+		case 52:
+		{
+			// Rangefinder
+			trace_t tr;
+			UTIL_TraceLine( EyePosition(), EyePosition() + EyeDirection3D() * MAX_COORD_RANGE, MASK_SHOT, this, COLLISION_GROUP_NONE, &tr );
+
+			if( tr.fraction != 1.0 )
+			{
+				float flDist = (tr.startpos - tr.endpos).Length();
+				float flDist2D = (tr.startpos - tr.endpos).Length2D();
+				DevMsg( 1,"\nStartPos: %.4f %.4f %.4f --- EndPos: %.4f %.4f %.4f\n", tr.startpos.x,tr.startpos.y,tr.startpos.z,tr.endpos.x,tr.endpos.y,tr.endpos.z );
+				DevMsg( 1,"3D Distance: %.4f units  (%.2f feet) --- 2D Distance: %.4f units  (%.2f feet)\n", flDist, flDist / 12.0, flDist2D, flDist2D / 12.0 );
+			}
+
+			break;
+		}
+
+		default:
+			BaseClass::CheatImpulseCommands( iImpulse );
 	}
 }
 
@@ -1933,21 +1895,6 @@ bool CHL2_Player::ApplyBattery( float powerMultiplier )
 	}
 	return false;
 }
-
-// -------------------------------------------------------------------------------- //
-// Ragdoll entities.
-// -------------------------------------------------------------------------------- //
-
-LINK_ENTITY_TO_CLASS( hl2_ragdoll, CHL2Ragdoll );
-
-IMPLEMENT_SERVERCLASS_ST_NOBASE( CHL2Ragdoll, DT_HL2Ragdoll )
-	SendPropVector( SENDINFO(m_vecRagdollOrigin), -1,  SPROP_COORD ),
-	SendPropEHandle( SENDINFO( m_hPlayer ) ),
-	SendPropModelIndex( SENDINFO( m_nModelIndex ) ),
-	SendPropInt		( SENDINFO(m_nForceBone), 8, 0 ),
-	SendPropVector	( SENDINFO(m_vecForce), -1, SPROP_NOSCALE ),
-	SendPropVector( SENDINFO( m_vecRagdollVelocity ) )
-END_SEND_TABLE()
 
 //=========================================================-------------------------
 //=========================================================-------------------------
@@ -2356,11 +2303,13 @@ bool CHL2_Player::ShouldShootMissTarget( CBaseCombatCharacter *pAttacker )
 void CHL2_Player::CombineBallSocketed( CPropCombineBall *pCombineBall )
 {
 #ifdef HL2_EPISODIC
+#ifndef SCP
 	CNPC_Alyx *pAlyx = CNPC_Alyx::GetAlyx();
 	if ( pAlyx )
 	{
 		pAlyx->CombineBallSocketed( pCombineBall->NumBounces() );
 	}
+#endif
 #endif
 }
 
@@ -2387,13 +2336,12 @@ void CHL2_Player::Event_KilledOther( CBaseEntity *pVictim, const CTakeDamageInfo
 
 //=========================================================-------------------------
 //=========================================================-------------------------
-void CHL2_Player::Event_Killed( const CTakeDamageInfo &info )
+void CHL2_Player::Event_Killed(const CTakeDamageInfo &info)
 {
-	BaseClass::Event_Killed( info );
+	BaseClass::Event_Killed(info);
 
-	FirePlayerProxyOutput( "PlayerDied", variant_t(), this, this );
+	FirePlayerProxyOutput("PlayerDied", variant_t(), this, this);
 	NotifyScriptsOfDeath();
-
 }
 
 //=========================================================-------------------------
@@ -3867,19 +3815,18 @@ void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
 	*/
 
     int animDesired; 
-    float speed;
- 
-    speed = GetAbsVelocity().Length2D();
+    float speed = GetAbsVelocity().Length2D();
 	
-	// Esta congelado.
+	// Estamos congelados, por lo que estamos inactivos.
     if ( GetFlags() & ( FL_FROZEN | FL_ATCONTROLS ) )
     {
-        speed = 0;
-        playerAnim = PLAYER_IDLE;
+        speed		= 0;
+        playerAnim	= PLAYER_IDLE;
     }
  
     Activity idealActivity = ACT_HL2MP_RUN_PHYSGUN;
  
+	// Estamos saltando.
     if ( playerAnim == PLAYER_JUMP )
     {
         if ( HasWeapons() )
@@ -3887,11 +3834,15 @@ void CHL2_Player::SetAnimation( PLAYER_ANIM playerAnim )
         else
             idealActivity = ACT_HL2MP_JUMP_PHYSGUN;
     }
+
+	// Hemos muerto...
     else if ( playerAnim == PLAYER_DIE )
     {
         if ( m_lifeState == LIFE_ALIVE )
             return;
     }
+
+	// Estamos atacando.
     else if ( playerAnim == PLAYER_ATTACK1 )
     {
         if ( GetActivity( ) == ACT_HOVER    ||

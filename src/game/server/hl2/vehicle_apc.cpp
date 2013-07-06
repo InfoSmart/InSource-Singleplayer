@@ -170,11 +170,13 @@ void CPropAPC::Spawn( void )
 //-----------------------------------------------------------------------------
 void CPropAPC::CreateAPCLaserDot( void )
 {
+#ifndef EXCLUDE_HL2_1
 	// Create a laser if we don't have one
 	if ( m_hLaserDot == NULL )
 	{
 		m_hLaserDot = CreateLaserDot( GetAbsOrigin(), this, false );
 	}
+#endif
 }
 
 //-----------------------------------------------------------------------------

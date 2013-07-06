@@ -56,6 +56,12 @@ public:
 	CNetworkVar( float, m_iHunger );	// InSource - Hambre
 	CNetworkVar( float, m_iThirst );	// InSource - Sed
 
+	CNetworkVar( int, m_iEntities );
+
+#ifdef FURNANCE
+	CNetworkVar( int, m_iNectar );		// Furnance - Nectar
+#endif
+
 };
 
 EXTERN_SEND_TABLE(DT_HL2Local);

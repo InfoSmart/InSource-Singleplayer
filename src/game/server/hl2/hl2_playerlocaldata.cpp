@@ -34,12 +34,21 @@ BEGIN_SEND_TABLE_NOBASE( CHL2PlayerLocalData, DT_HL2Local )
 	SendPropVector( SENDINFO(m_vecLocatorOrigin) ),
 #endif
 
+	//=========================================================
+	// INSOURCE
+
 	SendPropArray3( SENDINFO_ARRAY3(PocketItems), SendPropInt( SENDINFO_ARRAY(PocketItems) ) ),
 	SendPropArray3( SENDINFO_ARRAY3(BackpackItems), SendPropInt( SENDINFO_ARRAY(BackpackItems) ) ),
 	
 	SendPropFloat( SENDINFO(m_iBlood) ),		// InSource - Sangre
 	SendPropFloat( SENDINFO(m_iHunger) ),		// InSource - Hambre
 	SendPropFloat( SENDINFO(m_iThirst) ),		// InSource - Sed
+
+	SendPropInt( SENDINFO(m_iEntities) ),
+
+#ifdef FURNANCE
+	SendPropInt( SENDINFO(m_iNectar) ),			// Furnance - Nectar
+#endif
 
 END_SEND_TABLE()
 
@@ -59,11 +68,23 @@ BEGIN_SIMPLE_DATADESC( CHL2PlayerLocalData )
 	DEFINE_FIELD( m_vecLocatorOrigin, FIELD_POSITION_VECTOR ),
 #endif
 
-	DEFINE_FIELD( m_iBlood, FIELD_FLOAT ), // InSource - Sangre
-
 	// Ladder related stuff
 	DEFINE_FIELD( m_hLadder, FIELD_EHANDLE ),
 	DEFINE_EMBEDDED( m_LadderMove ),
+
+	//=========================================================
+	// INSOURCE
+
+	DEFINE_FIELD( m_iBlood, FIELD_FLOAT ),	// InSource - Sangre
+	DEFINE_FIELD( m_iHunger, FIELD_FLOAT ),	// InSource - Sangre
+	DEFINE_FIELD( m_iThirst, FIELD_FLOAT ),	// InSource - Sangre
+
+	DEFINE_FIELD( m_iEntities, FIELD_INTEGER ),
+
+#ifdef FURNANCE
+	DEFINE_FIELD( m_iNectar, FIELD_INTEGER ),	// Furnance - Nectar
+#endif
+	
 END_DATADESC()
 
 CHL2PlayerLocalData::CHL2PlayerLocalData()
@@ -79,5 +100,6 @@ CHL2PlayerLocalData::CHL2PlayerLocalData()
 #ifdef HL2_EPISODIC
 	m_flFlashBattery = 0.0f;
 #endif
+
 }
 

@@ -824,6 +824,7 @@ void CPropCombineBall::SetBallAsLaunched( void )
 	WhizSoundThink();
 }
 
+#ifndef EXCLUDE_HL2_1
 //-----------------------------------------------------------------------------
 // Lighten the mass so it's zippy toget to the gun
 //-----------------------------------------------------------------------------
@@ -918,22 +919,6 @@ void CPropCombineBall::OnPhysGunPickup( CBasePlayer *pPhysGunUser, PhysGunPickup
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: Reset the ball to be deadly to NPCs after we've picked it up
-//-----------------------------------------------------------------------------
-void CPropCombineBall::SetPlayerLaunched( CBasePlayer *pOwner )
-{
-	// Now we own this ball
-	SetOwnerEntity( pOwner );
-	SetWeaponLaunched( false );
-	
-	if( VPhysicsGetObject() )
-	{
-		PhysClearGameFlags( VPhysicsGetObject(), FVPHYSICS_NO_NPC_IMPACT_DMG );
-		PhysSetGameFlags( VPhysicsGetObject(), FVPHYSICS_DMG_DISSOLVE | FVPHYSICS_HEAVY_OBJECT );
-	}
-}
-
-//-----------------------------------------------------------------------------
 // Activate death-spin!
 //-----------------------------------------------------------------------------
 void CPropCombineBall::OnPhysGunDrop( CBasePlayer *pPhysGunUser, PhysGunDrop_t Reason )
@@ -990,6 +975,23 @@ void CPropCombineBall::OnPhysGunDrop( CBasePlayer *pPhysGunUser, PhysGunDrop_t R
 
 	SetBallAsLaunched();
 	StopAnimating();
+}
+#endif
+
+//-----------------------------------------------------------------------------
+// Purpose: Reset the ball to be deadly to NPCs after we've picked it up
+//-----------------------------------------------------------------------------
+void CPropCombineBall::SetPlayerLaunched( CBasePlayer *pOwner )
+{
+	// Now we own this ball
+	SetOwnerEntity( pOwner );
+	SetWeaponLaunched( false );
+	
+	if( VPhysicsGetObject() )
+	{
+		PhysClearGameFlags( VPhysicsGetObject(), FVPHYSICS_NO_NPC_IMPACT_DMG );
+		PhysSetGameFlags( VPhysicsGetObject(), FVPHYSICS_DMG_DISSOLVE | FVPHYSICS_HEAVY_OBJECT );
+	}
 }
 
 //------------------------------------------------------------------------------

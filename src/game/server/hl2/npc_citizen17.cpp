@@ -457,11 +457,6 @@ void CNPC_Citizen::Spawn()
 {
 	BaseClass::Spawn();
 
-#ifdef _XBOX
-	// Always fade the corpse
-	AddSpawnFlags( SF_NPC_FADE_CORPSE );
-#endif // _XBOX
-
 	if ( ShouldAutosquad() )
 	{
 		if ( m_SquadName == GetPlayerSquadName() )
@@ -518,6 +513,7 @@ void CNPC_Citizen::Spawn()
 	m_flTimePlayerStare = FLT_MAX;
 
 	AddEFlags( EFL_NO_DISSOLVE | EFL_NO_MEGAPHYSCANNON_RAGDOLL | EFL_NO_PHYSCANNON_INTERACTION );
+	CapabilitiesAdd(bits_CAP_MOVE_JUMP);
 
 	NPCInit();
 
@@ -1137,9 +1133,9 @@ bool CNPC_Citizen::FInViewCone( CBaseEntity *pEntity )
 //-----------------------------------------------------------------------------
 bool CNPC_Citizen::IsJumpLegal(const Vector &startPos, const Vector &apex, const Vector &endPos) const
 {
-	const float MAX_JUMP_RISE		= 220.0f;
-	const float MAX_JUMP_DISTANCE	= 512.0f;
-	const float MAX_JUMP_DROP		= 384.0f;
+	const float MAX_JUMP_RISE		= 130.0f;
+	const float MAX_JUMP_DISTANCE	= 182.0f;
+	const float MAX_JUMP_DROP		= 190.0f;
 
 	return BaseClass::IsJumpLegal(startPos, apex, endPos, MAX_JUMP_RISE, MAX_JUMP_DROP, MAX_JUMP_DISTANCE);
 }
@@ -3318,6 +3314,8 @@ void CNPC_Citizen::SetSquad( CAI_Squad *pSquad )
 //-----------------------------------------------------------------------------
 bool CNPC_Citizen::HandleInteraction(int interactionType, void *data, CBaseCombatCharacter* sourceEnt)
 {
+
+#ifndef SCP
 	// TODO:  As citizen gets more complex, we will have to only allow
 	//		  these interruptions to happen from certain schedules
 	if (interactionType ==	g_interactionScannerInspect)
@@ -3379,6 +3377,7 @@ bool CNPC_Citizen::HandleInteraction(int interactionType, void *data, CBaseComba
 		}
 		return true;
 	}
+#endif
 
 	return BaseClass::HandleInteraction( interactionType, data, sourceEnt );
 }

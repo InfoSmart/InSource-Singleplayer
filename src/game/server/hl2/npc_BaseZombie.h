@@ -109,6 +109,8 @@ enum Zombie_Conds
 
 typedef CAI_BlendingHost< CAI_BehaviorHost<CAI_BaseNPC> > CAI_BaseZombieBase;
 
+class CSprite;
+
 //=========================================================
 // CNPC_BaseZombie
 //=========================================================
@@ -123,6 +125,8 @@ public:
 	void	Spawn();
 	void	Precache();
 	Class_T Classify();
+
+	bool IsJumpLegal(const Vector &startPos, const Vector &apex, const Vector &endPos) const;
 
 	void	StartTouch(CBaseEntity *pOther);
 	bool	CreateBehaviors();
@@ -242,9 +246,11 @@ public:
 public:
 	CAI_ActBusyBehavior		m_ActBusyBehavior;
 	const char *m_headcrabAttach;
+	CHandle<CSprite> m_hGlowSprite;
 
 protected:
 	CSoundPatch	*sMoanSound;
+	
 
 	bool	IsTorso;			// is this is a half-zombie?
 	bool	IsHeadless;			// is this zombie headless

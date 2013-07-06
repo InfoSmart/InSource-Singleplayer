@@ -2,8 +2,6 @@
 //
 // Purpose: Implements the headcrab, a tiny, jumpy alien parasite.
 //
-// TODO: make poison headcrab hop in response to nearby bullet impacts?
-//
 //=============================================================================//
 
 #include "cbase.h"
@@ -53,7 +51,7 @@ ConVar	sk_headcrab_poison_npc_damage	("sk_headcrab_poison_npc_damage",	"0");
 //=========================================================
 
 // Modelo
-#define MODEL_BASE		"models/xenians/agrunt.mdl"
+#define MODEL_ORIGINAL	"models/headcrab.mdl"
 
 // ¿Qué capacidades tendrá?
 // Moverse en el suelo - Ataque cuerpo a cuerpo 1 - Ataque cuerpo a cuerpo 2 - Saltar (No completo) - Girar la cabeza
@@ -257,11 +255,7 @@ END_DATADESC()
 // Crear un nuevo Headcrab
 //=========================================================
 void CBaseHeadcrab::Spawn()
-{
-	//Precache();
-	//SetModel( "models/headcrab.mdl" );
-	//m_iHealth			= sk_headcrab_health.GetFloat();
-	
+{	
 #ifdef _XBOX
 	// Always fade the corpse
 	AddSpawnFlags( SF_NPC_FADE_CORPSE );
@@ -383,7 +377,7 @@ void CBaseHeadcrab::OnChangeActivity(Activity NewActivity)
 Class_T	CBaseHeadcrab::Classify()
 {
 	// Estamos invisibles para todos.
-	if( m_bHidden )
+	if ( m_bHidden )
 		return CLASS_NONE; 
 	else
 		return CLASS_HEADCRAB; 
@@ -699,7 +693,7 @@ void CBaseHeadcrab::SetBurrowed( bool bBurrowed )
 		AddFlag(FL_NOTARGET);
 		m_spawnflags |= SF_NPC_GAG;
 		AddSolidFlags(FSOLID_NOT_SOLID);
-		m_takedamage = DAMAGE_NO;
+		m_takedamage	= DAMAGE_NO;
 		m_flFieldOfView = HEADCRAB_BURROWED_FOV;
 
 		SetState(NPC_STATE_IDLE);
@@ -711,7 +705,7 @@ void CBaseHeadcrab::SetBurrowed( bool bBurrowed )
 		RemoveFlag(FL_NOTARGET);
 		m_spawnflags &= ~SF_NPC_GAG;
 		RemoveSolidFlags(FSOLID_NOT_SOLID);
-		m_takedamage = DAMAGE_YES;
+		m_takedamage	= DAMAGE_YES;
 		m_flFieldOfView	= HEADCRAB_UNBURROWED_FOV;
 	}
 
@@ -894,7 +888,7 @@ void CBaseHeadcrab::LeapTouch(CBaseEntity *pOther)
 {
 	m_bMidJump = false;
 
-	if ( IRelationType( pOther ) == D_HT )
+	if ( IRelationType(pOther) == D_HT )
 	{
 		// Don't hit if back on ground
 		if ( !(GetFlags() & FL_ONGROUND) )

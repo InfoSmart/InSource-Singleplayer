@@ -604,6 +604,7 @@ void CNPC_Zombine::Event_Killed(const CTakeDamageInfo &info)
 //=========================================================
 bool CNPC_Zombine::HandleInteraction( int interactionType, void *data, CBaseCombatCharacter *sourceEnt )
 {
+#ifndef SCP
 	// Un barnacle nos esta comiendo...
 	if ( interactionType == g_interactionBarnacleVictimGrab )
 	{
@@ -611,6 +612,7 @@ bool CNPC_Zombine::HandleInteraction( int interactionType, void *data, CBaseComb
 		if ( HasGrenade() )
 			DropGrenade(vec3_origin);
 	}
+#endif
 
 	return BaseClass::HandleInteraction( interactionType, data, sourceEnt );
 }

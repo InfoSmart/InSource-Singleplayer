@@ -1,28 +1,75 @@
 //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
-// Reglas del juego
+// Reglas del juego:
+// Base para Singleplayer y Modo Historia
 //
-// Define la configuración de amistades, reaparición, objetos, etc...
+// Define la configuración de las amistades, reaparición, objetos, etc...
 //
-// Con el fin de evitar hacer archivos innecesarios, las reglas de Apocalypse
+// Con el fin de evitar la creación de archivos innecesarios, las reglas de Apocalypse
 // fueron puestas aquí, si hará un MOD distinto solo cambielas.
 //
+// Deathmatch: Debido a que esta distribución de Source Engine solo soporta 2 modos (coop y deathmatch) utilizaremos
+// deathmatch como Survival. Lamentable...
+//
+// Survival: insurvival_gamerules
+//
+// Coop: incoop_gamerules
+//
+// InfoSmart 2013. Todos los derechos reservados.
 //=====================================================================================//
 
 #include "cbase.h"
-#include "insp_gamerules.h"
+#include "in_gamerules.h"
+
+#ifndef CLIENT_DLL
+	#include "director.h"
+#endif
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+
+CInGameRules*	g_pInGameRules = NULL;
 
 //=========================================================
 // Guardado y definición de datos
 //=========================================================
 
-REGISTER_GAMERULES_CLASS( CInSourceSPRules );
+REGISTER_GAMERULES_CLASS( CInGameRules );
+
+// x = Izquierda
+// y = Derecha
+// z = Altura
+static HL2MPViewVectors g_HL2MPViewVectors(
+	Vector( 0, 0, 57 ),       //VEC_VIEW (m_vView) 
+							  
+	Vector(-16, -16, 0 ),	  //VEC_HULL_MIN (m_vHullMin)
+	Vector( 16,  16,  62 ),	  //VEC_HULL_MAX (m_vHullMax)
+							  					
+	Vector(-16, -16, 0 ),	  //VEC_DUCK_HULL_MIN (m_vDuckHullMin)
+	Vector( 16,  16,  36 ),	  //VEC_DUCK_HULL_MAX	(m_vDuckHullMax)
+	Vector( 0, 0, 28 ),		  //VEC_DUCK_VIEW		(m_vDuckView)
+							  					
+	Vector(-10, -10, -10 ),	  //VEC_OBS_HULL_MIN	(m_vObsHullMin)
+	Vector( 10,  10,  10 ),	  //VEC_OBS_HULL_MAX	(m_vObsHullMax)
+							  					
+	Vector( 0, 0, 10 ),		  //VEC_DEAD_VIEWHEIGHT (m_vDeadViewHeight)
+
+	Vector(-16, -16, 0 ),	  //VEC_CROUCH_TRACE_MIN (m_vCrouchTraceMin)
+	Vector( 16,  16,  60 )	  //VEC_CROUCH_TRACE_MAX (m_vCrouchTraceMax)
+);
+
+const CViewVectors* CInGameRules::GetViewVectors() const
+{
+	return &g_HL2MPViewVectors;
+}
+
+const HL2MPViewVectors* CInGameRules::GetHL2MPViewVectors()const
+{
+	return &g_HL2MPViewVectors;
+}
 
 //=========================================================
-// Definición de variables para la configuración.
+// Definición de comandos de consola.
 //=========================================================
 
 ConVar	sk_plr_dmg_flare_round	("sk_plr_dmg_flare_round","0",	FCVAR_REPLICATED);
@@ -40,16 +87,33 @@ ConVar	sk_max_molotov			("sk_max_molotov","0",		FCVAR_REPLICATED);
 // Configuración
 //=========================================================
 
-// Nombre de la aplicación.
+// Nombre del juego.
 #define GAME_DESCRIPTION	"Apocalypse";
 
-#ifdef CLIENT_DLL
-#else
+#ifndef CLIENT_DLL
+
+//=========================================================
+// Constructor
+//=========================================================
+CInGameRules::CInGameRules()
+{
+	Assert( !g_pInGameRules );
+	g_pInGameRules = this;
+}
+
+//=========================================================
+// Destructor
+//=========================================================
+CInGameRules::~CInGameRules()
+{
+	Assert( g_pInGameRules == this );
+	g_pInGameRules = NULL;
+}
 
 //=========================================================
 // Devuelve el nombre del juego.
 //=========================================================
-const char *CInSourceSPRules::GetGameDescription()
+const char *CInGameRules::GetGameDescription()
 {
 	return GAME_DESCRIPTION;
 }
@@ -57,9 +121,10 @@ const char *CInSourceSPRules::GetGameDescription()
 //=========================================================
 // Verifica si los grupos pueden tener colisiones.
 //=========================================================
-bool CInSourceSPRules::ShouldCollide(int collisionGroup0, int collisionGroup1)
+bool CInGameRules::ShouldCollide(int collisionGroup0, int collisionGroup1)
 {
 	// Los NPC especiales no colisionan con otros NPC.
+	// Especial para el Director, los zombis no colisionan entre ellos en modo horda.
 	if ( collisionGroup0 == COLLISION_GROUP_SPECIAL_NPC && collisionGroup1 == COLLISION_GROUP_NPC )
 		return false;
 
@@ -72,7 +137,7 @@ bool CInSourceSPRules::ShouldCollide(int collisionGroup0, int collisionGroup1)
 //=========================================================
 // Define las amistades iniciales de las clases.
 //=========================================================
-void CInSourceSPRules::InitDefaultAIRelationships()
+void CInGameRules::InitDefaultAIRelationships()
 {
 	BaseClass::InitDefaultAIRelationships();
 
@@ -258,21 +323,21 @@ void CInSourceSPRules::InitDefaultAIRelationships()
 	// ------------------------------------------------------------
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_PLAYER_ALLY,	CLASS_BULLSQUID,	D_HT, 0);
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_PLAYER_ALLY,	CLASS_HOUNDEYE,		D_HT, 0);
-	CBaseCombatCharacter::SetDefaultRelationship(CLASS_PLAYER_ALLY,	CLASS_GRUNT,		D_HT, 0);
+	CBaseCombatCharacter::SetDefaultRelationship(CLASS_PLAYER_ALLY,	CLASS_GRUNT,		D_FR, 0);
 
 	// ------------------------------------------------------------
 	//	> CLASS_PLAYER_ALLY_VITAL
 	// ------------------------------------------------------------
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_PLAYER_ALLY_VITAL,	CLASS_BULLSQUID,	D_HT, 0);
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_PLAYER_ALLY_VITAL,	CLASS_HOUNDEYE,		D_HT, 0);
-	CBaseCombatCharacter::SetDefaultRelationship(CLASS_PLAYER_ALLY_VITAL,	CLASS_GRUNT,		D_HT, 0);
+	CBaseCombatCharacter::SetDefaultRelationship(CLASS_PLAYER_ALLY_VITAL,	CLASS_GRUNT,		D_FR, 0);
 
 	// ------------------------------------------------------------
 	//	> CLASS_SCANNER
 	// ------------------------------------------------------------
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_SCANNER,	CLASS_BULLSQUID,	D_NU, 0);
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_SCANNER,	CLASS_HOUNDEYE,		D_NU, 0);
-	CBaseCombatCharacter::SetDefaultRelationship(CLASS_SCANNER,	CLASS_GRUNT,		D_FR, 0);
+	CBaseCombatCharacter::SetDefaultRelationship(CLASS_SCANNER,	CLASS_GRUNT,		D_LI, 0);
 
 	// ------------------------------------------------------------
 	//	> CLASS_STALKER
@@ -345,12 +410,17 @@ void CInSourceSPRules::InitDefaultAIRelationships()
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_SCANNER,			D_LI, 0);		
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_STALKER,			D_NU, 0);		
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_VORTIGAUNT,		D_HT, 0);		
-	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_ZOMBIE,			D_NU, 0);
+	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_ZOMBIE,			D_LI, 0);
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_PROTOSNIPER,		D_NU, 0);
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_EARTH_FAUNA,		D_NU, 0);
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_PLAYER_ALLY,		D_HT, 0);
-	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_PLAYER_ALLY_VITAL,D_NU, 0);
+	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_PLAYER_ALLY_VITAL,D_HT, 0);
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_GRUNT,	CLASS_HACKED_ROLLERMINE,D_LI, 0);
+
+
+	CBaseCombatCharacter::SetDefaultRelationship(CLASS_BURNED,	CLASS_PLAYER,				D_HT, 0);
+	CBaseCombatCharacter::SetDefaultRelationship(CLASS_BURNED,	CLASS_PLAYER_ALLY,			D_HT, 0);
+	CBaseCombatCharacter::SetDefaultRelationship(CLASS_BURNED,	CLASS_PLAYER_ALLY_VITAL,	D_HT, 0);
 		
 	/*
 	CBaseCombatCharacter::SetDefaultRelationship(CLASS_BASE,			CLASS_NONE,				D_NU, 0);			
@@ -386,7 +456,10 @@ void CInSourceSPRules::InitDefaultAIRelationships()
 	*/
 }
 
-const char* CInSourceSPRules::AIClassText(int classType)
+//=========================================================
+// Devuelve en texto la clase de este NPC.
+//=========================================================
+const char* CInGameRules::AIClassText(int classType)
 {
 	switch ( classType )
 	{
@@ -397,4 +470,125 @@ const char* CInSourceSPRules::AIClassText(int classType)
 	}
 }
 
-#endif
+//=========================================================
+// Crea al jugador.
+//=========================================================
+void CInGameRules::PlayerSpawn(CBasePlayer *pPlayer)
+{
+	// Crea al director si este no se ha creado.
+	if ( IncludeDirector() )
+		SpawnDirector();
+
+	// Le damos los puños.
+	/*CBaseEntity *pWeaponEntity = (CBaseEntity *)CreateEntityByName("weapon_fists");
+	pWeaponEntity->SetAbsOrigin(pPlayer->GetAbsOrigin());
+	pWeaponEntity->Spawn();*/
+
+	BaseClass::PlayerSpawn(pPlayer);
+}
+
+//=========================================================
+// Crear y empieza el InDirector.
+//=========================================================
+void CInGameRules::SpawnDirector()
+{
+	CDirector *pDirector = (CDirector *)gEntList.FindEntityByClassname(NULL, "info_director");
+
+	// No se ha creado al director.
+	if ( !pDirector )
+	{
+		CDirector *mDirector = (CDirector *)CBaseEntity::Create("info_director", Vector(0, 0, 0), QAngle(0, 0, 0), NULL);
+		mDirector->SetName(MAKE_STRING("director"));
+	}
+}
+
+//=========================================================
+// Obtiene la ID de un objeto usable para el inventario.
+// !!!NOTE: Se encuentra aquí por 2 sencillas razones:
+// 1. Es utilizado por CIN_Player para el inventario.
+// 2. Es utilizado por item_loot para obtener las ID de los objetos.
+//=========================================================
+int CInGameRules::Inventory_GetItemID(const char *pName)
+{
+	if ( Q_stristr(pName, "item_blood") )
+		return 1;
+
+	if ( Q_stristr(pName, "bandage") )
+		return 2;
+
+	if ( Q_stristr(pName, "battery") )
+		return 3;
+
+	if ( Q_stristr(pName, "healthkit") )
+		return 4;
+
+	if ( Q_stristr(pName, "healthvial") )
+		return 5;
+
+	if ( Q_stristr(pName, "ammo_pistol") )
+		return 6;
+
+	if ( Q_stristr(pName, "pistol_large") )
+		return 7;
+
+	if ( Q_stristr(pName, "ammo_smg1") )
+		return 8;
+
+	if ( Q_stristr(pName, "smg1_large") )
+		return 9;
+
+	if ( Q_stristr(pName, "ammo_ar2") )
+		return 10;
+
+	if ( Q_stristr(pName, "ar2_large") )
+		return 11;
+
+	if ( Q_stristr(pName, "ammo_357") )
+		return 12;
+
+	if ( Q_stristr(pName, "ammo_357_large") )
+		return 13;
+
+	if ( Q_stristr(pName, "ammo_crossbow") )
+		return 14;
+
+	if ( Q_stristr(pName, "flare_round") )
+		return 15;
+
+	if ( Q_stristr(pName, "box_flare_rounds") )
+		return 16;
+
+	if ( Q_stristr(pName, "rpg_round") )
+		return 17;
+
+	if ( Q_stristr(pName, "ar2_grenade") )
+		return 18;
+
+	if ( Q_stristr(pName, "smg1_grenade") )
+		return 19;
+
+	if ( Q_stristr(pName, "box_buckshot") )
+		return 20;
+
+	if ( Q_stristr(pName, "ar2_altfire") )
+		return 21;
+
+	if ( Q_stristr(pName, "empty_bloodkit") )
+		return 22;
+
+	if ( Q_stristr(pName, "item_soda") )
+		return 23;
+
+	if ( Q_stristr(pName, "empty_soda") )
+		return 24;
+
+	if ( Q_stristr(pName, "item_food") )
+		return 25;
+
+	if ( Q_stristr(pName, "empty_food") )
+		return 26;
+
+	return 0;
+}
+
+#endif // CLIENT_DLL

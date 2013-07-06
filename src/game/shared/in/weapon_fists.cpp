@@ -1,16 +1,15 @@
 //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
-// Purpose:		Crowbar - an old favorite
+// ARMA: Puños (Como no)
 //
-// $NoKeywords: $
 //=============================================================================//
 
 #include "cbase.h"
-#include "weapon_crowbar.h"
+#include "weapon_fists.h"
 #include "basehlcombatweapon.h"
-#include "gamerules.h"
-#include "ammodef.h"
-#include "mathlib/mathlib.h"
+//#include "gamerules.h"
+//#include "ammodef.h"
+//#include "mathlib/mathlib.h"
 #include "in_buttons.h"
 #include "vstdlib/random.h"
 #include "npcevent.h"
@@ -27,51 +26,51 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-ConVar    sk_plr_dmg_crowbar		("sk_plr_dmg_crowbar", "0");
-ConVar    sk_npc_dmg_crowbar		("sk_npc_dmg_crowbar", "0");
+ConVar    sk_plr_dmg_fist("sk_plr_dmg_fist", "5");
+ConVar    sk_npc_dmg_fist("sk_npc_dmg_fist", "5");
+ConVar	  sk_fist_lead_time("sk_fist_lead_time", "0.9");
 
-//-----------------------------------------------------------------------------
-// CWeaponCrowbar
-//-----------------------------------------------------------------------------
+//=========================================================
+// CWeaponFists
+//=========================================================
 
-IMPLEMENT_NETWORKCLASS_ALIASED( WeaponCrowbar, DT_WeaponCrowbar )
+IMPLEMENT_NETWORKCLASS_ALIASED(WeaponFists, DT_WeaponFists)
 
-BEGIN_NETWORK_TABLE( CWeaponCrowbar, DT_WeaponCrowbar )
+BEGIN_NETWORK_TABLE( CWeaponFists, DT_WeaponFists )
 END_NETWORK_TABLE()
 
-BEGIN_PREDICTION_DATA( CWeaponCrowbar )
+BEGIN_PREDICTION_DATA( CWeaponFists )
 END_PREDICTION_DATA()
 
-LINK_ENTITY_TO_CLASS(weapon_crowbar, CWeaponCrowbar);
-PRECACHE_WEAPON_REGISTER(weapon_crowbar);
+LINK_ENTITY_TO_CLASS(weapon_fists, CWeaponFists);
+PRECACHE_WEAPON_REGISTER(weapon_fists);
 
-acttable_t CWeaponCrowbar::m_acttable[] = 
+acttable_t CWeaponFists::m_acttable[] = 
 {
 	/*
 		JUGADORES
 	*/
-	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_MELEE,					false },
-	{ ACT_MP_WALK,						ACT_HL2MP_WALK_MELEE,					false },
-	{ ACT_MP_RUN,						ACT_HL2MP_RUN_MELEE,					false },
-	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_MELEE,			false },
-	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_MELEE,			false },
-	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_MELEE,					false },
-	{ ACT_MP_JUMP_START,				ACT_HL2MP_JUMP_MELEE,					false },
-	{ ACT_MP_SWIM,						ACT_HL2MP_SWIM_MELEE,					false },
-	{ ACT_MP_SWIM_IDLE,					ACT_HL2MP_SWIM_IDLE_MELEE,				false },
+	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_FIST,					false },
+	{ ACT_MP_WALK,						ACT_HL2MP_WALK_FIST,					false },
+	{ ACT_MP_RUN,						ACT_HL2MP_RUN_FIST,						false },
+	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_FIST,				false },
+	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_FIST,				false },
+	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_FIST,					false },
+	{ ACT_MP_SWIM,						ACT_HL2MP_SWIM_FIST,					false },
+	{ ACT_MP_SWIM_IDLE,					ACT_HL2MP_SWIM_IDLE_FIST,				false },
 	
-	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_MELEE,	false },
-	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_MELEE,	false },
-	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_MELEE,			false },
-	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_MELEE,			false },
+	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_FIST,	false },
+	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_FIST,	false },
+	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_FIST,			false },
+	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_FIST,			false },
 };
 
-IMPLEMENT_ACTTABLE(CWeaponCrowbar);
+IMPLEMENT_ACTTABLE(CWeaponFists);
 
 //-----------------------------------------------------------------------------
 // Constructor
 //-----------------------------------------------------------------------------
-CWeaponCrowbar::CWeaponCrowbar()
+CWeaponFists::CWeaponFists()
 {
 }
 
@@ -80,20 +79,20 @@ CWeaponCrowbar::CWeaponCrowbar()
 // Input  : hitActivity - currently played activity
 // Output : Damage amount
 //-----------------------------------------------------------------------------
-float CWeaponCrowbar::GetDamageForActivity( Activity hitActivity )
+float CWeaponFists::GetDamageForActivity(Activity hitActivity)
 {
-	if ( ( GetOwner() != NULL ) && ( GetOwner()->IsPlayer() ) )
-		return sk_plr_dmg_crowbar.GetFloat();
+	if ( (GetOwner() != NULL) && (GetOwner()->IsPlayer()) )
+		return sk_plr_dmg_fist.GetFloat();
 
-	return sk_npc_dmg_crowbar.GetFloat();
+	return sk_npc_dmg_fist.GetFloat();
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: Add in a view kick for this weapon
 //-----------------------------------------------------------------------------
-void CWeaponCrowbar::AddViewKick()
+void CWeaponFists::AddViewKick()
 {
-	CBasePlayer *pPlayer  = ToBasePlayer( GetOwner() );
+	CBasePlayer *pPlayer = ToBasePlayer(GetOwner());
 	
 	if ( !pPlayer )
 		return;
@@ -112,22 +111,20 @@ void CWeaponCrowbar::AddViewKick()
 //-----------------------------------------------------------------------------
 // Attempt to lead the target (needed because citizens can't hit manhacks with the crowbar!)
 //-----------------------------------------------------------------------------
-ConVar sk_crowbar_lead_time( "sk_crowbar_lead_time", "0.9" );
-
-int CWeaponCrowbar::WeaponMeleeAttack1Condition( float flDot, float flDist )
+int CWeaponFists::WeaponMeleeAttack1Condition( float flDot, float flDist )
 {
 	// Attempt to lead the target (needed because citizens can't hit manhacks with the crowbar!)
 	CAI_BaseNPC *pNPC	= GetOwner()->MyNPCPointer();
 	CBaseEntity *pEnemy = pNPC->GetEnemy();
 
-	if (!pEnemy)
+	if ( !pEnemy )
 		return COND_NONE;
 
 	Vector vecVelocity;
-	vecVelocity = pEnemy->GetSmoothedVelocity( );
+	vecVelocity = pEnemy->GetSmoothedVelocity();
 
 	// Project where the enemy will be in a little while
-	float dt = sk_crowbar_lead_time.GetFloat();
+	float dt = sk_fist_lead_time.GetFloat();
 	dt += random->RandomFloat( -0.3f, 0.2f );
 	if ( dt < 0.0f )
 		dt = 0.0f;
@@ -164,9 +161,8 @@ int CWeaponCrowbar::WeaponMeleeAttack1Condition( float flDot, float flDist )
 //-----------------------------------------------------------------------------
 // Animation event handlers
 //-----------------------------------------------------------------------------
-void CWeaponCrowbar::HandleAnimEventMeleeHit( animevent_t *pEvent, CBaseCombatCharacter *pOperator )
+void CWeaponFists::HandleAnimEventMeleeHit( animevent_t *pEvent, CBaseCombatCharacter *pOperator )
 {
-	Msg("[Crowbar] HandleAnimEventMeleeHit\r\n");
 	// Trace up or down based on where the enemy is...
 	// But only if we're basically facing that direction
 	Vector vecDirection;
@@ -190,7 +186,7 @@ void CWeaponCrowbar::HandleAnimEventMeleeHit( animevent_t *pEvent, CBaseCombatCh
 	Vector vecEnd;
 	VectorMA( pOperator->Weapon_ShootPosition(), 50, vecDirection, vecEnd );
 	CBaseEntity *pHurt = pOperator->CheckTraceHullAttack( pOperator->Weapon_ShootPosition(), vecEnd, 
-		Vector(-16,-16,-16), Vector(36,36,36), sk_npc_dmg_crowbar.GetFloat(), DMG_CLUB, 0.75 );
+		Vector(-16,-16,-16), Vector(36,36,36), sk_npc_dmg_fist.GetFloat(), DMG_CLUB, 0.75 );
 	
 	// did I hit someone?
 	if ( pHurt )
@@ -213,7 +209,7 @@ void CWeaponCrowbar::HandleAnimEventMeleeHit( animevent_t *pEvent, CBaseCombatCh
 //-----------------------------------------------------------------------------
 // Animation event
 //-----------------------------------------------------------------------------
-void CWeaponCrowbar::Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatCharacter *pOperator )
+void CWeaponFists::Operator_HandleAnimEvent( animevent_t *pEvent, CBaseCombatCharacter *pOperator )
 {
 	switch( pEvent->event )
 	{

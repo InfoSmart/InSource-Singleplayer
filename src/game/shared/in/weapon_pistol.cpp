@@ -12,6 +12,7 @@
 #ifdef CLIENT_DLL
 	#include "c_in_player.h"
 #else
+	#include "ai_basenpc.h"
 	#include "in_player.h"
 	#include "gamestats.h"
 #endif
@@ -152,6 +153,9 @@ PRECACHE_WEAPON_REGISTER( weapon_pistol );
 
 acttable_t	CWeaponPistol::m_acttable[] = 
 {
+	/*
+		NPC'S
+	*/
 	{ ACT_IDLE,						ACT_IDLE_PISTOL,				true },
 	{ ACT_IDLE_ANGRY,				ACT_IDLE_ANGRY_PISTOL,			true },
 	{ ACT_RANGE_ATTACK1,			ACT_RANGE_ATTACK_PISTOL,		true },
@@ -167,14 +171,23 @@ acttable_t	CWeaponPistol::m_acttable[] =
 	{ ACT_WALK,						ACT_WALK_PISTOL,				false },
 	{ ACT_RUN,						ACT_RUN_PISTOL,					false },
 
-	{ ACT_HL2MP_IDLE,						ACT_HL2MP_IDLE_PISTOL,                    false },
-    { ACT_HL2MP_RUN,						ACT_HL2MP_RUN_PISTOL,                    false },
-    { ACT_HL2MP_IDLE_CROUCH,				ACT_HL2MP_IDLE_CROUCH_PISTOL,            false },
-    { ACT_HL2MP_WALK_CROUCH,				ACT_HL2MP_WALK_CROUCH_PISTOL,            false },
-    { ACT_HL2MP_GESTURE_RANGE_ATTACK,		ACT_HL2MP_GESTURE_RANGE_ATTACK_PISTOL,    false },
-    { ACT_HL2MP_GESTURE_RELOAD,				ACT_HL2MP_GESTURE_RELOAD_PISTOL,        false },
-    { ACT_HL2MP_JUMP,						ACT_HL2MP_JUMP_PISTOL,                    false },
-    { ACT_RANGE_ATTACK1,					ACT_RANGE_ATTACK_PISTOL,                false },
+	/*
+		JUGADORES
+	*/
+	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_PISTOL,					false },
+	{ ACT_MP_WALK,						ACT_HL2MP_WALK_PISTOL,					false },
+	{ ACT_MP_RUN,						ACT_HL2MP_RUN_PISTOL,					false },
+	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_PISTOL,			false },
+	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_PISTOL,			false },
+	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_PISTOL,					false },
+	{ ACT_MP_JUMP_START,				ACT_HL2MP_JUMP_PISTOL,					false },
+	{ ACT_MP_SWIM,						ACT_HL2MP_SWIM_PISTOL,					false },
+	{ ACT_MP_SWIM_IDLE,					ACT_HL2MP_SWIM_IDLE_PISTOL,				false },	
+	
+	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_PISTOL,	false },
+	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_PISTOL,	false },
+	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_PISTOL,		false },
+	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_PISTOL,		false },
 };
 
 
@@ -277,28 +290,6 @@ void CWeaponPistol::PrimaryAttack()
 
 	// Desorientar al jugador
 	ConVarRef sk_plr_dmg_pistol("sk_plr_dmg_pistol");
-
-	// InSource
-	// Efectos de "principalmente manejando armas"
-	/*if ( pOwner->GetConVar("in_beginner_weapon") == "1" )
-	{
-		// Efecto de golpe (Camara hacia arriba y abajo)
-		QAngle	viewPunch;
-
-		viewPunch.x = random->RandomFloat(-4.0f, -8.0f);
-		viewPunch.y = random->RandomFloat(-0.35f,  0.35f);
-		viewPunch.z = 0;
-
-		pOwner->ViewPunch(viewPunch);
-
-	#ifndef CLIENT_DLL
-		// Efecto de empuje (Camara hacia atras)
-		Vector recoilForce = pOwner->BodyDirection2D() * - (sk_plr_dmg_pistol.GetFloat() * 10.0f);
-		recoilForce[2] += random->RandomFloat(80.0f, 120.0f);
-
-		pOwner->ApplyAbsVelocityImpulse(recoilForce);
-	#endif
-	}*/
 
 	m_iPrimaryAttacks++;
 

@@ -11,7 +11,7 @@
 #pragma once
 #endif
 
-#include "insp_gamerules.h"
+#include "in_gamerules.h"
 
 #ifndef CLIENT_DLL
 	#include "env_sound.h"
@@ -21,49 +21,14 @@
 	#define CInSourceMPRules C_InSourceMPRules
 #endif
 
-class HL2MPViewVectors : public CViewVectors
+class CInMPGameRules : public CInGameRules
 {
 public:
-	HL2MPViewVectors( 
-		Vector vView,
-		Vector vHullMin,
-		Vector vHullMax,
-		Vector vDuckHullMin,
-		Vector vDuckHullMax,
-		Vector vDuckView,
-		Vector vObsHullMin,
-		Vector vObsHullMax,
-		Vector vDeadViewHeight,
-		Vector vCrouchTraceMin,
-		Vector vCrouchTraceMax ) :
-			CViewVectors( 
-				vView,
-				vHullMin,
-				vHullMax,
-				vDuckHullMin,
-				vDuckHullMax,
-				vDuckView,
-				vObsHullMin,
-				vObsHullMax,
-				vDeadViewHeight )
-	{
-		m_vCrouchTraceMin = vCrouchTraceMin;
-		m_vCrouchTraceMax = vCrouchTraceMax;
-	}
+	DECLARE_CLASS(CInMPGameRules, CInGameRules);
 
-	Vector m_vCrouchTraceMin;
-	Vector m_vCrouchTraceMax;	
-};
-
-class CInSourceMPRules : public CInSourceSPRules
-{
-public:
-	DECLARE_CLASS(CInSourceMPRules, CInSourceSPRules);
-
+	// Llave de encriptación única para los archivos especiales.
+	// @TODO: Esta es la llave de HL2MP, cambiarla.
 	virtual const unsigned char *GetEncryptionKey() { return (unsigned char *)"x9Ke0BY7"; }
-
-	virtual const CViewVectors* GetViewVectors() const;
-	const HL2MPViewVectors* GetHL2MPViewVectors() const;
 
 private:
 
@@ -72,19 +37,16 @@ private:
 	#else
 		DECLARE_SERVERCLASS_NOBASE();
 
-		CInSourceMPRules();
-		virtual void Precache();
+		CInMPGameRules();
+		~CInMPGameRules();
+
+		virtual bool IsMultiplayer() { return true; };		// Estamos en Multiplayer
+		virtual bool IncludeDirector() { return false; };	// Por ahora en Multiplayer el Director no funciona.
+
 		virtual void Think();
-		virtual void FliesThink();
-
-		virtual bool IsMultiplayer() { return true; };
-		virtual bool IsDeathmatch() { return false; };
-		virtual bool IsCoOp() { return false; };
-
 		virtual void PlayerSpawn(CBasePlayer *pPlayer);
 		virtual const char *GetGameDescription();
 
-		virtual bool ClientConnected(edict_t *pClient, const char *pszName, const char *pszAddress, char *reject, int maxrejectlen);
 		virtual void ClientDisconnected(edict_t *pClient);
 
 		virtual CBasePlayer *GetDeathScorer(CBaseEntity *pKiller, CBaseEntity *pInflictor);
@@ -92,18 +54,12 @@ private:
 
 		virtual void PlayerKilled(CBasePlayer *pVictim, const CTakeDamageInfo &info);
 		virtual const char *NPCName(const char *pClass);
-
-		int NextAmbientMusic;
-		CEnvSound *pMusicAmbient;
-
-		int NextFliesSound;
-		int NextCleanFlies;
 	#endif
 };
 
-inline CInSourceMPRules* InSourceMultiPlayerRules()
+inline CInMPGameRules* InMPGameRules()
 {
-	return static_cast<CInSourceMPRules*>(g_pGameRules);
+	return static_cast<CInMPGameRules*>(g_pGameRules);
 }
 
 #endif // IN_MULTIPLAYER_GAMERULES_H

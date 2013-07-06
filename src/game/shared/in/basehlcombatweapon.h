@@ -112,8 +112,6 @@ public:
 	virtual bool	Deploy();
 	virtual void	WeaponSound( WeaponSound_t shoot_type, float soundtime = 0.0f );
 
-	//DECLARE_DATADESC();
-
 	virtual int		GetBurstSize() { return 3; };
 
 	void			BurstThink();

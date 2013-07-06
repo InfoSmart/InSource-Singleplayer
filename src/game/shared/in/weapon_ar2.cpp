@@ -68,6 +68,9 @@ END_DATADESC()
 
 acttable_t	CWeaponAR2::m_acttable[] = 
 {
+	/*
+		NPC's
+	*/
 	{ ACT_RANGE_ATTACK1,			ACT_RANGE_ATTACK_AR2,			true },
 	{ ACT_RELOAD,					ACT_RELOAD_SMG1,				true },		// FIXME: hook to AR2 unique
 	{ ACT_IDLE,						ACT_IDLE_SMG1,					true },		// FIXME: hook to AR2 unique
@@ -75,7 +78,7 @@ acttable_t	CWeaponAR2::m_acttable[] =
 
 	{ ACT_WALK,						ACT_WALK_RIFLE,					true },
 
-// Readiness activities (not aiming)
+	// Readiness activities (not aiming)
 	{ ACT_IDLE_RELAXED,				ACT_IDLE_SMG1_RELAXED,			false },//never aims
 	{ ACT_IDLE_STIMULATED,			ACT_IDLE_SMG1_STIMULATED,		false },
 	{ ACT_IDLE_AGITATED,			ACT_IDLE_ANGRY_SMG1,			false },//always aims
@@ -88,7 +91,7 @@ acttable_t	CWeaponAR2::m_acttable[] =
 	{ ACT_RUN_STIMULATED,			ACT_RUN_RIFLE_STIMULATED,		false },
 	{ ACT_RUN_AGITATED,				ACT_RUN_AIM_RIFLE,				false },//always aims
 
-// Readiness activities (aiming)
+	// Readiness activities (aiming)
 	{ ACT_IDLE_AIM_RELAXED,			ACT_IDLE_SMG1_RELAXED,			false },//never aims	
 	{ ACT_IDLE_AIM_STIMULATED,		ACT_IDLE_AIM_RIFLE_STIMULATED,	false },
 	{ ACT_IDLE_AIM_AGITATED,		ACT_IDLE_ANGRY_SMG1,			false },//always aims
@@ -100,7 +103,7 @@ acttable_t	CWeaponAR2::m_acttable[] =
 	{ ACT_RUN_AIM_RELAXED,			ACT_RUN_RIFLE_RELAXED,			false },//never aims
 	{ ACT_RUN_AIM_STIMULATED,		ACT_RUN_AIM_RIFLE_STIMULATED,	false },
 	{ ACT_RUN_AIM_AGITATED,			ACT_RUN_AIM_RIFLE,				false },//always aims
-//End readiness activities
+	//End readiness activities
 
 	{ ACT_WALK_AIM,					ACT_WALK_AIM_RIFLE,				true },
 	{ ACT_WALK_CROUCH,				ACT_WALK_CROUCH_RIFLE,			true },
@@ -116,15 +119,27 @@ acttable_t	CWeaponAR2::m_acttable[] =
 	{ ACT_RELOAD_LOW,				ACT_RELOAD_SMG1_LOW,			false },
 	{ ACT_GESTURE_RELOAD,			ACT_GESTURE_RELOAD_SMG1,		true },
 
-	{ ACT_HL2MP_IDLE,						ACT_HL2MP_IDLE_AR2,                    false },
-    { ACT_HL2MP_RUN,						ACT_HL2MP_RUN_AR2,                    false },
-    { ACT_HL2MP_IDLE_CROUCH,				ACT_HL2MP_IDLE_CROUCH_AR2,            false },
-    { ACT_HL2MP_WALK_CROUCH,				ACT_HL2MP_WALK_CROUCH_AR2,            false },
-    { ACT_HL2MP_GESTURE_RANGE_ATTACK,		ACT_HL2MP_GESTURE_RANGE_ATTACK_AR2,    false },
-    { ACT_HL2MP_GESTURE_RELOAD,				ACT_HL2MP_IDLE_AR2,						false },
-    { ACT_HL2MP_JUMP,						ACT_HL2MP_JUMP_AR2,                    false },
-    { ACT_RANGE_ATTACK1,					ACT_RANGE_ATTACK_AR2,					false },
-	{ ACT_RANGE_ATTACK2, ACT_RANGE_ATTACK_AR2_GRENADE, true },
+	/*
+		JUGADORES
+	*/
+	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_AR2,					false },
+	{ ACT_MP_WALK,						ACT_HL2MP_WALK_AR2,					false },
+	{ ACT_MP_RUN,						ACT_HL2MP_RUN_AR2,					false },
+	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_AR2,			false },
+	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_AR2,			false },
+	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_AR2,					false },
+	{ ACT_MP_JUMP_START,				ACT_HL2MP_JUMP_AR2,					false },
+	{ ACT_MP_SWIM,						ACT_HL2MP_SWIM_AR2,					false },
+	{ ACT_MP_SWIM_IDLE,					ACT_HL2MP_SWIM_IDLE_AR2,			false },	
+	{ ACT_MP_AIRWALK,					ACT_HL2MP_RUN_AR2,					false },
+	
+
+	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_AR2,	false },
+	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_AR2,	false },
+	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_AR2,		false },
+	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_AR2,		false },
+
+	
 };
 
 IMPLEMENT_ACTTABLE(CWeaponAR2);
@@ -217,7 +232,6 @@ void CWeaponAR2::DoImpactEffect( trace_t &tr, int nDamageType )
 	data.m_vNormal = tr.plane.normal;
 
 	DispatchEffect("AR2Impact", data);
-
 	BaseClass::DoImpactEffect(tr, nDamageType);
 }
 
@@ -226,6 +240,8 @@ void CWeaponAR2::DoImpactEffect( trace_t &tr, int nDamageType )
 const Vector& CWeaponAR2::GetBulletSpread()
 {
 	static Vector Spread = VECTOR_CONE_3DEGREES;
+
+#ifndef CLIENT_DLL
 
 	// El dueño de esta arma es el jugador.
 	if ( GetOwner() && GetOwner()->IsPlayer() )
@@ -239,6 +255,8 @@ const Vector& CWeaponAR2::GetBulletSpread()
 		if ( pPlayer->IsDucked() )
 			Spread = VECTOR_CONE_3DEGREES;
 	}
+
+#endif
 
 	return Spread;
 }
@@ -288,54 +306,19 @@ void CWeaponAR2::DelayedAttack()
 	// View effects
 	color32 white = {255, 255, 255, 64};
 	UTIL_ScreenFade(pOwner, white, 0.2, 0, FFADE_IN);
-
-
 	
 	CIN_Player *pPlayer = ToInPlayer(GetOwner());
 
 	// Desorientamos al jugador.
 	ConVarRef sk_plr_dmg_ar2("sk_plr_dmg_ar2");
+	QAngle angles = pOwner->GetLocalAngles();
 
-	// InSource
-	// Efectos de "principalmente manejando armas"
-	if ( pPlayer->GetConVar("in_beginner_weapon") == "1" )
-	{
-		// Efecto de golpe (Camara hacia arriba y abajo)
-		QAngle	viewPunch;
+	angles.x += random->RandomInt(-4, 4);
+	angles.y += random->RandomInt(-4, 4);
+	angles.z = 0;
 
-		viewPunch.x = random->RandomFloat(-8.0f, -16.0f);
-		viewPunch.y = random->RandomFloat(-0.35f,  0.35f);
-		viewPunch.z = 0;
-
-		pOwner->ViewPunch(viewPunch);
-
-		// Efecto de empuje (Camara hacia atras)
-		Vector recoilForce = pOwner->BodyDirection2D() * - (sk_plr_dmg_ar2.GetFloat() * 10.0f);
-		recoilForce[2] += random->RandomFloat(80.0f, 120.0f);
-
-		pOwner->ApplyAbsVelocityImpulse(recoilForce);
-
-		// Iván: No tengo idea de que hace pero estaba ahí...
-		QAngle angles = pOwner->GetLocalAngles();
-
-		angles.x += random->RandomInt(-20, 20);
-		angles.y += random->RandomInt(-20, 20);
-		angles.z = 0;
-	
-		pOwner->SnapEyeAngles(angles, true);
-	}
-	else
-	{
-		QAngle angles = pOwner->GetLocalAngles();
-
-		angles.x += random->RandomInt(-4, 4);
-		angles.y += random->RandomInt(-4, 4);
-		angles.z = 0;
-
-		pOwner->SnapEyeAngles(angles, true);
-
-		pOwner->ViewPunch(QAngle(random->RandomInt(-8, -12), random->RandomInt(1, 2), 0));
-	}
+	pOwner->SnapEyeAngles(angles, true);
+	pOwner->ViewPunch(QAngle(random->RandomInt(-8, -12), random->RandomInt(1, 2), 0));
 
 #endif
 

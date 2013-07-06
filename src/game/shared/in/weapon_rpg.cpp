@@ -1395,7 +1395,10 @@ PRECACHE_WEAPON_REGISTER(weapon_rpg);
 
 acttable_t	CWeaponRPG::m_acttable[] = 
 {
-	{ ACT_RANGE_ATTACK1, ACT_RANGE_ATTACK_RPG, true },
+	/*
+		NPC'S
+	*/
+	{ ACT_RANGE_ATTACK1,			ACT_RANGE_ATTACK_RPG,			true },
 
 	{ ACT_IDLE_RELAXED,				ACT_IDLE_RPG_RELAXED,			true },
 	{ ACT_IDLE_STIMULATED,			ACT_IDLE_ANGRY_RPG,				true },
@@ -1409,14 +1412,22 @@ acttable_t	CWeaponRPG::m_acttable[] =
 	{ ACT_RUN_CROUCH,				ACT_RUN_CROUCH_RPG,				true },
 	{ ACT_COVER_LOW,				ACT_COVER_LOW_RPG,				true },
 
-	{ ACT_HL2MP_IDLE,                    ACT_HL2MP_IDLE_RPG,                    false },
-    { ACT_HL2MP_RUN,                    ACT_HL2MP_RUN_RPG,                    false },
-    { ACT_HL2MP_IDLE_CROUCH,            ACT_HL2MP_IDLE_CROUCH_RPG,            false },
-    { ACT_HL2MP_WALK_CROUCH,            ACT_HL2MP_WALK_CROUCH_RPG,            false },
-    { ACT_HL2MP_GESTURE_RANGE_ATTACK,    ACT_HL2MP_GESTURE_RANGE_ATTACK_RPG,    false },
-    { ACT_HL2MP_GESTURE_RELOAD,            ACT_HL2MP_GESTURE_RELOAD_RPG,        false },
-    { ACT_HL2MP_JUMP,                    ACT_HL2MP_JUMP_RPG,                    false },
-    { ACT_RANGE_ATTACK1,                ACT_RANGE_ATTACK_RPG,                false },
+	/*
+		JUGADORES
+	*/
+	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_RPG,					false },
+	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_RPG,			false },
+
+	{ ACT_MP_RUN,						ACT_HL2MP_RUN_RPG,					false },
+	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_RPG,			false },
+
+	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_RPG,	false },
+	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_RPG,	false },
+
+	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_RPG,		false },
+	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_RPG,		false },
+
+	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_RPG,					false },
 
 };
 
@@ -1673,30 +1684,6 @@ void CWeaponRPG::PrimaryAttack()
 			if(ppAIs[i]->m_iClassname == iszStriderClassname)
 				ppAIs[i]->DispatchInteraction(g_interactionPlayerLaunchedRPG, NULL, m_hMissile);
 		}
-	}
-
-	// Desorientar al jugador
-	ConVarRef in_beginner_weapon("in_beginner_weapon");
-	ConVarRef sk_plr_dmg_rpg_round("sk_plr_dmg_rpg_round");
-
-	// InSource
-	// Efectos de "principalmente manejando armas"
-	if(in_beginner_weapon.GetBool())
-	{
-		// Efecto de empuje (Camara hacia atras)
-		Vector recoilForce = pOwner->BodyDirection2D() * - (sk_plr_dmg_rpg_round.GetFloat() * 8.0f);
-		recoilForce[2] += random->RandomFloat(50.0f, 90.0f);
-
-		pOwner->ApplyAbsVelocityImpulse(recoilForce);
-
-		// Iván: No tengo idea de que hace pero estaba ahí...
-		QAngle angles = pOwner->GetLocalAngles();
-
-		angles.x += random->RandomInt(-20, 20);
-		angles.y += random->RandomInt(-20, 20);
-		angles.z = 0;
-
-		pOwner->SnapEyeAngles(angles);
 	}
 }
 

@@ -41,8 +41,6 @@ extern ConVar sk_plr_dmg_smg1_grenade;
 
 class CWeaponSMG1 : public CHLSelectFireMachineGun
 {
-	//DECLARE_DATADESC();
-
 public:
 	DECLARE_CLASS(CWeaponSMG1, CHLSelectFireMachineGun);
 	CWeaponSMG1();
@@ -51,17 +49,20 @@ public:
 	DECLARE_PREDICTABLE();
 	
 	void	Precache();
-	void	AddViewKick();
 	void	SecondaryAttack();
 
-	int		GetMinBurst() { return 2; }
-	int		GetMaxBurst() { return 5; }
+	int		GetMinBurst() { return 5; }
+	int		GetMaxBurst() { return 10; }
+
+	float	GetFireRate() { return ( g_pGameRules->IsMultiplayer() ) ? 0.105f : 0.085f; }
+	virtual const Vector& GetBulletSpread();
+	void	AddViewKick();
 
 	virtual void Equip(CBaseCombatCharacter *pOwner);
 	bool	Reload();
-
-	float	GetFireRate() { return 0.055f; }
+	
 	Activity	GetPrimaryAttackActivity();
+	const WeaponProficiencyInfo_t *GetProficiencyValues();
 
 #ifndef CLIENT_DLL
 	int		CapabilitiesGet() { return bits_CAP_WEAPON_RANGE_ATTACK1; }
@@ -71,10 +72,6 @@ public:
 	void Operator_ForceNPCFire(CBaseCombatCharacter  *pOperator, bool bSecondary);
 	void Operator_HandleAnimEvent(animevent_t *pEvent, CBaseCombatCharacter *pOperator);
 #endif
-
-	virtual const Vector& GetBulletSpread();
-
-	const WeaponProficiencyInfo_t *GetProficiencyValues();
 
 	DECLARE_ACTTABLE();
 
@@ -101,21 +98,15 @@ END_PREDICTION_DATA()
 LINK_ENTITY_TO_CLASS(weapon_smg1, CWeaponSMG1);
 PRECACHE_WEAPON_REGISTER(weapon_smg1);
 
-/*
-BEGIN_DATADESC(CWeaponSMG1)
-
-	DEFINE_FIELD( m_vecTossVelocity,		FIELD_VECTOR ),
-	DEFINE_FIELD( m_flNextGrenadeCheck,		FIELD_TIME ),
-
-END_DATADESC()
-*/
-
 //=========================================================
 // Actividades
 //=========================================================
 
 acttable_t	CWeaponSMG1::m_acttable[] = 
 {
+	/*
+		NPC's
+	*/
 	{ ACT_RANGE_ATTACK1,			ACT_RANGE_ATTACK_SMG1,			true },
 	{ ACT_RELOAD,					ACT_RELOAD_SMG1,				true },
 	{ ACT_IDLE,						ACT_IDLE_SMG1,					true },
@@ -123,7 +114,7 @@ acttable_t	CWeaponSMG1::m_acttable[] =
 
 	{ ACT_WALK,						ACT_WALK_RIFLE,					true },
 	{ ACT_WALK_AIM,					ACT_WALK_AIM_RIFLE,				true  },
-	
+
 // Readiness activities (not aiming)
 	{ ACT_IDLE_RELAXED,				ACT_IDLE_SMG1_RELAXED,			false },//never aims
 	{ ACT_IDLE_STIMULATED,			ACT_IDLE_SMG1_STIMULATED,		false },
@@ -165,14 +156,24 @@ acttable_t	CWeaponSMG1::m_acttable[] =
 	{ ACT_RELOAD_LOW,				ACT_RELOAD_SMG1_LOW,			false },
 	{ ACT_GESTURE_RELOAD,			ACT_GESTURE_RELOAD_SMG1,		true },
 
-	{ ACT_HL2MP_IDLE,					    ACT_HL2MP_IDLE_SMG1,                    false },
-    { ACT_HL2MP_RUN,						ACT_HL2MP_RUN_SMG1,                    false },
-    { ACT_HL2MP_IDLE_CROUCH,				ACT_HL2MP_IDLE_CROUCH_SMG1,            false },
-    { ACT_HL2MP_WALK_CROUCH,				ACT_HL2MP_WALK_CROUCH_SMG1,            false },
-    { ACT_HL2MP_GESTURE_RANGE_ATTACK,		ACT_HL2MP_GESTURE_RANGE_ATTACK_SMG1,    false },
-    { ACT_HL2MP_GESTURE_RELOAD,				ACT_HL2MP_GESTURE_RELOAD_SMG1,        false },
-    { ACT_HL2MP_JUMP,						ACT_HL2MP_JUMP_SMG1,                    false },
-    { ACT_RANGE_ATTACK1,					ACT_RANGE_ATTACK_SMG1,                false },
+	/*
+		JUGADORES
+	*/
+	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_SMG1,					false },
+	{ ACT_MP_WALK,						ACT_HL2MP_WALK_SMG1,					false },
+	{ ACT_MP_RUN,						ACT_HL2MP_RUN_SMG1,						false },
+	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_SMG1,				false },
+	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_SMG1,				false },
+	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_SMG1,					false },
+	{ ACT_MP_JUMP_START,				ACT_HL2MP_JUMP_SMG1,					false },
+	{ ACT_MP_AIRWALK,					ACT_HL2MP_RUN_SMG1,						false },
+	{ ACT_MP_SWIM,						ACT_HL2MP_SWIM_SMG1,					false },
+	{ ACT_MP_SWIM_IDLE,					ACT_HL2MP_SWIM_IDLE_SMG1,				false },	
+
+	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_SMG1,	false },
+	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_SMG1,	false },
+	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_SMG1,			false },
+	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_SMG1,			false },
 };
 
 IMPLEMENT_ACTTABLE(CWeaponSMG1);
@@ -197,30 +198,98 @@ const Vector& CWeaponSMG1::GetBulletSpread()
 	static Vector Spread = VECTOR_CONE_3DEGREES;
 
 #ifndef CLIENT_DLL
+
 	// El dueño de esta arma es el jugador.
 	if ( GetOwner() && GetOwner()->IsPlayer() )
 	{
 		// Valor predeterminado.
 		Spread = VECTOR_CONE_6DEGREES;
 
-		CIN_Player *pPlayer		= ToInPlayer(GetOwner());
-		const char *crosshair	= pPlayer->GetConVar("crosshair");
-
-		// Esta agachado y con la mira puesta. Las balas se esparcirán al minimo.
-		if ( pPlayer->IsDucked() && crosshair == "0" )
+		CIN_Player *pPlayer	= ToInPlayer(GetOwner());
+		int Accuracy		= pPlayer->Accuracy();
+		
+		if ( Accuracy == ACCURACY_HIGH )
 			Spread = VECTOR_CONE_1DEGREES;
 
-		// Esta agachado. 4 grados de esparcimiento.
-		else if ( pPlayer->IsDucked() )
-			Spread = VECTOR_CONE_4DEGREES;
-
-		// Esta con la mira. 3 grados de esparcimiento.
-		else if ( crosshair == "0" )
+		if ( Accuracy == ACCURACY_MEDIUM )
 			Spread = VECTOR_CONE_3DEGREES;
+
+		if ( Accuracy == ACCURACY_LOW )
+			Spread = VECTOR_CONE_4DEGREES;
 	}
+
 #endif
 
 	return Spread;
+}
+
+//=========================================================
+// Efecto de la fuerza del arma.
+//=========================================================
+void CWeaponSMG1::AddViewKick()
+{
+
+#ifndef CLIENT_DLL
+
+	float EASY_DAMPEN		= 0.5f;		// 
+	float MAX_VERTICAL_KICK = 4.0f;		// Grados
+	float SLIDE_LIMIT		= 5.0f;		// Segundos que demorará en hacer los efectos.
+
+	CIN_Player *pPlayer = ToInPlayer(GetOwner());
+
+	if ( !pPlayer )
+		return;
+
+	switch ( GameRules()->GetSkillLevel() )
+	{
+		// Normal
+		case SKILL_MEDIUM:
+			EASY_DAMPEN			= EASY_DAMPEN + 1.0f;
+			MAX_VERTICAL_KICK	= MAX_VERTICAL_KICK + 4.0f;
+		break;
+
+		// Díficil
+		case SKILL_HARD:
+			EASY_DAMPEN			= EASY_DAMPEN + 2.0f;
+			MAX_VERTICAL_KICK	= MAX_VERTICAL_KICK + 6.0f;
+			SLIDE_LIMIT			= SLIDE_LIMIT - 2.0f;
+		break;
+
+		// Realista
+		case SKILL_REALISTIC:
+			EASY_DAMPEN			= EASY_DAMPEN + 3.0f;
+			MAX_VERTICAL_KICK	= MAX_VERTICAL_KICK + 8.0f;
+			SLIDE_LIMIT			= SLIDE_LIMIT - 4.0f;
+		break;
+	}
+	
+
+	int Accuracy = pPlayer->Accuracy();
+	
+	if ( Accuracy == ACCURACY_HIGH )
+	{
+		EASY_DAMPEN			= EASY_DAMPEN - 1.5f;
+		MAX_VERTICAL_KICK	= MAX_VERTICAL_KICK - 2.5f;
+		SLIDE_LIMIT			= SLIDE_LIMIT + 2.0f;
+	}
+
+	if ( Accuracy ==  ACCURACY_MEDIUM )
+	{
+		EASY_DAMPEN			= EASY_DAMPEN - 1.0f;
+		MAX_VERTICAL_KICK	= MAX_VERTICAL_KICK - 1.5f;
+		SLIDE_LIMIT			= SLIDE_LIMIT + 1.0f;
+	}
+
+	if ( Accuracy == ACCURACY_LOW )
+	{
+		EASY_DAMPEN			= EASY_DAMPEN - 0.5f;
+		MAX_VERTICAL_KICK	= MAX_VERTICAL_KICK - 0.5f;
+	}
+
+	DoMachineGunKick(pPlayer, EASY_DAMPEN, MAX_VERTICAL_KICK, m_fFireDuration, SLIDE_LIMIT);
+
+#endif
+
 }
 
 //=========================================================
@@ -228,10 +297,6 @@ const Vector& CWeaponSMG1::GetBulletSpread()
 //=========================================================
 void CWeaponSMG1::Precache()
 {
-#ifndef CLIENT_DLL
-	UTIL_PrecacheOther("grenade_ar2");
-#endif
-
 	BaseClass::Precache();
 }
 
@@ -364,23 +429,6 @@ bool CWeaponSMG1::Reload()
 	}
 
 	return fRet;
-}
-
-//=========================================================
-// Efecto de la fuerza del arma.
-//=========================================================
-void CWeaponSMG1::AddViewKick()
-{
-	#define	EASY_DAMPEN			0.5f
-	#define	MAX_VERTICAL_KICK	1.0f	// Grados
-	#define	SLIDE_LIMIT			2.0f	// Segundos
-	
-	CBasePlayer *pPlayer = ToBasePlayer(GetOwner());
-
-	if ( !pPlayer )
-		return;
-
-	DoMachineGunKick(pPlayer, EASY_DAMPEN, MAX_VERTICAL_KICK, m_fFireDuration, SLIDE_LIMIT);
 }
 
 //=========================================================

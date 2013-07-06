@@ -1419,17 +1419,22 @@ END_DATADESC()
 
 acttable_t CWeaponPhysCannon::m_acttable[] =
 {
-    { ACT_HL2MP_IDLE,                    ACT_HL2MP_IDLE_PHYSGUN,                    false },
-    { ACT_HL2MP_RUN,                    ACT_HL2MP_RUN_PHYSGUN,                    false },
-    { ACT_HL2MP_IDLE_CROUCH,            ACT_HL2MP_IDLE_CROUCH_PHYSGUN,            false },
-    { ACT_HL2MP_WALK_CROUCH,            ACT_HL2MP_WALK_CROUCH_PHYSGUN,            false },
-    { ACT_HL2MP_GESTURE_RANGE_ATTACK,    ACT_HL2MP_GESTURE_RANGE_ATTACK_PHYSGUN,    false },
-    { ACT_HL2MP_GESTURE_RELOAD,            ACT_HL2MP_GESTURE_RELOAD_PHYSGUN,        false },
-    { ACT_HL2MP_JUMP,                    ACT_HL2MP_JUMP_PHYSGUN,                    false },
-    { ACT_RANGE_ATTACK1,                ACT_RANGE_ATTACK_SLAM,                false },
-};
-IMPLEMENT_ACTTABLE( CWeaponPhysCannon );
+    { ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_PHYSGUN,					false },
+	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_PHYSGUN,			false },
 
+	{ ACT_MP_RUN,						ACT_HL2MP_RUN_PHYSGUN,					false },
+	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_PHYSGUN,			false },
+
+	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_PHYSGUN,	false },
+	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_PHYSGUN,	false },
+
+	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_PHYSGUN,		false },
+	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_PHYSGUN,		false },
+
+	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_PHYSGUN,					false },
+};
+
+IMPLEMENT_ACTTABLE( CWeaponPhysCannon );
 
 enum
 {

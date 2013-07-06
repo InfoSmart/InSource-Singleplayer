@@ -131,14 +131,17 @@ PRECACHE_WEAPON_REGISTER(weapon_shotgun);
 
 acttable_t	CWeaponShotgun::m_acttable[] = 
 {
-	{ ACT_IDLE,						ACT_IDLE_SMG1,					true },	// FIXME: hook to shotgun unique
+	/*
+		NPC'S
+	*/
+	{ ACT_IDLE,						ACT_IDLE_SMG1,						true },	// FIXME: hook to shotgun unique
 
 	{ ACT_RANGE_ATTACK1,			ACT_RANGE_ATTACK_SHOTGUN,			true },
 	{ ACT_RELOAD,					ACT_RELOAD_SHOTGUN,					false },
 	{ ACT_WALK,						ACT_WALK_RIFLE,						true },
 	{ ACT_IDLE_ANGRY,				ACT_IDLE_ANGRY_SHOTGUN,				true },
 
-// Readiness activities (not aiming)
+	// Readiness activities (not aiming)
 	{ ACT_IDLE_RELAXED,				ACT_IDLE_SHOTGUN_RELAXED,		false },//never aims
 	{ ACT_IDLE_STIMULATED,			ACT_IDLE_SHOTGUN_STIMULATED,	false },
 	{ ACT_IDLE_AGITATED,			ACT_IDLE_SHOTGUN_AGITATED,		false },//always aims
@@ -151,7 +154,7 @@ acttable_t	CWeaponShotgun::m_acttable[] =
 	{ ACT_RUN_STIMULATED,			ACT_RUN_RIFLE_STIMULATED,		false },
 	{ ACT_RUN_AGITATED,				ACT_RUN_AIM_RIFLE,				false },//always aims
 
-// Readiness activities (aiming)
+	// Readiness activities (aiming)
 	{ ACT_IDLE_AIM_RELAXED,			ACT_IDLE_SMG1_RELAXED,			false },//never aims	
 	{ ACT_IDLE_AIM_STIMULATED,		ACT_IDLE_AIM_RIFLE_STIMULATED,	false },
 	{ ACT_IDLE_AIM_AGITATED,		ACT_IDLE_ANGRY_SMG1,			false },//always aims
@@ -163,7 +166,7 @@ acttable_t	CWeaponShotgun::m_acttable[] =
 	{ ACT_RUN_AIM_RELAXED,			ACT_RUN_RIFLE_RELAXED,			false },//never aims
 	{ ACT_RUN_AIM_STIMULATED,		ACT_RUN_AIM_RIFLE_STIMULATED,	false },
 	{ ACT_RUN_AIM_AGITATED,			ACT_RUN_AIM_RIFLE,				false },//always aims
-//End readiness activities
+	//End readiness activities
 
 	{ ACT_WALK_AIM,					ACT_WALK_AIM_SHOTGUN,				true },
 	{ ACT_WALK_CROUCH,				ACT_WALK_CROUCH_RIFLE,				true },
@@ -176,16 +179,23 @@ acttable_t	CWeaponShotgun::m_acttable[] =
 	{ ACT_RANGE_ATTACK1_LOW,		ACT_RANGE_ATTACK_SHOTGUN_LOW,		true },
 	{ ACT_RELOAD_LOW,				ACT_RELOAD_SHOTGUN_LOW,				false },
 	{ ACT_GESTURE_RELOAD,			ACT_GESTURE_RELOAD_SHOTGUN,			false },
-
-	{ ACT_HL2MP_IDLE,                    ACT_HL2MP_IDLE_SHOTGUN,                    false },
-    { ACT_HL2MP_RUN,                    ACT_HL2MP_RUN_SHOTGUN,                    false },
-    { ACT_HL2MP_IDLE_CROUCH,            ACT_HL2MP_IDLE_CROUCH_SHOTGUN,            false },
-    { ACT_HL2MP_WALK_CROUCH,            ACT_HL2MP_WALK_CROUCH_SHOTGUN,            false },
-    { ACT_HL2MP_GESTURE_RANGE_ATTACK,    ACT_HL2MP_GESTURE_RANGE_ATTACK_SHOTGUN,    false },
-    //{ ACT_HL2MP_GESTURE_RELOAD,            ACT_HL2MP_GESTURE_RELOAD_SHOTGUN,        false }, ACT_RELOAD_SHOTGUN
-    { ACT_HL2MP_GESTURE_RELOAD,            ACT_RELOAD_SHOTGUN,        true }, // @TODO: No funciona!
-    { ACT_HL2MP_JUMP,                    ACT_HL2MP_JUMP_SHOTGUN,                    false },
-    { ACT_RANGE_ATTACK1,                ACT_RANGE_ATTACK_SHOTGUN,                false },
+		
+	/*
+		JUGADORES
+	*/
+	{ ACT_MP_STAND_IDLE,				ACT_HL2MP_IDLE_SHOTGUN,					false },
+	{ ACT_MP_WALK,						ACT_HL2MP_WALK_SHOTGUN,					false },
+	{ ACT_MP_RUN,						ACT_HL2MP_RUN_SHOTGUN,					false },
+	{ ACT_MP_CROUCH_IDLE,				ACT_HL2MP_IDLE_CROUCH_SHOTGUN,			false },
+	{ ACT_MP_CROUCHWALK,				ACT_HL2MP_WALK_CROUCH_SHOTGUN,			false },
+	{ ACT_MP_JUMP,						ACT_HL2MP_JUMP_SHOTGUN,					false },
+	{ ACT_MP_SWIM,						ACT_HL2MP_SWIM_SHOTGUN,					false },
+	{ ACT_MP_SWIM_IDLE,					ACT_HL2MP_SWIM_IDLE_SHOTGUN,			false },
+	
+	{ ACT_MP_ATTACK_STAND_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_SHOTGUN,	false },
+	{ ACT_MP_ATTACK_CROUCH_PRIMARYFIRE,	ACT_HL2MP_GESTURE_RANGE_ATTACK_SHOTGUN,	false },
+	{ ACT_MP_RELOAD_STAND,				ACT_HL2MP_GESTURE_RELOAD_SHOTGUN,		false },
+	{ ACT_MP_RELOAD_CROUCH,				ACT_HL2MP_GESTURE_RELOAD_SHOTGUN,		false },
 };
 
 IMPLEMENT_ACTTABLE(CWeaponShotgun);
@@ -513,39 +523,13 @@ void CWeaponShotgun::PrimaryDisorient()
 
 	// Desorientar al jugador
 	ConVarRef sk_plr_dmg_buckshot("sk_plr_dmg_buckshot");
+	QAngle viewPunch;
 
-	// InSource
-	// Efectos de "principalmente manejando armas"
-	if ( pPlayer->GetConVar("in_beginner_weapon") == "1" )
-	{
-		// Efecto de golpe (Camara hacia arriba y abajo)
-		QAngle	viewPunch;
+	viewPunch.x = random->RandomFloat(-2, -1);
+	viewPunch.y = random->RandomFloat(-2, 2);
+	viewPunch.z = 0;
 
-		viewPunch.x = random->RandomFloat(-8.0f, -16.0f);
-		viewPunch.y = random->RandomFloat(-0.35f,  0.35f);
-		viewPunch.z = 0;
-
-		pPlayer->ViewPunch(viewPunch);
-
-	
-		// Efecto de empuje (Camara hacia atras)
-		Vector recoilForce = pPlayer->BodyDirection2D() * - (sk_plr_dmg_buckshot.GetFloat() * 20.0f);
-		recoilForce[2] += random->RandomFloat(100.0f, 150.0f);
-
-		pPlayer->ApplyAbsVelocityImpulse(recoilForce);
-	}
-
-	// ¡No es noob! Efectos minimos
-	else
-	{
-		QAngle viewPunch;
-
-		viewPunch.x = random->RandomFloat(-2, -1);
-		viewPunch.y = random->RandomFloat(-2, 2);
-		viewPunch.z = 0;
-
-		pPlayer->ViewPunch(viewPunch);
-	}
+	pPlayer->ViewPunch(viewPunch);
 #endif
 }
 
@@ -564,39 +548,13 @@ void CWeaponShotgun::SecondaryDisorient()
 	// Desorientar al jugador
 	ConVarRef sk_plr_dmg_buckshot("sk_plr_dmg_buckshot");
 
-	// InSource
-	// Efectos de "principalmente manejando armas"
-	if ( pPlayer->GetConVar("in_beginner_weapon") == "1" )
-	{
-		// Efecto de golpe (Camara hacia arriba y abajo)
-		QAngle	viewPunch;
+	QAngle viewPunch;
 
-		viewPunch.x = random->RandomFloat(-16.0f, -32.0f);
-		viewPunch.y = random->RandomFloat(-0.50f,  0.50f);
-		viewPunch.z = 0;
+	viewPunch.x = random->RandomFloat(-5, -5);
+	viewPunch.y = 0;
+	viewPunch.z = 0;
 
-		pPlayer->ViewPunch(viewPunch);
-
-	
-
-		// Efecto de empuje (Camara hacia atras)
-		Vector recoilForce = pPlayer->BodyDirection2D() * - ((sk_plr_dmg_buckshot.GetFloat() * 2) * 30.0f);
-		recoilForce[2] += random->RandomFloat(100.0f, 150.0f);
-
-		pPlayer->ApplyAbsVelocityImpulse(recoilForce);
-	}
-
-	// ¡No es noob! Efectos minimos
-	else
-	{
-		QAngle viewPunch;
-
-		viewPunch.x = random->RandomFloat(-5, -5);
-		viewPunch.y = 0;
-		viewPunch.z = 0;
-
-		pPlayer->ViewPunch(viewPunch);
-	}
+	pPlayer->ViewPunch(viewPunch);
 #endif
 }
 

@@ -44,7 +44,6 @@ public:
 	virtual void		ExitLadder();
 	bool				IsSprinting() const { return m_fIsSprinting; }
 
-	virtual void        CalcDeathCamView(Vector& eyeOrigin, QAngle& eyeAngles, float& fov);
 	virtual void        CalcThirdPersonDeathView(Vector& eyeOrigin, QAngle& eyeAngles, float& fov);
 	
 	// Input handling
@@ -53,8 +52,6 @@ public:
 	void			PerformClientSideNPCSpeedModifiers( float flFrameTime, CUserCmd *pCmd );
 
 	bool				IsWeaponLowered() { return m_HL2Local.m_bWeaponLowered; }
-
-	virtual IRagdoll* GetRepresentativeRagdoll() const;
 
 	virtual void	AddEntity() { BaseClass::AddEntity(); }
 	virtual void UpdateFlashlight() { BaseClass::UpdateFlashlight(); }
@@ -81,43 +78,7 @@ private:
 	float				m_flSpeedMod;
 	float				m_flExitSpeedMod;
 
-	EHANDLE	m_hRagdoll;
-
-
 friend class CHL2GameMovement;
-};
-
-class C_BaseHLRagdoll : public C_BaseAnimatingOverlay
-{
-public:
-	DECLARE_CLASS( C_BaseHLRagdoll, C_BaseAnimatingOverlay );
-	DECLARE_CLIENTCLASS();
-	
-	C_BaseHLRagdoll();
-	~C_BaseHLRagdoll();
-
-	virtual void OnDataChanged( DataUpdateType_t type );
-
-	int GetPlayerEntIndex() const;
-	IRagdoll* GetIRagdoll() const;
-	
-	void ImpactTrace( trace_t *pTrace, int iDamageType, char *pCustomImpactName );
-	void UpdateOnRemove();
-	virtual void SetupWeights( const matrix3x4_t *pBoneToWorld, int nFlexWeightCount, float *pFlexWeights, float *pFlexDelayedWeights );
-	
-private:
-	
-	C_BaseHLRagdoll( const C_BaseHLRagdoll & ) {}
-
-	void Interp_Copy( C_BaseAnimatingOverlay *pDestinationEntity );
-	void CreateHL2Ragdoll();
-
-private:
-
-	EHANDLE	m_hPlayer;
-
-	CNetworkVector( m_vecRagdollVelocity );
-	CNetworkVector( m_vecRagdollOrigin );
 };
 
 #endif

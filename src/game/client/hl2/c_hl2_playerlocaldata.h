@@ -56,6 +56,13 @@ public:
 
 	int PocketItems[100];		// InSource - Inventario.
 	int BackpackItems[100];		// InSource - Inventario.
+
+	int m_iEntities;
+
+#ifdef FURNANCE
+	int m_iNectar;	// Furnance - Nectar
+#endif
+
 };
 
 

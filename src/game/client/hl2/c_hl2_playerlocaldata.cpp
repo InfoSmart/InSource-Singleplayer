@@ -28,12 +28,22 @@ BEGIN_RECV_TABLE_NOBASE( C_HL2PlayerLocalData, DT_HL2Local )
 	RecvPropFloat( RECVINFO(m_flFlashBattery) ),
 	RecvPropVector( RECVINFO(m_vecLocatorOrigin) ),
 
+	//=========================================================
+	// INSOURCE
+
 	RecvPropArray3( RECVINFO_ARRAY(PocketItems), RecvPropInt( RECVINFO(PocketItems[0]) ) ),
 	RecvPropArray3( RECVINFO_ARRAY(BackpackItems), RecvPropInt( RECVINFO(BackpackItems[0]) ) ),
 
 	RecvPropFloat( RECVINFO(m_iBlood) ),	// InSource - Sangre
 	RecvPropFloat( RECVINFO(m_iHunger) ),	// InSource - Hambre
 	RecvPropFloat( RECVINFO(m_iThirst) ),	// InSource - Sed
+
+	RecvPropInt( RECVINFO(m_iEntities) ),
+
+#ifdef FURNANCE
+	RecvPropInt( RECVINFO(m_iNectar) ),		// InSource - Nectar
+#endif
+
 END_RECV_TABLE()
 
 BEGIN_PREDICTION_DATA_NO_BASE( C_HL2PlayerLocalData )

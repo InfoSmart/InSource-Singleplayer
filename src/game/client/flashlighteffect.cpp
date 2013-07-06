@@ -35,22 +35,22 @@ void r_newflashlightCallback_f(IConVar *pConVar, const char *pOldString, float f
 static ConVar r_newflashlight				("r_newflashlight",				"1",		FCVAR_CHEAT, "", r_newflashlightCallback_f);
 static ConVar r_swingflashlight				("r_swingflashlight",			"1",		FCVAR_CHEAT);
 static ConVar r_flashlightlockposition		("r_flashlightlockposition",	"0",		FCVAR_CHEAT);
-static ConVar r_flashlightfov				("r_flashlightfov",				"45.0",		FCVAR_CHEAT);
+static ConVar r_flashlightfov				("r_flashlightfov",				"40.0",		FCVAR_CHEAT);
 static ConVar r_flashlightoffsetx			("r_flashlightoffsetx",			"10.0",		FCVAR_CHEAT);
 static ConVar r_flashlightoffsety			("r_flashlightoffsety",			"-20.0",	FCVAR_CHEAT);
 static ConVar r_flashlightoffsetz			("r_flashlightoffsetz",			"24.0",		FCVAR_CHEAT);
-static ConVar r_flashlightnear				("r_flashlightnear",			"4.0",		FCVAR_CHEAT);
+static ConVar r_flashlightnear				("r_flashlightnear",			"1.0",		FCVAR_CHEAT);
 static ConVar r_flashlightfar				("r_flashlightfar",				"750.0",	FCVAR_CHEAT);
 static ConVar r_flashlightconstant			("r_flashlightconstant",		"0.0",		FCVAR_CHEAT);
-static ConVar r_flashlightlinear			("r_flashlightlinear",			"100.0",	FCVAR_CHEAT);
+static ConVar r_flashlightlinear			("r_flashlightlinear",			"250.0",	FCVAR_CHEAT);
 static ConVar r_flashlightquadratic			("r_flashlightquadratic",		"0.0",		FCVAR_CHEAT);
 static ConVar r_flashlightvisualizetrace	("r_flashlightvisualizetrace",	"0",		FCVAR_CHEAT);
 static ConVar r_flashlightambient			("r_flashlightambient",			"0.0",		FCVAR_CHEAT);
 static ConVar r_flashlightshadowatten		("r_flashlightshadowatten",		"0.35",		FCVAR_CHEAT);
 static ConVar r_flashlightladderdist		("r_flashlightladderdist",		"40.0",		FCVAR_CHEAT);
 
-static ConVar mat_slopescaledepthbias_shadowmap	("mat_slopescaledepthbias_shadowmap", "16", FCVAR_CHEAT );
-static ConVar mat_depthbias_shadowmap			("mat_depthbias_shadowmap", "0.0005", FCVAR_CHEAT  );
+static ConVar mat_slopescaledepthbias_shadowmap	("mat_slopescaledepthbias_shadowmap", "4", FCVAR_CHEAT );
+static ConVar mat_depthbias_shadowmap			("mat_depthbias_shadowmap", "0.0001", FCVAR_CHEAT  );
 
 
 void r_newflashlightCallback_f( IConVar *pConVar, const char *pOldString, float flOldValue )
@@ -97,7 +97,7 @@ CFlashlightEffect::~CFlashlightEffect()
 //-----------------------------------------------------------------------------
 void CFlashlightEffect::TurnOn()
 {
-	m_bIsOn = true;
+	m_bIsOn		= true;
 	m_flDistMod = 1.0f;
 }
 
@@ -107,7 +107,7 @@ void CFlashlightEffect::TurnOn()
 //-----------------------------------------------------------------------------
 void CFlashlightEffect::TurnOff()
 {
-	if (m_bIsOn)
+	if ( m_bIsOn )
 	{
 		m_bIsOn = false;
 		LightOff();
@@ -147,7 +147,6 @@ public:
 void CFlashlightEffect::UpdateLightNew(const Vector &vecPos, const Vector &vecForward, const Vector &vecRight, const Vector &vecUp )
 {
 	VPROF_BUDGET( "CFlashlightEffect::UpdateLightNew", VPROF_BUDGETGROUP_SHADOW_DEPTH_TEXTURING );
-
 	FlashlightState_t state;
 
 	// We will lock some of the flashlight params if player is on a ladder, to prevent oscillations due to the trace-rays

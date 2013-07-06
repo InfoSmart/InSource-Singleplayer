@@ -49,6 +49,24 @@
     <Filter Include="Source Files\InSource\VGUI">
       <UniqueIdentifier>{861db87c-c5fb-48a0-8a32-e51b2585a798}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\InSource\Items">
+      <UniqueIdentifier>{e897225b-57c2-43b2-a512-c108974ea751}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\InSource\External">
+      <UniqueIdentifier>{d29d6c0b-1024-47a7-8bcb-91a125b63d54}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\InSource\GameRules">
+      <UniqueIdentifier>{6ea1beb8-bb20-4d35-94c2-22fb4ab55ff9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Furnance">
+      <UniqueIdentifier>{decd2487-8bc0-4e12-9848-5f723fabb55b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Furnance\GameRules">
+      <UniqueIdentifier>{828896d3-6007-4a4e-83fb-ea4cbf258898}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Furnance\HUD">
+      <UniqueIdentifier>{4b7a25a4-6462-4323-9e77-9562e16d6bc7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="achievement_notification_panel.cpp">
@@ -1497,12 +1515,6 @@
     <ClCompile Include="game_controls\ImageProgressBar.cpp">
       <Filter>game_controls Header Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\shared\in\inmp_gamerules.cpp">
-      <Filter>Source Files\InSource</Filter>
-    </ClCompile>
-    <ClCompile Include="..\shared\in\insp_gamerules.cpp">
-      <Filter>Source Files\InSource</Filter>
-    </ClCompile>
     <ClCompile Include="in\c_in_player.cpp">
       <Filter>Source Files\InSource</Filter>
     </ClCompile>
@@ -1542,9 +1554,6 @@
     <ClCompile Include="..\shared\in\weapon_shotgun.cpp">
       <Filter>Source Files\InSource</Filter>
     </ClCompile>
-    <ClCompile Include="in\HUD\hud_battery.cpp">
-      <Filter>Source Files\InSource\HUD</Filter>
-    </ClCompile>
     <ClCompile Include="in\HUD\hud_deathnotice.cpp">
       <Filter>Source Files\InSource\HUD</Filter>
     </ClCompile>
@@ -1560,8 +1569,38 @@
     <ClCompile Include="in\VGUI\vgui_features.cpp">
       <Filter>Source Files\InSource\VGUI</Filter>
     </ClCompile>
-    <ClCompile Include="hud_blood.cpp">
+    <ClCompile Include="vgui_inventory.cpp">
+      <Filter>Source Files\InSource\VGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="in\ge_screeneffects.cpp">
+      <Filter>Source Files\InSource</Filter>
+    </ClCompile>
+    <ClCompile Include="hud_resources.cpp">
       <Filter>Source Files\InSource\HUD</Filter>
+    </ClCompile>
+    <ClCompile Include="in\fmod_manager.cpp">
+      <Filter>Source Files\InSource\External</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\in_gamerules.cpp">
+      <Filter>Source Files\InSource\GameRules</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\inmp_gamerules.cpp">
+      <Filter>Source Files\InSource\GameRules</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\in\insurvival_gamerules.cpp">
+      <Filter>Source Files\InSource\GameRules</Filter>
+    </ClCompile>
+    <ClCompile Include="in\VGUI\vgui_loot.cpp">
+      <Filter>Source Files\InSource\VGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\shared\furnance\fr_gamerules.cpp">
+      <Filter>Source Files\Furnance\GameRules</Filter>
+    </ClCompile>
+    <ClCompile Include="furnance\hud_nectar.cpp">
+      <Filter>Source Files\Furnance\HUD</Filter>
+    </ClCompile>
+    <ClCompile Include="furnance\c_fr_player.cpp">
+      <Filter>Source Files\Furnance</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -3329,12 +3368,6 @@
     <ClInclude Include="game_controls\ImageProgressBar.h">
       <Filter>game_controls Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\shared\in\inmp_gamerules.h">
-      <Filter>Source Files\InSource</Filter>
-    </ClInclude>
-    <ClInclude Include="..\shared\in\insp_gamerules.h">
-      <Filter>Source Files\InSource</Filter>
-    </ClInclude>
     <ClInclude Include="in\c_in_player.h">
       <Filter>Source Files\InSource</Filter>
     </ClInclude>
@@ -3364,6 +3397,33 @@
     </ClInclude>
     <ClInclude Include="in\VGUI\vgui_features.h">
       <Filter>Source Files\InSource\VGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="vgui_inventory.h">
+      <Filter>Source Files\InSource\VGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="in\ge_screeneffects.h">
+      <Filter>Source Files\InSource</Filter>
+    </ClInclude>
+    <ClInclude Include="in\fmod_manager.h">
+      <Filter>Source Files\InSource\External</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\in\in_gamerules.h">
+      <Filter>Source Files\InSource\GameRules</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\in\inmp_gamerules.h">
+      <Filter>Source Files\InSource\GameRules</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\in\insurvival_gamerules.h">
+      <Filter>Source Files\InSource\GameRules</Filter>
+    </ClInclude>
+    <ClInclude Include="in\VGUI\vgui_loot.h">
+      <Filter>Source Files\InSource\VGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\shared\furnance\fr_gamerules.h">
+      <Filter>Source Files\Furnance\GameRules</Filter>
+    </ClInclude>
+    <ClInclude Include="furnance\c_fr_player.h">
+      <Filter>Source Files\Furnance</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -3404,6 +3464,9 @@
       <Filter>Link Libraries</Filter>
     </Library>
     <Library Include="..\..\lib\public\vstdlib.lib">
+      <Filter>Link Libraries</Filter>
+    </Library>
+    <Library Include="..\..\fmod\api\lib\fmodex_vc.lib">
       <Filter>Link Libraries</Filter>
     </Library>
   </ItemGroup>

@@ -14,10 +14,13 @@
     <LocalDebuggerCommand>C:\Program Files (x86)\Steam\steamapps\kolesias123\source sdk base 2007\hl2.exe</LocalDebuggerCommand>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <LocalDebuggerCommandArguments>-dev -allowdebug -game "C:\Program Files (x86)\steam\steamapps\sourcemods\apocalypse"</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArguments>-dev -allowdebug -game "C:\Program Files (x86)\steam\steamapps\sourcemods\furnance"</LocalDebuggerCommandArguments>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LocalDebuggerWorkingDirectory>C:\Program Files (x86)\steam\steamapps\kolesias123\source sdk base 2007</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ShowAllFiles>false</ShowAllFiles>
   </PropertyGroup>
 </Project>

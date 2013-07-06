@@ -100,7 +100,7 @@ CInventoryPanel::CInventoryPanel(vgui::VPANEL parent) : BaseClass(NULL, "Invento
 	SetScheme(vgui::scheme()->LoadSchemeFromFile("resource/SourceScheme.res", "SourceScheme")); 
 
 	BackpackItems	= new SectionedListPanel(this, "BackPackItems");
-	PocketItems	= new SectionedListPanel(this, "PocketItems");
+	PocketItems		= new SectionedListPanel(this, "PocketItems");
 
 	BackpackProgress	= new ProgressBar(this, "BackpackProgress");
 	InventoryProgress	= new ProgressBar(this, "InventoryProgress");
@@ -128,11 +128,13 @@ void CInventoryPanel::Reset()
 	BackpackItems->RemoveAllSections();
 	BackpackItems->AddSection(0, "");
 	BackpackItems->AddColumnToSection(0, "name", "#Inventory_Backpack", 0, 300);
+	BackpackItems->AddColumnToSection(0, "count", "", 0, 100);
 
 	PocketItems->RemoveAll();
 	PocketItems->RemoveAllSections();
 	PocketItems->AddSection(0, "");
 	PocketItems->AddColumnToSection(0, "name", "#Inventory_Pocket", 0, 300);
+	PocketItems->AddColumnToSection(0, "count", "", 0, 100);
 
 	BackpackProgress->SetProgress(0.0);
 	InventoryProgress->SetProgress(0.0);
@@ -154,35 +156,94 @@ void CInventoryPanel::OnTick()
 
 	if ( cl_update_inventory.GetBool() )
 	{
-		ConVarRef sv_max_inventory("sv_max_inventory");
+		// Obtenemos los limites del inventario.
+		ConVarRef sv_max_inventory_backpack("sv_max_inventory_backpack");
+		ConVarRef sv_max_inventory_pocket("sv_max_inventory_pocket");
+
+		// Lo devolvemos a 0
 		cl_update_inventory.SetValue(0);
 
+		// Removemos todos los objetos.
 		BackpackItems->RemoveAll();
 		PocketItems->RemoveAll();
 
+		int pEntity;
 		const char *pItemName;
 		const char *pItemClassName;
+
+		float pBackpackCountItems	= 0;
+		float pPocketCountItems		= 0;
+
+		int pBackpackItems[100];
+		int pPocketItems[100];
+
+		// Iniciamos los array
+		for ( int i = 0; i < ARRAYSIZE(pBackpackItems); i++ )
+			pBackpackItems[i]	= 0;
+		for ( int i = 0; i < ARRAYSIZE(pPocketItems); i++ )
+			pPocketItems[i]		= 0;
 		
 		// Mochila
-		for ( int i = 1; i < 100; i++ )
+		// Primero obtenemos todos los objetos y los agrupamos en array.
+		for ( int i = 1; i < ARRAYSIZE(pBackpackItems); i++ )
 		{
-			pItemName		= pPlayer->Inventory_GetItemName(i,			INVENTORY_BACKPACK);
-			pItemClassName	= pPlayer->Inventory_GetItemClassName(i,	INVENTORY_BACKPACK);
+			pEntity	= pPlayer->Inventory_GetItem(i, INVENTORY_BACKPACK);
 
+			// No hay nada en este Slot
+			if ( pEntity == 0 )
+				continue;
+
+			// Aquí vamos contando los objetos de este mismo tipo.
+			// !!!NOTE: Todo esto fue desarrollado por alguien que no sabe mucho C++... Odio los array de C++...
+			pBackpackItems[pEntity] = (pBackpackItems[pEntity] + 1);
+			pBackpackCountItems++;			
+		}
+		// Ahora obtenemos la lista de objetos con su respectiva cantidad y la mostramos.
+		for ( int i = 1; i < ARRAYSIZE(pBackpackItems); i++ )
+		{
+			// !!!NOTE: i ahora es la ID del objeto
+			if ( pBackpackItems[i] == 0 || !pBackpackItems[i] )
+				continue;
+
+			pItemName		= pPlayer->Inventory_GetItemNameByID(i);
+			pItemClassName	= pPlayer->Inventory_GetItemClassNameByID(i);
+
+			// No hay nada en este Slot
 			if ( pItemName == "" || pItemClassName == "" )
 				continue;
 
+			// Agregamos el objeto.
 			KeyValues *itemData = new KeyValues("data");
 			itemData->SetString("name",			pItemName);
 			itemData->SetString("classname",	pItemClassName);
+			itemData->SetInt("count",			pBackpackItems[i]);
 			BackpackItems->AddItem(0, itemData);
 		}
 
 		// Bolsillo
-		for ( int i = 1; i < 100; i++ )
+		// Primero obtenemos todos los objetos y los agrupamos en array.
+		for ( int i = 1; i < ARRAYSIZE(pPocketItems); i++ )
 		{
-			pItemName		= pPlayer->Inventory_GetItemName(i,			INVENTORY_POCKET);
-			pItemClassName	= pPlayer->Inventory_GetItemClassName(i,	INVENTORY_POCKET);
+			pEntity	= pPlayer->Inventory_GetItem(i, INVENTORY_POCKET);
+
+			// No hay nada en este Slot
+			if ( pEntity == 0 )
+				continue;
+
+			// Aquí vamos contando los objetos de este mismo tipo.
+			// !!!NOTE: Todo esto fue desarrollado por alguien que no sabe mucho C++... Odio los array de C++...
+			pPocketItems[pEntity] = (pPocketItems[pEntity] + 1);
+			pPocketCountItems++;			
+		}
+		// Ahora obtenemos la lista de objetos con su respectiva cantidad y la mostramos.
+		for ( int i = 1; i < ARRAYSIZE(pPocketItems); i++ )
+		{
+			// !!!NOTE: i ahora es la ID del objeto
+			if ( pPocketItems[i] == 0 || !pPocketItems[i] )
+				continue;
+
+			pItemName		= pPlayer->Inventory_GetItemNameByID(i);
+			pItemClassName	= pPlayer->Inventory_GetItemClassNameByID(i);
 
 			if ( pItemName == "" || pItemClassName == "" )
 				continue;
@@ -190,17 +251,13 @@ void CInventoryPanel::OnTick()
 			KeyValues *itemData = new KeyValues("data");
 			itemData->SetString("name",			pItemName);
 			itemData->SetString("classname",	pItemClassName);
+			itemData->SetInt("count",			pPocketItems[i]);
 			PocketItems->AddItem(0, itemData);
 		}
 
 		// Actualizamos las barras de llenado.
-		/*int BackpackCount	= pPlayer->Inventory_GetItemCount(INVENTORY_BACKPACK);
-		int PocketCount		= pPlayer->Inventory_GetItemCount(INVENTORY_POCKET);
-
-		Msg("[INVENTORY] Backpack: %i - Pocket: %i - Inventory: %i \r\n", BackpackCount, PocketCount, sv_max_inventory.GetInt());
-
-		BackpackProgress->SetProgress( BackpackCount / sv_max_inventory.GetInt() );
-		InventoryProgress->SetProgress( PocketCount / sv_max_inventory.GetInt() );*/
+		BackpackProgress->SetProgress( pBackpackCountItems / sv_max_inventory_backpack.GetFloat() );
+		InventoryProgress->SetProgress( pPocketCountItems / sv_max_inventory_pocket.GetFloat() );
 	}
 
 	SetVisible(cl_inventory.GetBool());

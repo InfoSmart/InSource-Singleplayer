@@ -16,9 +16,12 @@
 #include "imessagechars.h"
 #include "inetgraphpanel.h"
 #include "idebugoverlaypanel.h"
+
 #include "vgui_features.h" // InSource - OPCIONES EXTRA
 #include "vgui_contact.h" // InSource - CONTACTO
-#include "vgui_inventory.h" 
+#include "vgui_inventory.h"
+#include "vgui_loot.h"
+
 #include <vgui/isurface.h>
 #include <vgui/IVGui.h>
 #include <vgui/IInput.h>
@@ -192,6 +195,7 @@ void VGui_CreateGlobalPanels( void )
 	htmlview->Create(gameParent);		// HTML VIEW (NO USADO)
 	contactpanel->Create(gameParent);	// CONTACTO
 	InventoryPanel->Create(gameParent); // Creates the panel.
+	LootPanel->Create(gameParent);
 
 	/*
 		InSource
@@ -238,6 +242,7 @@ void VGui_Shutdown()
 	htmlview->Destroy();
 	contactpanel->Destroy();
 	InventoryPanel->Destroy();
+	LootPanel->Destroy();
 
 	/*
 		InSource

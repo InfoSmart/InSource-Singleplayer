@@ -47,14 +47,14 @@
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</GenerateManifest>
     <PostBuildEventUseInBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</PostBuildEventUseInBuild>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\Release_episodic\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\Release_episodic\</IntDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\Release_Furnance\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">.\Release_Furnance\</IntDir>
     <PreBuildEventUseInBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</PreBuildEventUseInBuild>
     <PreLinkEventUseInBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</PreLinkEventUseInBuild>
     <IgnoreImportLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</IgnoreImportLibrary>
     <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
     <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</GenerateManifest>
-    <PostBuildEventUseInBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</PostBuildEventUseInBuild>
+    <PostBuildEventUseInBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</PostBuildEventUseInBuild>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">client</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">client</TargetName>
   </PropertyGroup>
@@ -141,14 +141,12 @@ copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods
       </Command>
     </PreBuildEvent>
     <CustomBuildStep>
-      <Message>Copying to c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\</Message>
-      <Command>if exist "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.dll" attrib -r "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.dll"
-del "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.dll"
-copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin"
-if exist "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.pdb" attrib -r "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.pdb"
-del "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.pdb"
-if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.pdb</Command>
-      <Outputs>c:\program files (x86)\steam\steamapps\SourceMods\apocalypse\bin\client.dll;%(Outputs)</Outputs>
+      <Message>Copying to c:\program files (x86)\steam\steamapps\SourceMods\furnance\bin\</Message>
+      <Command>if exist "c:\program files (x86)\steam\steamapps\SourceMods\furnance\bin\client.dll" attrib -r "c:\program files (x86)\steam\steamapps\SourceMods\furnance\bin\client.dll"
+copy "$(TargetDir)"client.dll "c:\program files (x86)\steam\steamapps\SourceMods\furnance\bin"
+if exist "c:\program files (x86)\steam\steamapps\SourceMods\furnance\bin\client.pdb" attrib -r "c:\program files (x86)\steam\steamapps\SourceMods\furnance\bin\client.pdb"
+if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program files (x86)\steam\steamapps\SourceMods\furnance\bin\client.pdb</Command>
+      <Outputs>c:\program files (x86)\steam\steamapps\SourceMods\furnance\bin\client.dll;%(Outputs)</Outputs>
       <Inputs>$(TargetPath)</Inputs>
     </CustomBuildStep>
     <ClCompile>
@@ -156,8 +154,8 @@ if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program file
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>.\hl2;.\hl2\elements;.\in\HUD;.\in\VGUI;.\in;..\..\game\shared\hl2;..\..\game\shared\in;..\..\game\shared\episodic;..\..\public;.\;..\..\common;..\..\public\tier0;..\..\public\tier1;..\..\vgui2\include;..\..\vgui2\controls;..\..\game\shared;.\game_controls;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WIN32;_WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;NO_STRING_T;CLIENT_DLL;VECTOR;VERSION_SAFE_STEAM_API_INTERFACES;PROTECTED_THINGS_ENABLE;fopen=dont_use_fopen;strncpy=use_Q_strncpy_instead;_snprintf=use_Q_snprintf_instead;ENABLE_HTMLWINDOW;HL2_CLIENT_DLL;HL2_EPISODIC;SP_SDK;INSOURCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\fmod\api\inc;.\hl2;.\hl2\elements;.\in\HUD;.\in\VGUI;.\in;..\..\game\shared\hl2;..\..\game\shared\in\Items;..\..\game\shared\in;..\..\game\shared\episodic;..\..\public;.\;..\..\common;..\..\public\tier0;..\..\public\tier1;..\..\vgui2\include;..\..\vgui2\controls;..\..\game\shared;.\game_controls;..\..\game\shared\furnance;.\furnance;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_WIN32;NDEBUG;_WINDOWS;_USRDLL;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;NO_STRING_T;CLIENT_DLL;VECTOR;VERSION_SAFE_STEAM_API_INTERFACES;PROTECTED_THINGS_ENABLE;fopen=dont_use_fopen;strncpy=use_Q_strncpy_instead;_snprintf=use_Q_snprintf_instead;ENABLE_HTMLWINDOW;HL2_CLIENT_DLL;HL2_EPISODIC;SP_SDK;INSOURCE;FURNANCE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <ExceptionHandling>
       </ExceptionHandling>
@@ -192,7 +190,7 @@ if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program file
       <ShowProgress>NotSet</ShowProgress>
       <OutputFile>$(OutDir)Client.dll</OutputFile>
       <SuppressStartupBanner>false</SuppressStartupBanner>
-      <AdditionalLibraryDirectories>..\..\lib\common;..\..\lib\public;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\..\lib\common;..\..\fmod\api\lib;..\..\lib\public;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libc;libcd;libcmtd;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(IntDir)$(TargetName).pdb</ProgramDatabaseFile>
@@ -217,15 +215,17 @@ if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program file
       <OutputFile>$(OutDir)Client.bsc</OutputFile>
     </Bscmake>
     <PostBuildEvent>
-      <Command>
-      </Command>
+      <Command>C:\HLServer\orangebox\srcds.exe -console -game "C:\Program Files (x86)\Steam\SteamApps\sourcemods\apocalypse" +maxplayers 5 +exec server +map camp -autoupdate</Command>
+      <Message>Inicia el servidor</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\shared\furnance\fr_gamerules.cpp" />
     <ClCompile Include="..\shared\in\basebludgeonweapon.cpp" />
     <ClCompile Include="..\shared\in\basehlcombatweapon.cpp" />
     <ClCompile Include="..\shared\in\inmp_gamerules.cpp" />
-    <ClCompile Include="..\shared\in\insp_gamerules.cpp" />
+    <ClCompile Include="..\shared\in\insurvival_gamerules.cpp" />
+    <ClCompile Include="..\shared\in\in_gamerules.cpp" />
     <ClCompile Include="..\shared\in\weapon_357.cpp" />
     <ClCompile Include="..\shared\in\weapon_alyxgun.cpp" />
     <ClCompile Include="..\shared\in\weapon_ar2.cpp" />
@@ -300,6 +300,8 @@ if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program file
     <ClCompile Include="c_func_conveyor.cpp" />
     <ClCompile Include="c_func_dust.cpp" />
     <ClCompile Include="c_func_lod.cpp" />
+    <ClCompile Include="furnance\c_fr_player.cpp" />
+    <ClCompile Include="furnance\hud_nectar.cpp" />
     <ClCompile Include="game_controls\ImageProgressBar.cpp" />
     <ClCompile Include="hl2\C_Func_Monitor.cpp" />
     <ClCompile Include="c_func_occluder.cpp" />
@@ -459,7 +461,7 @@ if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program file
     <ClCompile Include="hud_basechat.cpp" />
     <ClCompile Include="hud_basetimer.cpp" />
     <ClCompile Include="hud_bitmapnumericdisplay.cpp" />
-    <ClCompile Include="hud_blood.cpp" />
+    <ClCompile Include="hud_resources.cpp" />
     <ClCompile Include="hud_chat.cpp" />
     <ClCompile Include="hud_closecaption.cpp" />
     <ClCompile Include="hud_crosshair.cpp" />
@@ -482,12 +484,14 @@ if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program file
     <ClCompile Include="hud_weapon.cpp" />
     <ClCompile Include="..\shared\igamesystem.cpp" />
     <ClCompile Include="in\c_in_player.cpp" />
-    <ClCompile Include="in\HUD\hud_battery.cpp" />
+    <ClCompile Include="in\fmod_manager.cpp" />
+    <ClCompile Include="in\ge_screeneffects.cpp" />
     <ClCompile Include="in\HUD\hud_deathnotice.cpp" />
     <ClCompile Include="in\HUD\hud_health.cpp" />
     <ClCompile Include="in\HUD\hud_suitpower.cpp" />
     <ClCompile Include="in\VGUI\vgui_contact.cpp" />
     <ClCompile Include="in\VGUI\vgui_features.cpp" />
+    <ClCompile Include="in\VGUI\vgui_loot.cpp" />
     <ClCompile Include="in_camera.cpp" />
     <ClCompile Include="in_joystick.cpp" />
     <ClCompile Include="in_main.cpp" />
@@ -698,6 +702,7 @@ if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program file
     <ClCompile Include="vgui_game_viewport.cpp" />
     <ClCompile Include="vgui_grid.cpp" />
     <ClCompile Include="vgui_int.cpp" />
+    <ClCompile Include="vgui_inventory.cpp" />
     <ClCompile Include="vgui_loadingdiscpanel.cpp" />
     <ClCompile Include="vgui_messagechars.cpp" />
     <ClCompile Include="vgui_netgraphpanel.cpp" />
@@ -876,10 +881,12 @@ if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program file
     <ClCompile Include="toolframework_client.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\shared\furnance\fr_gamerules.h" />
     <ClInclude Include="..\shared\in\basebludgeonweapon.h" />
     <ClInclude Include="..\shared\in\basehlcombatweapon.h" />
     <ClInclude Include="..\shared\in\inmp_gamerules.h" />
-    <ClInclude Include="..\shared\in\insp_gamerules.h" />
+    <ClInclude Include="..\shared\in\insurvival_gamerules.h" />
+    <ClInclude Include="..\shared\in\in_gamerules.h" />
     <ClInclude Include="..\shared\in\weapon_alyxgun.h" />
     <ClInclude Include="..\shared\in\weapon_ar2.h" />
     <ClInclude Include="..\shared\in\weapon_crowbar.h" />
@@ -898,15 +905,20 @@ if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program file
     <ClInclude Include="..\shared\particle_parse.h" />
     <ClInclude Include="..\shared\particle_property.h" />
     <ClInclude Include="..\shared\point_bonusmaps_accessor.h" />
+    <ClInclude Include="furnance\c_fr_player.h" />
     <ClInclude Include="game_controls\ImageProgressBar.h" />
     <ClInclude Include="ihtmlview.h" />
     <ClInclude Include="in\c_in_player.h" />
+    <ClInclude Include="in\fmod_manager.h" />
+    <ClInclude Include="in\ge_screeneffects.h" />
     <ClInclude Include="in\HUD\hud_suitpower.h" />
     <ClInclude Include="in\VGUI\vgui_contact.h" />
     <ClInclude Include="in\VGUI\vgui_features.h" />
+    <ClInclude Include="in\VGUI\vgui_loot.h" />
     <ClInclude Include="in_vgui_contact.h" />
     <ClInclude Include="tne_rendertargets.h" />
     <ClInclude Include="vgui_avatarimage.h" />
+    <ClInclude Include="vgui_inventory.h" />
     <ClInclude Include="viewdebug.h" />
     <ClInclude Include="viewpostprocess.h" />
     <ClInclude Include="game_controls\basemodel_panel.h" />
@@ -1478,6 +1490,7 @@ if exist "$(TargetDir)"client.pdb copy "$(TargetDir)"client.pdb "c:\program file
     <ClInclude Include="game_controls\vguitextwindow.h" />
   </ItemGroup>
   <ItemGroup>
+    <Library Include="..\..\fmod\api\lib\fmodex_vc.lib" />
     <Library Include="..\..\lib\public\bitmap.lib" />
     <Library Include="..\..\lib\public\choreoobjects.lib" />
     <Library Include="..\..\lib\public\dmxloader.lib" />

@@ -12,6 +12,8 @@
 #include "c_baseplayer.h"
 #include "c_in_player.h"
 
+#include "in_gamerules.h"
+
 #include <vgui/ILocalize.h>
 
 using namespace vgui;
@@ -118,6 +120,7 @@ public:
 	CHudBloodText(const char *pElementName);
 
 	virtual void Init();
+	virtual bool ShouldDisplayValue();
 	virtual void Reset();
 	virtual void OnThink();
 
@@ -144,6 +147,18 @@ void CHudBloodText::Init()
 }
 
 //=========================================================
+// ¿Podremos dibujar el elemento?
+//=========================================================
+bool CHudBloodText::ShouldDisplayValue()
+{
+	// Solo en Survival
+	if ( !g_pInGameRules->IsSurvival() )
+		return false;
+
+	return BaseClass::ShouldDisplayValue();
+}
+
+//=========================================================
 // Reiniciar
 //=========================================================
 void CHudBloodText::Reset()
@@ -165,9 +180,8 @@ void CHudBloodText::Reset()
 //=========================================================
 void CHudBloodText::OnThink()
 {
-	float newBlood		= 0;
-
-	C_IN_Player *pPlayer = (C_IN_Player *)C_BasePlayer::GetLocalPlayer();
+	float newBlood			= 0;
+	C_IN_Player *pPlayer	= (C_IN_Player *)C_BasePlayer::GetLocalPlayer();
 
 	if ( !pPlayer )
 		return;
@@ -195,6 +209,7 @@ public:
 	CHudHungerText(const char *pElementName);
 
 	virtual void Init();
+	virtual bool ShouldDisplayValue();
 	virtual void Reset();
 	virtual void OnThink();
 
@@ -219,6 +234,18 @@ CHudHungerText::CHudHungerText(const char * pElementName) : CHudElement(pElement
 void CHudHungerText::Init()
 {
 	Reset();
+}
+
+//=========================================================
+// ¿Podremos dibujar el elemento?
+//=========================================================
+bool CHudHungerText::ShouldDisplayValue()
+{
+	// Solo en Survival
+	if ( !g_pInGameRules->IsSurvival() )
+		return false;
+
+	return BaseClass::ShouldDisplayValue();
 }
 
 //=========================================================
@@ -272,6 +299,7 @@ public:
 	CHudThirstText(const char *pElementName);
 
 	virtual void Init();
+	virtual bool ShouldDisplayValue();
 	virtual void Reset();
 	virtual void OnThink();
 
@@ -296,6 +324,18 @@ CHudThirstText::CHudThirstText(const char * pElementName) : CHudElement(pElement
 void CHudThirstText::Init()
 {
 	Reset();
+}
+
+//=========================================================
+// ¿Podremos dibujar el elemento?
+//=========================================================
+bool CHudThirstText::ShouldDisplayValue()
+{
+	// Solo en Survival
+	if ( !g_pInGameRules->IsSurvival() )
+		return false;
+
+	return BaseClass::ShouldDisplayValue();
 }
 
 //=========================================================
@@ -333,4 +373,90 @@ void CHudThirstText::OnThink()
 
 	m_iThirst = newThirst;
 	SetDisplayValue(newThirst);
+}
+
+//==================================================================================================================
+//==================================================================================================================
+
+//=========================================================
+// CHudEntitiesText - DEBUG
+//=========================================================
+class CHudEntitiesText : public CHudElement, public CHudNumericDisplay
+{
+	DECLARE_CLASS_SIMPLE(CHudEntitiesText, CHudNumericDisplay);
+
+public:
+	CHudEntitiesText(const char *pElementName);
+
+	virtual void Init();
+	virtual bool ShouldDisplayValue();
+	virtual void Reset();
+	virtual void OnThink();
+
+private:
+	float m_iEntities;
+};
+
+DECLARE_HUDELEMENT(CHudEntitiesText);
+
+//=========================================================
+// Constructor
+//=========================================================
+CHudEntitiesText::CHudEntitiesText(const char * pElementName) : CHudElement(pElementName), CHudNumericDisplay(NULL, "HudEntitiesText")
+{ 
+	// Oculto cuando: El jugador muera, la interfaz de salud/munición desaparesca.
+	SetHiddenBits(HIDEHUD_PLAYERDEAD | HIDEHUD_HEALTH);
+}
+
+//=========================================================
+// Init
+//=========================================================
+void CHudEntitiesText::Init()
+{
+	Reset();
+}
+
+//=========================================================
+// ¿Podremos dibujar el elemento?
+//=========================================================
+bool CHudEntitiesText::ShouldDisplayValue()
+{
+	return BaseClass::ShouldDisplayValue();
+}
+
+//=========================================================
+// Reiniciar
+//=========================================================
+void CHudEntitiesText::Reset()
+{
+	m_iEntities = -1;
+
+	wchar_t *tempString = g_pVGuiLocalize->Find("#Valve_Hud_ENTITIES");
+
+	if ( tempString )
+		SetLabelText(tempString);
+	else
+		SetLabelText(L"ENTITIES");
+
+	SetDisplayValue(m_iEntities);
+}
+
+//=========================================================
+// Pensamiento
+//=========================================================
+void CHudEntitiesText::OnThink()
+{
+	float newEntities		= 0;
+	C_IN_Player *pPlayer	= (C_IN_Player *)C_BasePlayer::GetLocalPlayer();
+
+	if ( !pPlayer )
+		return;
+
+	newEntities = max(pPlayer->GetEntities(), 0);
+
+	if ( newEntities == m_iEntities )
+		return;
+
+	m_iEntities = newEntities;
+	SetDisplayValue(newEntities);
 }

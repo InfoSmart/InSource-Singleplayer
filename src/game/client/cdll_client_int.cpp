@@ -93,6 +93,7 @@
 #include "cdll_bounded_cvars.h"
 #include "matsys_controls/matsyscontrols.h"
 #include "GameStats.h"
+#include "fmod_manager.h"
 
 #ifdef PORTAL
 #include "PortalRender.h"
@@ -829,6 +830,9 @@ int CHLClient::Init( CreateInterfaceFn appSystemFactory, CreateInterfaceFn physi
 
 	g_pClientMode->Enable();
 
+	// FMOD - Start 'er up!
+	FMODManager()->InitFMOD();
+
 	if ( !view )
 	{
 		view = ( IViewRender * )&g_DefaultViewRender;
@@ -896,6 +900,9 @@ void CHLClient::Shutdown( void )
 
 	g_pClientMode->Disable();
 	g_pClientMode->Shutdown();
+
+	// FMOD - Shut us down
+	FMODManager()->ExitFMOD();
 
 	input->Shutdown_All();
 	C_BaseTempEntity::ClearDynamicTempEnts();
@@ -1134,6 +1141,9 @@ void CHLClient::View_Render( vrect_t *rect )
 {
 	VPROF( "View_Render" );
 
+	// S:O - Think about fading ambient sounds if necessary
+	FMODManager()->FadeThink();
+
 	// UNDONE: This gets hit at startup sometimes, investigate - will cause NaNs in calcs inside Render()
 	if ( rect->width == 0 || rect->height == 0 )
 		return;
@@ -1348,6 +1358,9 @@ void CHLClient::LevelShutdown( void )
 
 	// string tables are cleared on disconnect from a server, so reset our global pointers to NULL
 	ResetStringTablePointers();
+
+	// S:O - Stop all FMOD sounds when exiting to the main menu
+	FMODManager()->StopAmbientSound(false);
 }
 
 

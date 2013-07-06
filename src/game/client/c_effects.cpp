@@ -33,7 +33,7 @@ Vector g_vSplashColor( 0.5, 0.5, 0.5 );
 float g_flSplashScale = 0.15;
 float g_flSplashLifetime = 0.5f;
 float g_flSplashAlpha = 0.3f;
-ConVar r_RainSplashPercentage( "r_RainSplashPercentage", "99", FCVAR_CHEAT ); // N% chance of a rain particle making a splash.
+ConVar r_RainSplashPercentage( "r_RainSplashPercentage", "70", FCVAR_CHEAT ); // N% chance of a rain particle making a splash.
 
 
 float GUST_INTERVAL_MIN = 1;
@@ -46,7 +46,7 @@ float MIN_SCREENSPACE_RAIN_WIDTH = 1;
 
 #ifndef _XBOX
 ConVar r_RainHack( "r_RainHack", "0", FCVAR_CHEAT );
-ConVar r_RainRadius( "r_RainRadius", "1500", FCVAR_CHEAT );
+ConVar r_RainRadius( "r_RainRadius", "2000", FCVAR_CHEAT );
 ConVar r_RainSideVel( "r_RainSideVel", "130", FCVAR_CHEAT, "How much sideways velocity rain gets." );
 
 ConVar r_RainSimulate( "r_RainSimulate", "1", FCVAR_CHEAT, "Enable/disable rain simulation." );
@@ -358,7 +358,7 @@ inline bool CClient_Precipitation::SimulateRain( CPrecipitationParticle* pPartic
     if( trace.fraction < 1 || trace.DidHit() )
    {
         if ( RandomInt( 0, 100 ) <= r_RainSplashPercentage.GetInt() )
-           DispatchParticleEffect( "water_splash_01", trace.endpos,trace.m_pEnt->GetAbsAngles() , NULL );
+           DispatchParticleEffect( "water_splash_01_droplets", trace.endpos,trace.m_pEnt->GetAbsAngles() , NULL );
  
        // Tell the framework it's time to remove the particle from the list
        return false;

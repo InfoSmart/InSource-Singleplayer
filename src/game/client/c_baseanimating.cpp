@@ -3508,7 +3508,7 @@ void C_BaseAnimating::FireEvent( const Vector& origin, const QAngle& angles, int
 	case AE_MUZZLEFLASH:
 		{
 			// Send out the effect for a player
-#if defined ( HL2MP ) || defined ( SDK_DLL ) // works for the modified CSS weapons included in the new template sdk.
+#if defined ( INSOURCE ) || defined ( SDK_DLL ) // works for the modified CSS weapons included in the new template sdk.
 			// HL2MP - Make third person muzzleflashes as reliable as the first person ones
 			// while in third person the view model dispatches the muzzleflash event - note: the weapon models dispatch them too, but not frequently.
 			if ( IsViewModel() )

@@ -427,12 +427,14 @@ void CPropHL2Buggy::Think( void )
 {
 	BaseClass::Think();
 
+#ifndef SCP
 	// If our passenger is transitioning, then don't let the player drive off
 	CNPC_Alyx *pAlyx = CNPC_Alyx::GetAlyx();
 	if ( pAlyx && pAlyx->GetPassengerState() == PASSENGER_STATE_EXITING )
 	{
 		m_throttleDisableTime = gpGlobals->curtime + 0.25f;		
 	}
+#endif
 
 
 	// See if the wheel dust should be on or off

@@ -635,6 +635,8 @@ void CPropJeepEpisodic::InputAddBusterToCargo( inputdata_t &data )
 //-----------------------------------------------------------------------------
 bool CPropJeepEpisodic::PassengerInTransition( void )
 {
+
+#ifndef SCP
 	// FIXME: Big hack - we need a way to bridge this data better
 	// TODO: Get a list of passengers we can traverse instead
 	CNPC_Alyx *pAlyx = CNPC_Alyx::GetAlyx();
@@ -644,6 +646,7 @@ bool CPropJeepEpisodic::PassengerInTransition( void )
 			 pAlyx->GetPassengerState() == PASSENGER_STATE_EXITING )
 			return true;
 	}
+#endif
 
 	return false;
 }

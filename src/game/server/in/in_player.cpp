@@ -36,9 +36,7 @@
 // Modelo
 ConVar cl_sp_playermodel("cl_sp_playermodel", "models/abigail.mdl", FCVAR_ARCHIVE, "Define el modelo del jugador en Singleplayer");
 
-ConVar cl_playermodel_color_r("cl_playermodel_color_r", "255", FCVAR_ARCHIVE, "Define el color del modelo del jugador.");
-ConVar cl_playermodel_color_g("cl_playermodel_color_g", "255", FCVAR_ARCHIVE, "Define el color del modelo del jugador.");
-ConVar cl_playermodel_color_b("cl_playermodel_color_b", "255", FCVAR_ARCHIVE, "Define el color del modelo del jugador.");
+ConVar in_attack_slowduration("in_attack_slowduration", "3", FCVAR_ARCHIVE, "");
 
 // Camara lenta.
 ConVar in_timescale_effect("in_timescale_effect", "1", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_SERVER_CAN_EXECUTE, "Activa o desactiva el efecto de camara lenta al perder salud.");
@@ -47,38 +45,36 @@ ConVar in_timescale_effect("in_timescale_effect", "1", FCVAR_USERINFO | FCVAR_AR
 ConVar in_tired_effect("in_tired_effect", "1", FCVAR_USERINFO | FCVAR_ARCHIVE | FCVAR_SERVER_CAN_EXECUTE, "Activa o desactiva el efecto de cansancio al perder salud.");
 
 // Linterna
-ConVar in_flashlight				("in_flashlight",				"1", FCVAR_NOTIFY | FCVAR_REPLICATED,	"Activa o desactiva el uso de la linterna.");
-ConVar in_flashlight_require_suit	("in_flashlight_require_suit",	"0", FCVAR_ARCHIVE,						"Activa o desactiva el requerimiento del traje de protección para la linterna.");
+ConVar in_flashlight("in_flashlight", "1", FCVAR_NOTIFY | FCVAR_REPLICATED, "Activa o desactiva el uso de la linterna.");
+ConVar in_flashlight_require_suit("in_flashlight_require_suit",	"0", FCVAR_ARCHIVE, "Activa o desactiva el requerimiento del traje de protección para la linterna.");
 
 // Regeneración de salud.
-ConVar in_regeneration("in_regeneration",						"1",	FCVAR_NOTIFY | FCVAR_REPLICATED | FCVAR_ARCHIVE,	"Estado de la regeneracion de salud");
-ConVar in_regeneration_wait_time("in_regeneration_wait_time",	"10",	FCVAR_NOTIFY | FCVAR_REPLICATED,	"Tiempo de espera en segundos al regenerar salud. (Aumenta según el nivel de dificultad)");
-ConVar in_regeneration_rate("in_regeneration_rate",				"3",	FCVAR_NOTIFY | FCVAR_REPLICATED,	"Cantidad de salud a regenerar (Disminuye según el nivel de dificultad)");
+ConVar in_regeneration("in_regeneration", "1", FCVAR_NOTIFY | FCVAR_REPLICATED | FCVAR_ARCHIVE,	"Estado de la regeneracion de salud");
+ConVar in_regeneration_wait("in_regeneration_wait", "10", FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo de espera en segundos al regenerar salud. (Aumenta según el nivel de dificultad)");
+ConVar in_regeneration_rate("in_regeneration_rate", "3", FCVAR_NOTIFY | FCVAR_REPLICATED, "Cantidad de salud a regenerar (Disminuye según el nivel de dificultad)");
 
 //=========================================================
 // SERVIDOR: Definición de comandos de consola.
 //=========================================================
 
 // Survival: Nivel de Sangre
-ConVar sv_in_blood("sv_in_blood",	"5600",		FCVAR_NOTIFY | FCVAR_REPLICATED, "Cantidad de sangre.");
+ConVar sv_in_blood("sv_in_blood", "5600", FCVAR_NOTIFY | FCVAR_REPLICATED, "Cantidad de sangre.");
 
 // Survival: Nivel de Hambre
-ConVar sv_in_hunger("sv_in_hunger",				"300",		FCVAR_NOTIFY | FCVAR_REPLICATED, "Cantidad de hambre.");
-ConVar sv_in_hunger_rate("sv_in_hunger_rate",	"1",		FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo en minutos para disminuir la cantidad de hambre.");
+ConVar sv_in_hunger("sv_in_hunger", "300", FCVAR_NOTIFY | FCVAR_REPLICATED, "Cantidad de hambre.");
+ConVar sv_in_hunger_rate("sv_in_hunger_rate", "1", FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo en minutos para disminuir la cantidad de hambre.");
 
 // Survival: Nivel de sed
-ConVar sv_in_thirst("sv_in_thirst",				"100",	FCVAR_NOTIFY | FCVAR_REPLICATED, "Cantidad de sed.");
-ConVar sv_in_thirst_rate("sv_in_thirst_rate",	 "1",	FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo en minutos para disminuir la cantidad de sed.");
+ConVar sv_in_thirst("sv_in_thirst", "100", FCVAR_NOTIFY | FCVAR_REPLICATED, "Cantidad de sed.");
+ConVar sv_in_thirst_rate("sv_in_thirst_rate", "1", FCVAR_NOTIFY | FCVAR_REPLICATED, "Tiempo en minutos para disminuir la cantidad de sed.");
 
 // Survival: Inventario
-ConVar sv_max_inventory_backpack("sv_max_inventory_backpack",	"10",	FCVAR_NOTIFY | FCVAR_REPLICATED, "Número de objetos máximo en la mochila.");
-ConVar sv_max_inventory_pocket("sv_max_inventory_pocket",		"5",	FCVAR_NOTIFY | FCVAR_REPLICATED, "Número de objetos máximo en el bolsillo.");
+ConVar sv_max_inventory_backpack("sv_max_inventory_backpack", "10", FCVAR_NOTIFY | FCVAR_REPLICATED, "Número de objetos máximo en la mochila.");
+ConVar sv_max_inventory_pocket("sv_max_inventory_pocket", "5", FCVAR_NOTIFY | FCVAR_REPLICATED, "Número de objetos máximo en el bolsillo.");
 
 // Linterna
 ConVar sv_flashlight_weapon("sv_flashlight_weapon", "1", FCVAR_REPLICATED, "Acoplar las linternas en la boca de las armas?");
 ConVar sv_flashlight_realistic("sv_flashlight_realistic", "1", FCVAR_REPLICATED, "¿Usar linternas reales?");
-
-//ConVar sv_realistic_weapons("sv_realistic_weapons", "1", FCVAR_REPLICATED, "Activa o desactiva el modo de disparo realistico (y dificil) de las armas.");
 
 //=========================================================
 // Configuración
@@ -93,6 +89,7 @@ ConVar sv_flashlight_realistic("sv_flashlight_realistic", "1", FCVAR_REPLICATED,
 //=========================================================
 // Guardado y definición de datos
 //=========================================================
+
 LINK_ENTITY_TO_CLASS(in_ragdoll, CINRagdoll);
 
 IMPLEMENT_SERVERCLASS_ST_NOBASE(CINRagdoll, DT_INRagdoll)
@@ -199,8 +196,8 @@ END_SEND_TABLE()
 BEGIN_DATADESC( CIN_Player )
 	DEFINE_SOUNDPATCH ( pDyingSound ),
 
-	DEFINE_FIELD( m_fNextPainSound,				FIELD_FLOAT ),
-	DEFINE_FIELD( m_fNextHealthRegeneration,	FIELD_FLOAT ),
+	//DEFINE_FIELD( m_fNextPainSound,				FIELD_FLOAT ),
+	//DEFINE_FIELD( m_fNextHealthRegeneration,	FIELD_FLOAT ),
 	DEFINE_FIELD( m_fBodyHurt,					FIELD_FLOAT ),
 	DEFINE_FIELD( m_iStressLevel,				FIELD_INTEGER ),
 
@@ -254,8 +251,9 @@ const char *PlayerModels[] =
 //=========================================================
 CIN_Player::CIN_Player()
 {
-	m_fNextPainSound			= gpGlobals->curtime;	// Sonido de dolor.
-	m_fNextHealthRegeneration	= gpGlobals->curtime;	// Regeneración de salud.
+	m_fNextPainTimer.Start(1);							// Sonido de dolor.
+	m_HealthRegenTimer.Start(1);						// Regeneración de salud.
+
 	m_fBodyHurt					= 0.0f;					// Efecto de muerte.
 	m_iStressLevel				= 0;					// Estres del jugador.
 	pDyingSound					= NULL;					// Sonido "Estamos muriendo"
@@ -272,6 +270,10 @@ CIN_Player::CIN_Player()
 
 	m_angEyeAngles.Init();
 	m_pPlayerModels.Purge();
+
+	m_SlowMov.Invalidate();
+
+	ChangeTeam(0);
 
 	// Solo en modo Supervivencia.
 	if ( InGameRules()->IsSurvival() )
@@ -353,91 +355,17 @@ void CIN_Player::Precache()
 
 	PrecacheScriptSound("Player.Pain.Female");
 	PrecacheScriptSound("Player.Pain.Male");
+
+	PrecacheScriptSound("NPC_Adan.Pain");
+
 	PrecacheScriptSound("Player.Music.Dying");
 	PrecacheScriptSound("Player.Music.Dead");
 	PrecacheScriptSound("Player.Music.Puddle");
 
-	// En Multiplayer guardamos en caché todos los modelos para los jugadores.
 	if ( InGameRules()->IsMultiplayer() )
-	{
-		// 4 grupos de humanos.
-		// @TODO: Algo más flexible.
-		for ( int g = 1; g <= 4; ++g )
-		{
-			int fm = 6;		// Mujeres
-			int mm = 9;		// Hombres
-
-			// Grupo 2
-			if ( g == 2 )
-			{
-				fm = 0;
-				mm = 8;
-			}
-
-			// Guardamos a las mujeres.
-			if ( fm > 0 )
-			{
-				for ( int f = 1; f <= fm; ++f )
-				{
-					char path[100];
-
-					// Grupo 4 (Grupo 3 medico)
-					if ( g == 4 )
-						Q_snprintf(path, sizeof(path), "models/player/group0%im/female_0%i.mdl", g, f);
-					else
-						Q_snprintf(path, sizeof(path), "models/player/group0%i/female_0%i.mdl", g, f);
-
-					PrecacheModel(path);
-					DevMsg("[CACHE] <Mujer> Guardando modelo: %s \r\n", path);
-
-					// Lo guardamos en la  lista de modelos válidos.
-					m_pPlayerModels.AddToTail(path);
-				}
-			}
-
-			// Guardamos a los hombres.
-			if ( mm > 0 )
-			{
-				for ( int m = 1; m <= mm; ++m )
-				{
-					// Grupo 2
-					if ( g == 2 )
-					{
-						// Estos modelos no existen.
-						if ( m == 1 || m == 3 || m == 5 || m == 7 )
-							continue;
-					}
-
-					char path[100];
-
-					if ( g == 4 )
-						Q_snprintf(path, sizeof(path), "models/player/group0%im/male_0%i.mdl", g, m);
-					else
-						Q_snprintf(path, sizeof(path), "models/player/group0%i/male_0%i.mdl", g, m);
-
-					PrecacheModel(path);
-					DevMsg("[CACHE] <Hombre> Guardando modelo: %s \r\n", path);
-
-					// Lo guardamos en la  lista de modelos válidos.
-					m_pPlayerModels.AddToTail(path);
-				}
-			}
-		}
-
-		// Los demás modelos conocidos.
-		for ( int i = 0; i <= ARRAYSIZE(PlayerModels)-1; ++i )
-		{
-			PrecacheModel(PlayerModels[i]);
-			DevMsg("[CACHE] Guardando modelo: %s \r\n", PlayerModels[i]);
-
-			// Lo guardamos en la  lista de modelos válidos.
-			m_pPlayerModels.AddToTail(PlayerModels[i]);
-		}
-	}
-
-	// En Singleplayer Abigaíl es la que debe sufrir.
+		Precache_Multiplayer();
 	else
-		PrecacheModel(cl_sp_playermodel.GetString());
+		Precache_Singleplayer();
 }
 
 //=========================================================
@@ -447,71 +375,176 @@ void CIN_Player::Spawn()
 {
 	BaseClass::Spawn();
 
-	// En Multiplayer no podemos cambiar el tiempo solo por salud.
 	if ( !InGameRules()->IsMultiplayer() )
-	{
-		ConVarRef host_timescale("host_timescale");
-
-		// Resetear el tiempo.
-		if ( host_timescale.GetInt() != 1 )
-			ExecCommand("host_timescale 1");
-
-		// Establecemos el modelo para SinglePlayer
-		SetModel(cl_sp_playermodel.GetString());
-	}
+		Spawn_Singleplayer();
 	else
+		Spawn_Multiplayer();
+}
+
+//=========================================================
+// Guardar los objetos necesarios en caché.
+// Modo Historia
+//=========================================================
+void CIN_Player::Precache_Singleplayer()
+{
+	PrecacheModel(cl_sp_playermodel.GetString());
+}
+
+//=========================================================
+// Guardar los objetos necesarios en caché.
+// Modo Multijugador
+//=========================================================
+void CIN_Player::Precache_Multiplayer()
+{
+	// 4 grupos de humanos.
+	// @TODO: Algo más flexible.
+	for ( int g = 1; g <= 4; ++g )
 	{
-		// Obtenemos el modelo del jugador.
-		const char *pPlayerModel = GetConVar("cl_playermodel");
+		int fm = 6;		// Mujeres
+		int mm = 9;		// Hombres
 
-		// Este modelo no es válido, seleccionamos un modelo válido al azar.
-		//if ( !IsModelValid(pPlayerModel) )
-			//pPlayerModel = GetRandomModel();
-
-		// Establecemos el modelo del jugador.
-		SetModel(pPlayerModel);
-
-		// Estaba en modo espectador.
-		if ( !IsObserver() )
+		// Grupo 2
+		if ( g == 2 )
 		{
-			// Reiniciamos todo y volvamos a la vida.
-			pl.deadflag = false;
-			RemoveSolidFlags(FSOLID_NOT_SOLID);
-			RemoveEffects(EF_NODRAW);
-			StopObserverMode();
+			fm = 0;
+			mm = 8;
 		}
 
-		RemoveEffects(EF_NOINTERP);
-		m_nRenderFX			= kRenderNormal;
-		m_Local.m_iHideHUD	= 0;
-
-		// Estamos en el suelo y ya no estamos congelados.
-		AddFlag(FL_ONGROUND);
-		RemoveFlag(FL_FROZEN);
-
-		m_Local.m_bDucked = false;
-		SetPlayerUnderwater(false);
-
-		// SPAWN!
-		DoAnimationEvent(PLAYERANIMEVENT_SPAWN);
-
-		// Reseteamos los recursos.
-		if ( InGameRules()->IsSurvival() )
+			// Guardamos a las mujeres.
+		if ( fm > 0 )
 		{
-			m_bBloodWound			= false;
-			m_HL2Local.m_iBlood		= m_iBlood = sv_in_blood.GetFloat();
-			m_HL2Local.m_iHunger	= m_iHunger = sv_in_hunger.GetFloat();
-			m_HL2Local.m_iThirst	= m_iThirst = sv_in_thirst.GetFloat();
+			for ( int f = 1; f <= fm; ++f )
+			{
+				char path[100];
+
+				// Grupo 4 (Grupo 3 medico)
+				if ( g == 4 )
+					Q_snprintf(path, sizeof(path), "models/player/group0%im/female_0%i.mdl", g, f);
+				else
+					Q_snprintf(path, sizeof(path), "models/player/group0%i/female_0%i.mdl", g, f);
+
+				PrecacheModel(path);
+				Msg("[CACHE] <Mujer> Guardando modelo: %s \r\n", path);
+
+				// Lo guardamos en la  lista de modelos válidos.
+				m_pPlayerModels.AddToTail(path);
+			}
 		}
+
+		// Guardamos a los hombres.
+		if ( mm > 0 )
+		{
+			for ( int m = 1; m <= mm; ++m )
+			{
+				// Grupo 2
+				if ( g == 2 )
+				{
+					// Estos modelos no existen.
+					if ( m == 1 || m == 3 || m == 5 || m == 7 )
+						continue;
+				}
+
+				char path[100];
+
+				if ( g == 4 )
+					Q_snprintf(path, sizeof(path), "models/player/group0%im/male_0%i.mdl", g, m);
+				else
+					Q_snprintf(path, sizeof(path), "models/player/group0%i/male_0%i.mdl", g, m);
+
+				PrecacheModel(path);
+				Msg("[CACHE] <Hombre> Guardando modelo: %s \r\n", path);
+
+				// Lo guardamos en la  lista de modelos válidos.
+				m_pPlayerModels.AddToTail(path);
+			}
+		}
+	}
+
+	// Los demás modelos conocidos.
+	for ( int i = 0; i <= ARRAYSIZE(PlayerModels)-1; ++i )
+	{
+		PrecacheModel(PlayerModels[i]);
+		Msg("[CACHE] Guardando modelo: %s \r\n", PlayerModels[i]);
+
+		// Lo guardamos en la  lista de modelos válidos.
+		m_pPlayerModels.AddToTail(PlayerModels[i]);
 	}
 }
 
 //=========================================================
-// POST Constructor
+// Crea al jugador.
+// Modo Historia
 //=========================================================
-void CIN_Player::PostConstructor(const char *szClassname)
+void CIN_Player::Spawn_Singleplayer()
 {
-	BaseClass::PostConstructor(szClassname);
+	ConVarRef host_timescale("host_timescale");
+
+	// Reiniciamos el tiempo.
+	if ( host_timescale.GetInt() != 1 )
+		ExecCommand("host_timescale 1");
+
+	// Establecemos el modelo para SinglePlayer
+	SetModel(cl_sp_playermodel.GetString());
+}
+
+//=========================================================
+// Crea al jugador.
+// Modo Multijugador
+//=========================================================
+void CIN_Player::Spawn_Multiplayer()
+{
+	// Estas en "Humanos"
+	ChangeTeam(2);
+
+	// Obtenemos el modelo del jugador.
+	const char *pPlayerModel = GetConVar("cl_playermodel");
+
+	// Este modelo no es válido, seleccionamos un modelo válido al azar.
+	if ( !IsModelValid(pPlayerModel) )
+		pPlayerModel = GetRandomModel();
+
+	// Establecemos el modelo del jugador.
+	SetModel(pPlayerModel);
+
+	// Removemos nuestro último cadaver.
+	if ( m_hRagdoll )
+	{
+		UTIL_RemoveImmediate(m_hRagdoll);
+		m_hRagdoll = NULL;
+	}
+
+	// 
+	if ( !IsObserver() )
+	{
+		// Reiniciamos todo y volvamos a la vida.
+		pl.deadflag = false;
+		RemoveSolidFlags(FSOLID_NOT_SOLID);
+		RemoveEffects(EF_NODRAW);
+		StopObserverMode();
+	}
+
+	RemoveEffects(EF_NOINTERP);
+	m_nRenderFX			= kRenderNormal;
+	m_Local.m_iHideHUD	= 0;
+
+	// Estamos en el suelo y ya no estamos congelados.
+	AddFlag(FL_ONGROUND);
+	RemoveFlag(FL_FROZEN);
+
+	m_Local.m_bDucked = false;
+	SetPlayerUnderwater(false);
+
+	// SPAWN!
+	DoAnimationEvent(PLAYERANIMEVENT_SPAWN);
+
+	// Reseteamos los recursos.
+	if ( InGameRules()->IsSurvival() )
+	{
+		m_bBloodWound			= false;
+		m_HL2Local.m_iBlood		= m_iBlood = sv_in_blood.GetFloat();
+		m_HL2Local.m_iHunger	= m_iHunger = sv_in_hunger.GetFloat();
+		m_HL2Local.m_iThirst	= m_iThirst = sv_in_thirst.GetFloat();
+	}
 }
 
 //=========================================================
@@ -519,9 +552,9 @@ void CIN_Player::PostConstructor(const char *szClassname)
 //=========================================================
 CBaseEntity* CIN_Player::EntSelectSpawnPoint()
 {
-	// El siguiente código solo es válido en Survival, si estamos en Singleplayer
+	// El siguiente código solo es válido en Multiplayer, si estamos en Singleplayer
 	// usar el código original.
-	if ( !InGameRules()->IsSurvival() )
+	if ( !InGameRules()->IsMultiplayer() )
 		return BaseClass::EntSelectSpawnPoint();
 
 	CBaseEntity *pSpot				= NULL;
@@ -577,19 +610,17 @@ CBaseEntity* CIN_Player::EntSelectSpawnPoint()
 	}
 
 ReturnSpot:
-
 	m_LastSpawn = pSpot;
 	return pSpot;
 }
 
 //=========================================================
-// Evento: ¡Nos han matado1
+// Evento: ¡Nos han matado!
 //=========================================================
 void CIN_Player::Event_Killed(const CTakeDamageInfo &info)
 {
 	CTakeDamageInfo subinfo = info;
 	subinfo.SetDamageForce(m_vecTotalBulletForce);
-
 
 	// En Multiplayer
 	/*if ( InGameRules()->IsMultiplayer() )
@@ -654,14 +685,6 @@ void CIN_Player::Event_Dying()
 }
 
 //=========================================================
-// Compensación de Lagg
-//=========================================================
-bool CIN_Player::WantsLagCompensationOnEntity(const CBaseEntity *pEntity, const CUserCmd *pCmd, const CBitVec<MAX_EDICTS> *pEntityTransmitBits) const
-{
-	return BaseClass::WantsLagCompensationOnEntity(pEntity, pCmd, pEntityTransmitBits);
-}
-
-//=========================================================
 // Pensamiento: Bucle de ejecución de tareas.
 //=========================================================
 void CIN_Player::PreThink()
@@ -679,9 +702,7 @@ void CIN_Player::PreThink()
 
 	SetLocalAngles(vOldAngles);
 	HandleSpeedChanges();
-
-	// @DEBUG: Muestra el número de entidades en el HUD.
-	m_HL2Local.m_iEntities = engine->GetEntityCount();
+	SetMaxSpeed(CalculateSpeed());
 
 #ifdef APOCALYPSE
 	// Hemos sufrido un ataque de Grunt, tenemos un arma y la misma esta invisible.
@@ -1002,11 +1023,10 @@ void CIN_Player::ThirstThink()
 	m_HL2Local.m_iThirst = m_iThirst; // Lo enviamos al cliente.
 }
 
-//=========================================================
-//=========================================================
-// FUNCIONES RELACIONADAS AL MOVIMIENTO
-//=========================================================
-//=========================================================
+void CIN_Player::OnSquadMemberKilled(inputdata_t &data)
+{
+	return;
+}
 
 //=========================================================
 // Controla los cambios de velocidad.
@@ -1064,7 +1084,6 @@ void CIN_Player::HandleSpeedChanges()
 void CIN_Player::StartSprinting()
 {
 	BaseClass::StartSprinting();
-	SetMaxSpeed(CalculateSpeed());
 }
 
 //=========================================================
@@ -1089,7 +1108,6 @@ void CIN_Player::StopSprinting()
 //=========================================================
 void CIN_Player::StartWalking()
 {
-	SetMaxSpeed(CalculateSpeed());
 	BaseClass::StartWalking();
 }
 
@@ -1098,16 +1116,11 @@ void CIN_Player::StartWalking()
 //=========================================================
 void CIN_Player::StopWalking()
 {
-	SetMaxSpeed(CalculateSpeed());
 	BaseClass::StopWalking();
 }
 
 //=========================================================
 //=========================================================
-// FUNCIONES RELACIONADAS A LAS ARMAS
-//=========================================================
-//=========================================================
-
 int CIN_Player::Accuracy()
 {
 	CBaseViewModel *pVm		= GetViewModel();
@@ -1150,37 +1163,25 @@ void CIN_Player::FlashlightTurnOn()
 //=========================================================
 // Verifica si es posible cambiar a determinada arma.
 //=========================================================
-bool CIN_Player::Weapon_CanSwitchTo(CBaseCombatWeapon *pWeapon)
+bool CIN_Player::Weapon_Switch(CBaseCombatWeapon *pWeapon, int viewmodelindex)
 {
-	// Cuando el arma cambia también hay que actualizar la velocidad del jugador con el peso de la misma.
-	// Puedes cambiar el peso en los scripts de las armas, variable: "slow_speed"
-	// @TODO: Cambiar a un lugar más apropiado
+	MDLCACHE_CRITICAL_SECTION();
 
-	if ( IsSprinting() )
-		SetMaxSpeed(CalculateSpeed(pWeapon));
-
-	// Debido a que StartWalking() jamas es llamado (ver la función HandleSpeedChanges())
-	// una solución temporal es verificar que no estemos corriendo...
-	if ( !IsSprinting() )
-		SetMaxSpeed(CalculateSpeed(pWeapon));
-
-	bool Result = BaseClass::Weapon_CanSwitchTo(pWeapon);
-
-	if ( Result )
+	if ( pWeapon->GetWpnData().m_expOffset.x == 0 && pWeapon->GetWpnData().m_expOffset.y == 0 )
+		ExecCommand("crosshair 1");
+	else
 	{
-		if ( pWeapon->GetWpnData().m_expOffset.x == 0 && pWeapon->GetWpnData().m_expOffset.y == 0 )
-			ExecCommand("crosshair 1");
-		else
-		{
-			// @TODO: Hacer funcionar
-			CBaseViewModel *pVm = GetViewModel();
+		// @TODO: Hacer funcionar
+		CBaseViewModel *pVm = GetViewModel();
 
-			if ( pVm->m_bExpSighted )
-				ExecCommand("crosshair 0");
-		}
+		if ( pVm->m_bExpSighted )
+			ExecCommand("crosshair 0");
 	}
 
-	return Result;
+	// Recalculate proficiency!
+	SetCurrentWeaponProficiency(CalcWeaponProficiency(pWeapon));
+
+	return CBasePlayer::Weapon_Switch(pWeapon, viewmodelindex);
 }
 
 //=========================================================
@@ -1192,10 +1193,82 @@ void CIN_Player::FireBullets(const FireBulletsInfo_t &info)
 }
 
 //=========================================================
+// Reproduce el sonido de dolor.
 //=========================================================
-// FUNCIONES RELACIONADAS AL DAÑO/SALUD
-//=========================================================
-//=========================================================
+void CIN_Player::PainSound()
+{
+	// Aún no toca quejarse.
+	if ( !m_fNextPainTimer.IsElapsed() )
+		return;
+
+	PlayerType pType = GetType();
+
+	switch ( pType )
+	{
+		case PLAYER_HUMAN_FEMALE:
+			EmitSound("Player.Pain.Female");
+		break;
+
+		case PLAYER_HUMAN_MALE:
+			EmitSound("Player.Pain.Male");
+		break;
+
+		case PLAYER_ADAN:
+			EmitSound("NPC_Adan.Pain");
+		break;
+
+		case PLAYER_ALYX:
+			EmitSound("NPC_Alyx.Pain");
+		break;
+
+		case PLAYER_BREEN:
+			EmitSound("NPC_Breen.Pain");
+		break;
+
+		case PLAYER_BURNED:
+			EmitSound("NPC_Burned.Pain");
+		break;
+
+		case PLAYER_ELI:
+			EmitSound("NPC_Eli.Pain");
+		break;
+
+		case PLAYER_KLEINER:
+			EmitSound("NPC_Kleiner.Pain");
+		break;
+
+		case PLAYER_MAGNUSSON:
+			EmitSound("NPC_Magnusson.Pain");
+		break;
+
+		case PLAYER_MONK:
+			EmitSound("NPC_Monk.Pain");
+		break;
+
+		case PLAYER_MOSSMAN:
+			EmitSound("NPC_Mossman.Pain");
+		break;
+
+		case PLAYER_ODESSA:
+			EmitSound("NPC_Odessa.Pain");
+		break;
+
+		case PLAYER_POLICE:
+			EmitSound("NPC_Police.Pain");
+		break;
+
+		case PLAYER_SOLDIER:
+			EmitSound("NPC_Soldier.Pain");
+		break;
+
+		default:
+			EmitSound("Player.Pain.Male");
+			Warning("[PLAYER] Se intento ejecutar un sonido de dolor de un tipo de jugador no valido. \r\n");
+		break;
+	}
+
+	m_fNextPainTimer.Start(RandomInt(1, 3));
+}
 
 //=========================================================
 // Regeneración de salud.
@@ -1207,35 +1280,35 @@ void CIN_Player::HealthRegeneration()
 		return;
 	
 	// Aún no toca regenerar.
-	if ( gpGlobals->curtime <= m_fNextHealthRegeneration )
+	if ( !m_HealthRegenTimer.IsElapsed() )
 		return;
 
-	int RegenerationHealth = in_regeneration_rate.GetInt();
-	float RegenerationWait = in_regeneration_wait_time.GetFloat();
+	int RegenerationRate	= in_regeneration_rate.GetInt();
+	float RegenerationWait	= in_regeneration_wait.GetFloat();
 
 	// Dependiendo del nivel de dificultad daremos una cantidad de salud.
 	switch ( InGameRules()->GetSkillLevel() )
 	{
 		// Normal
 		case SKILL_MEDIUM:
-			RegenerationHealth	= RegenerationHealth - HEALTH_REGENERATION_MEDIUM_WAITTIME;
-			RegenerationWait	= RegenerationWait - HEALTH_REGENERATION_MEDIUM_RATE;
+			RegenerationRate	= RegenerationRate - HEALTH_REGENERATION_MEDIUM_RATE;
+			RegenerationWait	= RegenerationWait + HEALTH_REGENERATION_MEDIUM_WAITTIME;
 		break;
 
 		// Dificil
 		case SKILL_HARD:
-			RegenerationHealth	= RegenerationHealth - HEALTH_REGENERATION_HARD_WAITTIME;
-			RegenerationWait	= RegenerationWait - HEALTH_REGENERATION_HARD_RATE;
+			RegenerationRate	= RegenerationRate - HEALTH_REGENERATION_HARD_RATE;
+			RegenerationWait	= RegenerationWait + HEALTH_REGENERATION_HARD_WAITTIME;
 		break;
 	}
 
 	// ¿Quieres quitarle vida o que?
 	// @TODO: Esto sería una buena característica... quizá en un futuro, por ahora NO.
-	if ( RegenerationHealth < 1 )
-		RegenerationHealth = in_regeneration_rate.GetInt();
+	if ( RegenerationRate < 1 )
+		RegenerationRate = in_regeneration_rate.GetInt();
 
-	TakeHealth(RegenerationHealth, DMG_GENERIC);
-	m_fNextHealthRegeneration = gpGlobals->curtime + RegenerationWait;
+	TakeHealth(RegenerationRate, DMG_GENERIC);
+	m_HealthRegenTimer.Start(RegenerationWait);
 }
 
 //=========================================================
@@ -1298,15 +1371,12 @@ int CIN_Player::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 	}
 
 	// Ouch!
-	if ( gpGlobals->curtime >= m_fNextPainSound && info.GetDamageType() != DMG_BLOODLOST )
-	{
-		if ( Gender() == PLAYER_FEMALE )
-			EmitSound("Player.Pain.Female");
-		else
-			EmitSound("Player.Pain.Male");
+	if ( info.GetDamageType() != DMG_BLOODLOST )
+		PainSound();
 
-		m_fNextPainSound = gpGlobals->curtime + random->RandomFloat(0.5, 3.0);
-	}
+	// Te ataco un zombi, se más lento.
+	if ( info.GetInflictor()->Classify() == CLASS_ZOMBIE )
+		m_SlowMov.Start(in_attack_slowduration.GetInt());
 
 	// Solo en Survival.
 	if ( InGameRules()->IsSurvival() )
@@ -1332,7 +1402,6 @@ int CIN_Player::OnTakeDamage(const CTakeDamageInfo &inputInfo)
 	color32 white = {255, 255, 255, 64};
 	UTIL_ScreenFade(this, white, 0.2, 0, FFADE_IN);
 
-	SetMaxSpeed(CalculateSpeed());
 	return fTookDamage;
 }
 
@@ -1414,28 +1483,6 @@ int CIN_Player::TakeThirst(float flThirst)
 }
 
 //=========================================================
-//=========================================================
-// FUNCIONES RELACIONADAS A LAS ANIMACIONES Y MODELO
-//=========================================================
-//=========================================================
-
-int CIN_Player::Restore( IRestore &restore )
-{
-	int status = BaseClass::Restore(restore);
-
-	if ( GetFlags() & FL_DUCKING ) 
-	{
-		UTIL_SetSize(this, InGameRules()->GetViewVectors()->m_vDuckHullMin, InGameRules()->GetViewVectors()->m_vDuckHullMax);
-	}
-	else
-	{
-		UTIL_SetSize(this, InGameRules()->GetViewVectors()->m_vHullMin, InGameRules()->GetViewVectors()->m_vHullMax);
-	}
-
-	return status;
-}
-
-//=========================================================
 // Realiza un evento de animación.
 //=========================================================
 void CIN_Player::DoAnimationEvent(PlayerAnimEvent_t event, int nData)
@@ -1493,17 +1540,16 @@ void CIN_Player::CreateRagdollEntity(const CTakeDamageInfo &info)
 	}
 
 	// Obtenemos el cadaver.
-	CINRagdoll *pRagdoll = dynamic_cast<CINRagdoll*>(m_hRagdoll.Get());
+	//CINRagdoll *pRagdoll = dynamic_cast<CINRagdoll*>(m_hRagdoll.Get());
 
 	// Al parecer no hay ninguno, crearlo.
-	if ( !pRagdoll )
-		pRagdoll = dynamic_cast<CINRagdoll*>(CreateEntityByName("in_ragdoll"));
+	//if ( !pRagdoll )
+		CINRagdoll *pRagdoll = dynamic_cast<CINRagdoll*>(CreateEntityByName("in_ragdoll"));
 
 	// Se ha creado el cadaver.
 	if ( pRagdoll )
 	{
 		// Heredamos toda la información posible.
-
 		pRagdoll->m_hPlayer				= this;
 		pRagdoll->m_vecRagdollOrigin		= GetAbsOrigin();
 		pRagdoll->m_vecRagdollVelocity	= GetAbsVelocity();
@@ -1512,39 +1558,9 @@ void CIN_Player::CreateRagdollEntity(const CTakeDamageInfo &info)
 
 		pRagdoll->m_vecForce				= m_vecTotalBulletForce;
 		pRagdoll->SetAbsOrigin( GetAbsOrigin() );
-
-		/*pRagdoll->CopyAnimationDataFrom(this);
-		pRagdoll->SetOwnerEntity(this);
-
-		pRagdoll->m_flAnimTime		= gpGlobals->curtime;
-		pRagdoll->m_flPlaybackRate	= 0.0;
-		pRagdoll->SetCycle(0);
-		pRagdoll->ResetSequence(0);
-
-		float fSequenceDuration = SequenceDuration( GetSequence() );
-		float fPreviousCycle	= clamp(GetCycle()-( 0.1 * ( 1 / fSequenceDuration ) ),0.f,1.f);
-		float fCurCycle			= GetCycle();
-
-		matrix3x4_t pBoneToWorld[MAXSTUDIOBONES], pBoneToWorldNext[MAXSTUDIOBONES];
-		SetupBones(pBoneToWorldNext, BONE_USED_BY_ANYTHING);
-		SetCycle(fPreviousCycle);
-		SetupBones(pBoneToWorld, BONE_USED_BY_ANYTHING);
-		SetCycle(fCurCycle);
-
-		pRagdoll->SetMoveType(MOVETYPE_VPHYSICS);
-		pRagdoll->SetSolid(SOLID_VPHYSICS);
-
-		if ( IsDissolving() )
-			pRagdoll->TransferDissolveFrom(this);
-
-		Vector mins, maxs;
-		mins = CollisionProp()->OBBMins();
-		maxs = CollisionProp()->OBBMaxs();
-		pRagdoll->CollisionProp()->SetCollisionBounds( mins, maxs );
-		pRagdoll->SetCollisionGroup(COLLISION_GROUP_INTERACTIVE_DEBRIS);*/
 	}
 
-	m_hRagdoll	= pRagdoll;
+	m_hRagdoll = pRagdoll;
 }
 
 //=========================================================
@@ -1622,7 +1638,15 @@ void CIN_Player::SetupBones(matrix3x4_t *pBoneToWorld, int boneMask)
 //=========================================================
 bool CIN_Player::IsModelValid(const char *pModel)
 {
-	return m_pPlayerModels.HasElement(pModel);
+	// Verificamos modelo por modelo de la lista.
+	// @TODO: ¿Algo mejor?
+	for ( int i = 0; i < m_pPlayerModels.Count(); ++i )
+	{
+		if ( pModel == m_pPlayerModels[i] )
+			return true;
+	}
+
+	return false;
 }
 
 //=========================================================
@@ -1682,10 +1706,6 @@ void CIN_Player::ModifyOrAppendCriteria(AI_CriteriaSet& criteriaSet)
 
 //=========================================================
 //=========================================================
-// FUNCIONES RELACIONADAS A LA VOZ
-//=========================================================
-//=========================================================
-
 bool CIN_Player::SpeakIfAllowed(AIConcept_t concept, const char *modifiers, char *pszOutResponseChosen, size_t bufsize, IRecipientFilter *filter)
 {
 	if ( !IsAlive() )
@@ -1695,6 +1715,10 @@ bool CIN_Player::SpeakIfAllowed(AIConcept_t concept, const char *modifiers, char
 	//return Speak(concept, modifiers, pszOutResponseChosen, bufsize, filter);
 }
 
+//=========================================================
+// Devuelve si puede ver un mensaje de chat proviniente
+// de un jugador.
+//=========================================================
 bool CIN_Player::CanHearAndReadChatFrom(CBasePlayer *pPlayer)
 {
 	// can always hear the console unless we're ignoring all chat
@@ -1713,31 +1737,54 @@ bool CIN_Player::CanHearAndReadChatFrom(CBasePlayer *pPlayer)
 }
 
 //=========================================================
+// Devuelve el tipo del Jugador dependiendo de su modelo.
+// Necesario para decidir el tipo de voz.
 //=========================================================
-// FUNCIONES DE UTILIDAD
-//=========================================================
-//=========================================================
-
-//=========================================================
-// Devuelve si el jugador es hombre
-// o mujer. (Util para las voces de dolor)
-//=========================================================
-PlayerGender CIN_Player::Gender()
+PlayerType CIN_Player::GetType()
 {
-	// En modo Historia jugamos como Abigaíl (Mujer)
-	if ( !InGameRules()->IsMultiplayer() )
-		return PLAYER_FEMALE;
-
 	// Obtenemos el modelo del jugador.
 	const char *pPlayerModel = GetConVar("cl_playermodel");
 
-	if ( pPlayerModel == "" || pPlayerModel == NULL )
-		return PLAYER_FEMALE;
+	// En modo historia tenemos otro comando.
+	if ( !InGameRules()->IsMultiplayer() )
+		pPlayerModel = GetConVar("cl_sp_playermodel");	
 
 	if ( Q_stristr(pPlayerModel, "female") || Q_stristr(pPlayerModel, "abigail") )
-		return PLAYER_FEMALE;
+		return PLAYER_HUMAN_FEMALE;
 
-	return PLAYER_MALE;
+	if ( Q_stristr(pPlayerModel, "barney") || Q_stristr(pPlayerModel, "adan") )
+		return PLAYER_ADAN;
+
+	if ( Q_stristr(pPlayerModel, "alyx") )
+		return PLAYER_ALYX;
+
+	if ( Q_stristr(pPlayerModel, "breen") )
+		return PLAYER_BREEN;
+
+	if ( Q_stristr(pPlayerModel, "eli") )
+		return PLAYER_ELI;
+
+	if ( Q_stristr(pPlayerModel, "kleiner") )
+		return PLAYER_KLEINER;
+
+	if ( Q_stristr(pPlayerModel, "magnusson") )
+		return PLAYER_MAGNUSSON;
+
+	if ( Q_stristr(pPlayerModel, "monk") )
+		return PLAYER_MONK;
+
+	if ( Q_stristr(pPlayerModel, "mossman") )
+		return PLAYER_MOSSMAN;
+
+	if ( Q_stristr(pPlayerModel, "police") )
+		return PLAYER_POLICE;
+
+	if ( Q_stristr(pPlayerModel, "soldier") )
+		return PLAYER_SOLDIER;
+
+
+	// Si no: Hombre
+	return PLAYER_HUMAN_MALE;
 }
 
 //=========================================================
@@ -1854,12 +1901,6 @@ void CIN_Player::CheatImpulseCommands(int iImpulse)
 			BaseClass::CheatImpulseCommands(iImpulse);
 	}
 }
-
-//=========================================================
-//=========================================================
-// FUNCIONES A STEAM
-//=========================================================
-//=========================================================
 
 #ifndef NO_STEAM
 
